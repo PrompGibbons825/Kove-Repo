@@ -4,7 +4,19 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, fullName, orgName, vertical } = await request.json();
+    let email: string, password: string, fullName: string, orgName: string, vertical: string | undefined;
+
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+      const fd = await request.formData();
+      email = fd.get("email") as string;
+      password = fd.get("password") as string;
+      fullName = fd.get("fullName") as string;
+      orgName = fd.get("orgName") as string;
+      vertical = (fd.get("vertical") as string) || undefined;
+    } else {
+      ({ email, password, fullName, orgName, vertical } = await request.json());
+    }
 
     if (!email || !password || !fullName || !orgName) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });
