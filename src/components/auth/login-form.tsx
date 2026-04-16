@@ -38,7 +38,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} action="/api/auth/login" method="POST" className="space-y-4">
       {error && (
         <div className="rounded-md border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5 px-4 py-3 text-sm text-[var(--color-danger)]">
           {error}
@@ -50,6 +50,7 @@ export function LoginForm() {
         </label>
         <input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -64,6 +65,7 @@ export function LoginForm() {
         </label>
         <input
           id="password"
+          name="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

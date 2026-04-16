@@ -42,7 +42,7 @@ export function SignupForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} action="/api/auth/signup" method="POST" className="space-y-4">
       {error && (
         <div className="rounded-md border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/5 px-4 py-3 text-sm text-[var(--color-danger)]">
           {error}
@@ -54,6 +54,7 @@ export function SignupForm() {
         </label>
         <input
           id="fullName"
+          name="fullName"
           type="text"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
@@ -68,6 +69,7 @@ export function SignupForm() {
         </label>
         <input
           id="orgName"
+          name="orgName"
           type="text"
           value={orgName}
           onChange={(e) => setOrgName(e.target.value)}
@@ -82,6 +84,7 @@ export function SignupForm() {
         </label>
         <select
           id="vertical"
+          name="vertical"
           value={vertical}
           onChange={(e) => setVertical(e.target.value)}
           className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
@@ -101,6 +104,7 @@ export function SignupForm() {
         </label>
         <input
           id="signupEmail"
+          name="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -115,6 +119,7 @@ export function SignupForm() {
         </label>
         <input
           id="signupPassword"
+          name="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
