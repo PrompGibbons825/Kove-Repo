@@ -20,51 +20,41 @@ export function SignupForm() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
+    try {
+      // 1. Create org + user via server-side API (uses service role to bypass RLS)
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, fullName, orgName, vertical }),
+      });
 
-    // 1. Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+      const data = await res.json();
 
-    if (authError || !authData.user) {
-      setError(authError?.message ?? "Signup failed");
+      if (!res.ok) {
+        setError(data.error ?? "Signup failed");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Sign in now that the user record exists
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+        return;
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
       setLoading(false);
-      return;
     }
-
-    // 2. Create organization
-    const { data: org, error: orgError } = await supabase
-      .from("organizations")
-      .insert({ name: orgName, vertical })
-      .select()
-      .single();
-
-    if (orgError || !org) {
-      setError(orgError?.message ?? "Failed to create organization");
-      setLoading(false);
-      return;
-    }
-
-    // 3. Create user record (owner)
-    const { error: userError } = await supabase.from("users").insert({
-      id: authData.user.id,
-      org_id: org.id,
-      email,
-      full_name: fullName,
-      is_owner: true,
-      tag_ids: [],
-    });
-
-    if (userError) {
-      setError(userError.message);
-      setLoading(false);
-      return;
-    }
-
-    router.push("/");
-    router.refresh();
   }
 
   return (
@@ -84,7 +74,7 @@ export function SignupForm() {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           required
-          placeholder="Jeffrey Yu"
+          placeholder="First Name Last Name"
           className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
         />
       </div>
