@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export function SignupForm() {
   const [email, setEmail] = useState("");
@@ -13,7 +11,6 @@ export function SignupForm() {
   const [vertical, setVertical] = useState("solar");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,21 +33,8 @@ export function SignupForm() {
         return;
       }
 
-      // 2. Sign in now that the user record exists
-      const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
-        return;
-      }
-
-      router.push("/");
-      router.refresh();
+      // Session cookie set server-side — hard redirect so middleware sees it
+      window.location.href = "/";
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);

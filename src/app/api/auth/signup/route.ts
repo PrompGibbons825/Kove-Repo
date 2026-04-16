@@ -62,6 +62,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: userError.message }, { status: 500 });
     }
 
+    // Sign the user in server-side so the session cookie is properly set
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      return NextResponse.json({ error: signInError.message }, { status: 400 });
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Signup error:", err);
