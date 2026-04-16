@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
+import type { ReactElement } from "react";
 import type { User, Organization } from "@/lib/types/database";
 import { hasPermission } from "@/lib/permissions";
 
@@ -21,7 +22,7 @@ const NAV_ITEMS = [
   { href: "/workflows", label: "Workflows", icon: "zap", permission: "create_workflows" as const },
 ];
 
-const ICONS: Record<string, JSX.Element> = {
+const ICONS: Record<string, ReactElement> = {
   home: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />

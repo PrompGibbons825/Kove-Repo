@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       .from("users")
       .select("*")
       .eq("id", authUser.id)
-      .single();
+      .single() as { data: User | null; error: unknown };
 
     if (!koveUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       .from("organizations")
       .select("*")
       .eq("id", koveUser.org_id)
-      .single();
+      .single() as { data: Organization | null; error: unknown };
 
     if (!org) {
       return NextResponse.json({ error: "Org not found" }, { status: 404 });
