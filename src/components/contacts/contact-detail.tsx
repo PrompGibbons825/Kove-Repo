@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Contact, Activity, ContactStatus } from "@/lib/types/database";
 import { useContactPanel, type ContactViewMode } from "./contact-panel-context";
+import { ContactForm } from "./contact-form";
 
 const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -25,6 +26,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const resizingRef = useRef(false);
   const [orgMembers, setOrgMembers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
@@ -134,11 +136,27 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <EditBtn onClick={() => setShowEditForm(true)} />
+            <Sep />
             <ViewModeButtons viewMode={viewMode} onSet={setViewMode} />
             <Sep />
             <CloseBtn onClick={handleClose} />
           </div>
         </div>
+
+        {showEditForm && (
+          <ContactForm
+            contact={contact}
+            onClose={() => setShowEditForm(false)}
+            onSaved={() => {
+              setShowEditForm(false);
+              // Refresh the contact data
+              fetch(`/api/contacts/${contact.id}`).then(r => r.json()).then(data => {
+                if (data.contact) updateContact(data.contact);
+              }).catch(() => {});
+            }}
+          />
+        )}
 
         {/* 2-column */}
         <div className="flex-1 flex overflow-hidden">
@@ -225,10 +243,24 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <EditBtn onClick={() => setShowEditForm(true)} size={14} />
           <ViewModeButtons viewMode={viewMode} onSet={setViewMode} />
           <CloseBtn onClick={handleClose} size={14} />
         </div>
       </div>
+
+      {showEditForm && (
+        <ContactForm
+          contact={contact}
+          onClose={() => setShowEditForm(false)}
+          onSaved={() => {
+            setShowEditForm(false);
+            fetch(`/api/contacts/${contact.id}`).then(r => r.json()).then(data => {
+              if (data.contact) updateContact(data.contact);
+            }).catch(() => {});
+          }}
+        />
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto" style={{ padding: "16px 20px" }}>
@@ -392,6 +424,16 @@ function CloseBtn({ onClick, size = 16 }: { onClick: () => void; size?: number }
     <button onClick={onClick} className="flex items-center justify-center rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer" style={{ width: 28, height: 28 }}>
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+      </svg>
+    </button>
+  );
+}
+
+function EditBtn({ onClick, size = 16 }: { onClick: () => void; size?: number }) {
+  return (
+    <button onClick={onClick} title="Edit contact" className="flex items-center justify-center rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer" style={{ width: 28, height: 28 }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" />
       </svg>
     </button>
   );
