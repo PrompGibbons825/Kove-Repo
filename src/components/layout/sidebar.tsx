@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { href: "/workflows", label: "Workflows", icon: "zap", permission: "create_workflows" as const },
 ];
 
-function Icon({ name, size = 24 }: { name: string; size?: number }) {
+function Icon({ name, size = 28 }: { name: string; size?: number }) {
   const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const icons: Record<string, ReactElement> = {
     home: <svg {...props}><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
@@ -72,7 +72,7 @@ export function Sidebar({ user, org }: SidebarProps) {
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-2 pt-6 pb-4">
+      <div className="flex items-center gap-3 pt-6 pb-4" style={{ paddingLeft: '14px' }}>
         <div className="flex h-10 w-10 min-w-[40px] min-h-[40px] shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
           <span className="text-[16px] font-bold text-white leading-none">K</span>
         </div>
@@ -86,7 +86,7 @@ export function Sidebar({ user, org }: SidebarProps) {
       <div className="mx-3 border-t border-[var(--color-sidebar-border)]" />
 
       {/* Navigation */}
-      <nav className="flex-1 pt-4 pb-3 space-y-1 px-2">
+      <nav className="flex-1 pt-4 pb-3 space-y-1 px-1.5">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -94,16 +94,17 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-              className={`group relative flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 ${
+              className={`group relative flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 ${
                 isActive
                   ? "bg-[var(--color-accent)]/15 text-[var(--color-sidebar-text-active)]"
                   : "text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)]"
               }`}
+              style={{ paddingLeft: '10px' }}
             >
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
               )}
-              <span className={`w-6 h-6 flex-shrink-0 transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
+              <span className={`w-[44px] h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 rounded-lg transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
                 <Icon name={item.icon} />
               </span>
               <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>
@@ -115,14 +116,15 @@ export function Sidebar({ user, org }: SidebarProps) {
       </nav>
 
       {/* Bottom section */}
-      <div className="border-t border-[var(--color-sidebar-border)] px-2 pt-3 pb-3 space-y-1">
+      <div className="border-t border-[var(--color-sidebar-border)] px-1.5 pt-3 pb-3 space-y-1">
         {(user.is_owner || hasPermission(user, "manage_users")) && (
           <Link
             href="/settings"
             title={!expanded ? "Settings" : undefined}
-            className="flex items-center gap-4 px-3 py-3 rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200"
+            className="flex items-center gap-3 py-2.5 rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200"
+            style={{ paddingLeft: '10px' }}
           >
-            <span className="w-6 h-6 flex-shrink-0"><Icon name="settings" /></span>
+            <span className="w-[44px] h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 rounded-lg"><Icon name="settings" /></span>
             <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>Settings</span>
           </Link>
         )}
@@ -130,18 +132,20 @@ export function Sidebar({ user, org }: SidebarProps) {
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title={!expanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
-          className="flex w-full items-center gap-4 px-3 py-3 rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200"
+          className="flex w-full items-center gap-3 py-2.5 rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200"
+          style={{ paddingLeft: '10px' }}
         >
-          <span className="w-6 h-6 flex-shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} /></span>
+          <span className="w-[44px] h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 rounded-lg"><Icon name={theme === "dark" ? "sun" : "moon"} /></span>
           <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
         </button>
 
         <button
           onClick={handleLogout}
           title={!expanded ? "Log Out" : undefined}
-          className="flex w-full items-center gap-4 px-3 py-3 rounded-xl text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
+          className="flex w-full items-center gap-3 py-2.5 rounded-xl text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
+          style={{ paddingLeft: '10px' }}
         >
-          <span className="w-6 h-6 flex-shrink-0"><Icon name="logout" /></span>
+          <span className="w-[44px] h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 rounded-lg"><Icon name="logout" /></span>
           <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>Log Out</span>
         </button>
 
