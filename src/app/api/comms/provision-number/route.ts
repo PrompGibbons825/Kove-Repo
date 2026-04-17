@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const connectionId = await ensureConnection();
 
     // Patch webhook URL onto the connection to make sure it's current
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kove-seven.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://trykove.app";
     await fetch(`https://api.telnyx.com/v2/credential_connections/${connectionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.TELNYX_API_KEY}` },

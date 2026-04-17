@@ -67,7 +67,7 @@ export async function ensureConnection(): Promise<string> {
   const existing = process.env.TELNYX_CONNECTION_ID;
   if (existing) return existing;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kove-seven.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://trykove.app";
   const res = await fetch(`${TELNYX_API}/credential_connections`, {
     method: "POST",
     headers: headers(),
