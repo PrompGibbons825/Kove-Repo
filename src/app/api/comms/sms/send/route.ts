@@ -30,6 +30,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    console.log("[sms/send] from:", org.telnyx_phone, "to:", to, "profile:", org.telnyx_messaging_profile_id);
     await sendSMS(org.telnyx_phone, to, message.trim(), org.telnyx_messaging_profile_id ?? undefined);
 
     // Log the activity

@@ -148,7 +148,7 @@ export function useLiveTranscript({ remoteStream, active, onTranscriptUpdate }: 
   // Auto-start/stop based on active flag
   useEffect(() => {
     if (active && !listening) {
-      start();
+      start().catch((err) => console.warn("[transcript] start failed:", err));
     } else if (!active && listening) {
       stop();
     }

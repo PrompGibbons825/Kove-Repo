@@ -34,49 +34,62 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 
   // ── Call state ──
   const [callSummaryLoading, setCallSummaryLoading] = useState(false);
+  const transcriptRef = useRef<{ getFullTranscript: () => string; reset: () => void } | null>(null);
 
   const { callState, muted, duration, remoteStream, startCall, endCall, toggleMute } = useCall({
     onCallStarted: () => {},
     onCallEnded: async (info) => {
-      const transcript = transcriptHook.getFullTranscript();
-      if (transcript && contact) {
-        setCallSummaryLoading(true);
-        try {
-          const res = await fetch("/api/ai/call-summary", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contactId: contact.id,
-              transcript,
-              duration: info.duration,
-              direction: "outbound",
-            }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.summary?.contact_summary_update) {
-              updateContact({ ai_summary: data.summary.contact_summary_update });
+      try {
+        const transcript = transcriptRef.current?.getFullTranscript?.() ?? "";
+        if (transcript && contact) {
+          setCallSummaryLoading(true);
+          try {
+            const res = await fetch("/api/ai/call-summary", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contactId: contact.id,
+                transcript,
+                duration: info.duration,
+                direction: "outbound",
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.summary?.contact_summary_update) {
+                updateContact({ ai_summary: data.summary.contact_summary_update });
+              }
+              if (data.summary?.suggested_next_status) {
+                updateContact({ status: data.summary.suggested_next_status });
+                setStatus(data.summary.suggested_next_status);
+              }
+              // Refresh activities
+              fetch(`/api/activities?contact_id=${contact.id}`)
+                .then((r) => r.json())
+                .then((d) => setActivities(Array.isArray(d) ? d : (d.activities ?? [])))
+                .catch(() => {});
             }
-            if (data.summary?.suggested_next_status) {
-              updateContact({ status: data.summary.suggested_next_status });
-              setStatus(data.summary.suggested_next_status);
-            }
-            // Refresh activities
-            fetch(`/api/activities?contact_id=${contact.id}`)
-              .then((r) => r.json())
-              .then((d) => setActivities(Array.isArray(d) ? d : (d.activities ?? [])))
-              .catch(() => {});
+          } catch (err) {
+            console.error("[call-summary] failed:", err);
           }
-        } catch {}
+          setCallSummaryLoading(false);
+        }
+        transcriptRef.current?.reset?.();
+      } catch (err) {
+        console.error("[onCallEnded] error:", err);
         setCallSummaryLoading(false);
       }
-      transcriptHook.reset();
     },
   });
 
   const transcriptHook = useLiveTranscript({
     remoteStream,
     active: callState === "active",
+  });
+
+  // Keep ref in sync so onCallEnded can access transcript without TDZ issues
+  useEffect(() => {
+    transcriptRef.current = transcriptHook;
   });
 
   const handleStartCall = useCallback(() => {
