@@ -62,26 +62,45 @@ export async function POST(request: Request) {
 
     // Try vector search to find the most relevant subset — falls back to recency order
     let relevantContacts: string[] = [];
+    let relevantActivities: string[] = [];
     const workflowMap = Object.fromEntries((workflows ?? []).map((w: { id: string; name: string }) => [w.id, w.name]));
     try {
       const queryEmbedding = await generateEmbedding(message);
-      const { data: matchedContacts } = await supabase.rpc("match_contacts", {
-        query_embedding: queryEmbedding,
-        match_threshold: 0.3,
-        match_count: 10,
-        filter_org_id: koveUser.org_id,
-      });
-      if (matchedContacts && matchedContacts.length > 0) {
-        relevantContacts = matchedContacts.map(
+
+      // Parallel vector search: contacts + activities
+      const [matchedContacts, matchedActivities] = await Promise.all([
+        supabase.rpc("match_contacts", {
+          query_embedding: queryEmbedding,
+          match_threshold: 0.3,
+          match_count: 10,
+          filter_org_id: koveUser.org_id,
+        }),
+        supabase.rpc("match_activities", {
+          query_embedding: queryEmbedding,
+          match_threshold: 0.5,
+          match_count: 8,
+          filter_org_id: koveUser.org_id,
+        }),
+      ]);
+
+      if (matchedContacts.data && matchedContacts.data.length > 0) {
+        relevantContacts = matchedContacts.data.map(
           (c: { name: string; status: string; ai_summary: string | null; embedding_text: string | null; similarity: number }) =>
             `- ${c.name} (${c.status})${c.ai_summary ? `: ${c.ai_summary}` : c.embedding_text ? `: ${c.embedding_text}` : ""} [match: ${(c.similarity * 100).toFixed(0)}%]`
+        );
+      }
+
+      if (matchedActivities.data && matchedActivities.data.length > 0) {
+        relevantActivities = matchedActivities.data.map(
+          (a: { type: string; ai_summary: string | null; embedding_text: string | null; similarity: number }) =>
+            `- [${a.type}] ${a.ai_summary ?? a.embedding_text ?? "(no summary)"} [match: ${(a.similarity * 100).toFixed(0)}%]`
         );
       }
     } catch (embErr) {
       console.warn("Vector search skipped:", embErr);
     }
 
-    // If vector search returned nothing, use all contacts as context
+    // Fallback: if vector search returned no contacts, use recent contacts by recency
     if (relevantContacts.length === 0 && allContacts && allContacts.length > 0) {
       const workflowMap = Object.fromEntries((workflows ?? []).map((w) => [w.id, w.name]));
       relevantContacts = allContacts.map(
@@ -102,7 +121,7 @@ export async function POST(request: Request) {
       permissions,
       pageContext ?? { page: "unknown" },
       relevantContacts,
-      undefined,
+      relevantActivities,
       workflows ?? []
     );
 

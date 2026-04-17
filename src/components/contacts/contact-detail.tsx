@@ -38,7 +38,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
     setLoadingActivities(true);
     fetch(`/api/activities?contact_id=${contact.id}`)
       .then((r) => r.json())
-      .then((data) => setActivities(Array.isArray(data) ? data : []))
+      .then((data) => setActivities(Array.isArray(data) ? data : (data.activities ?? [])))
       .catch(() => {})
       .finally(() => setLoadingActivities(false));
   }, [contact?.id]);
@@ -84,7 +84,8 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
       });
       if (res.ok) {
         const created = await res.json();
-        setActivities((prev) => [created, ...prev]);
+        // API returns the activity directly (not wrapped)
+        setActivities((prev) => [created.activity ?? created, ...prev]);
         setNote("");
       }
     } catch {

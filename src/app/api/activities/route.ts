@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { generateEmbedding } from "@/lib/ai/embeddings";
 import type { User } from "@/lib/types/database";
 
 export async function GET(request: Request) {
@@ -41,5 +42,17 @@ export async function POST(request: Request) {
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ activity: data });
+
+  // Generate embedding asynchronously so it shows up in future vector searches
+  if (data) {
+    const embeddingText = [body.type, body.content].filter(Boolean).join(": ");
+    generateEmbedding(embeddingText)
+      .then(async (embedding) => {
+        const sb = await createClient();
+        await sb.from("activities").update({ embedding_text: embeddingText, embedding }).eq("id", data.id);
+      })
+      .catch((err) => console.error("Activity embedding failed:", err));
+  }
+
+  return NextResponse.json(data);
 }
