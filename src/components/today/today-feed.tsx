@@ -63,14 +63,35 @@ function LiquidOrb() {
       className="relative mx-auto cursor-pointer"
       style={{ width: 220, height: 220, perspective: 600 }}
     >
-      {/* Ambient glow */}
+      {/* Far ambient glow — bleeds into background */}
+      <div
+        className="absolute rounded-full transition-opacity duration-1000"
+        style={{
+          inset: "-80%",
+          filter: "blur(100px)",
+          opacity: mouse.active ? 0.5 : 0.3,
+          background: "radial-gradient(circle, rgba(139,92,246,0.5) 0%, rgba(99,102,241,0.25) 30%, rgba(34,211,238,0.12) 55%, transparent 75%)",
+        }}
+      />
+      {/* Mid glow ring */}
       <div
         className="absolute rounded-full transition-opacity duration-700"
         style={{
-          inset: "-30%",
-          filter: "blur(60px)",
-          opacity: mouse.active ? 0.6 : 0.35,
-          background: "radial-gradient(circle, rgba(168,130,255,0.6) 0%, rgba(120,200,255,0.3) 40%, transparent 70%)",
+          inset: "-45%",
+          filter: "blur(50px)",
+          opacity: mouse.active ? 0.65 : 0.4,
+          background: "radial-gradient(circle, rgba(168,130,255,0.6) 0%, rgba(192,132,252,0.3) 35%, rgba(120,200,255,0.15) 55%, transparent 70%)",
+        }}
+      />
+      {/* Close hot glow */}
+      <div
+        className="absolute rounded-full transition-opacity duration-500"
+        style={{
+          inset: "-15%",
+          filter: "blur(25px)",
+          opacity: mouse.active ? 0.7 : 0.45,
+          background: "radial-gradient(circle, rgba(232,121,249,0.4) 0%, rgba(139,92,246,0.25) 50%, transparent 75%)",
+          animation: "orbPulse 4s ease-in-out infinite",
         }}
       />
       {/* Orb body */}
@@ -80,6 +101,7 @@ function LiquidOrb() {
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
           transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
           animation: "orbFloat 6s ease-in-out infinite",
+          boxShadow: "0 0 60px 20px rgba(139,92,246,0.15), 0 0 120px 60px rgba(99,102,241,0.08)",
         }}
       >
         {/* Spinning gradient base */}
@@ -102,6 +124,27 @@ function LiquidOrb() {
             animation: "orbSpin 12s linear infinite reverse",
           }}
         />
+        {/* Noise texture overlay */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            backgroundSize: "128px 128px",
+            opacity: 0.12,
+            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
+            animation: "orbSpin 20s linear infinite reverse",
+          }}
+        />
+        {/* Caustic ripple layer */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: "5%",
+            background: "conic-gradient(from 90deg, transparent 0%, rgba(255,255,255,0.08) 10%, transparent 20%, rgba(255,255,255,0.05) 35%, transparent 45%, rgba(255,255,255,0.1) 55%, transparent 65%, rgba(255,255,255,0.06) 80%, transparent 90%)",
+            animation: "orbSpin 6s linear infinite",
+            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
+          }}
+        />
         {/* Specular highlight that follows mouse */}
         <div
           className="absolute rounded-full"
@@ -110,10 +153,24 @@ function LiquidOrb() {
             height: "35%",
             top: "10%",
             left: "18%",
-            background: "radial-gradient(ellipse, rgba(255,255,255,0.5) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.1) 40%, transparent 70%)",
             filter: "blur(8px)",
             transform: "translate(calc(var(--mx,0) * 12px), calc(var(--my,0) * 6px))",
             transition: "transform 0.3s ease-out",
+          }}
+        />
+        {/* Secondary specular (bottom) */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: "40%",
+            height: "20%",
+            bottom: "12%",
+            right: "15%",
+            background: "radial-gradient(ellipse, rgba(103,232,249,0.3) 0%, transparent 70%)",
+            filter: "blur(10px)",
+            transform: "translate(calc(var(--mx,0) * -8px), calc(var(--my,0) * -4px))",
+            transition: "transform 0.4s ease-out",
           }}
         />
         {/* Glass refraction */}
