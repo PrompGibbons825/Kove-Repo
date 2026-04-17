@@ -169,7 +169,14 @@ export async function generateWebRTCToken(credentialId: string) {
     { method: "POST", headers: headers() }
   );
   if (!tokenRes.ok) throw new Error(`Telnyx token generation failed: ${tokenRes.statusText}`);
-  return tokenRes.text(); // returns raw JWT string
+  const raw = await tokenRes.text();
+  // Telnyx may return a raw JWT or JSON-wrapped — handle both
+  try {
+    const parsed = JSON.parse(raw);
+    return (parsed.data ?? parsed.token ?? parsed) as string;
+  } catch {
+    return raw; // already a plain JWT string
+  }
 }
 
 /**
