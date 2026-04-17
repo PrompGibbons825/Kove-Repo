@@ -94,10 +94,21 @@ function LiquidOrb() {
           animation: "orbPulse 4s ease-in-out infinite",
         }}
       />
+      {/* SVG filter for organic edge distortion */}
+      <svg width="0" height="0" style={{ position: "absolute" }}>
+        <defs>
+          <filter id="orb-edge">
+            <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" seed="2" result="warp" />
+            <feDisplacementMap in="SourceGraphic" in2="warp" scale="14" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
       {/* Orb body */}
       <div
-        className="absolute inset-0 rounded-full overflow-hidden"
+        className="absolute rounded-full overflow-hidden"
         style={{
+          inset: "-6%",
+          filter: "url(#orb-edge)",
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
           transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
           animation: "orbFloat 6s ease-in-out infinite",
@@ -185,6 +196,15 @@ function LiquidOrb() {
             inset: "15%",
             background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 60%)",
             animation: "orbPulse 3s ease-in-out infinite",
+          }}
+        />
+        {/* Edge dissolution — fades orb boundary into wispy tendrils */}
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            inset: "-4%",
+            background: "radial-gradient(circle, transparent 42%, rgba(15,23,42,0.4) 58%, rgba(15,23,42,0.85) 72%, var(--color-sidebar-bg,#0f172a) 88%)",
+            mixBlendMode: "normal" as React.CSSProperties["mixBlendMode"],
           }}
         />
       </div>
