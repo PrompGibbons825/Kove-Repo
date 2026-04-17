@@ -10,6 +10,7 @@ interface ContactMessagingProps {
 export function ContactMessaging({ contact }: ContactMessagingProps) {
   const [messages, setMessages] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orgPhone, setOrgPhone] = useState<string | null | undefined>(undefined); // undefined = not loaded yet
   const [sendAs, setSendAs] = useState<"sms" | "email">("sms");
   const [draft, setDraft] = useState("");
   const [subject, setSubject] = useState("");
@@ -19,6 +20,14 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load org phone config
+  useEffect(() => {
+    fetch("/api/settings/org")
+      .then((r) => r.json())
+      .then((d) => setOrgPhone(d.telnyx_phone ?? null))
+      .catch(() => setOrgPhone(null));
+  }, []);
 
   // Load message activities
   useEffect(() => {
@@ -211,6 +220,13 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
           </button>
         </div>
 
+        {sendAs === "sms" && orgPhone === null && (
+          <div className="rounded-lg text-[12px]" style={{ padding: "8px 12px", marginBottom: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" }}>
+            No phone number configured for your organization. Go to{" "}
+            <a href="/settings" className="underline font-medium">Settings → Communications</a>{" "}
+            to set up a Telnyx number.
+          </div>
+        )}
         {sendAs === "sms" && !contact.phone && (
           <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 8 }}>No phone number on file</p>
         )}
@@ -294,7 +310,7 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
           />
           <button
             onClick={sendMessage}
-            disabled={!draft.trim() || sending || (sendAs === "sms" && !contact.phone) || (sendAs === "email" && !contact.email)}
+            disabled={!draft.trim() || sending || (sendAs === "sms" && (!contact.phone || orgPhone === null)) || (sendAs === "email" && !contact.email)}
             className="flex items-center justify-center rounded-lg bg-[var(--color-accent)] text-white disabled:opacity-30 hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer self-end"
             style={{ width: 34, height: 34 }}
           >
