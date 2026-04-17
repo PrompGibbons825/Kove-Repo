@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { generateEmbedding, buildContactEmbeddingText } from "@/lib/ai/embeddings";
 
 export async function GET() {
   const supabase = await createClient();
@@ -57,5 +58,20 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Generate and store embedding asynchronously (don't block the response)
+  if (contact) {
+    const embeddingText = buildContactEmbeddingText(contact);
+    generateEmbedding(embeddingText)
+      .then(async (embedding) => {
+        const supabaseService = await createClient();
+        await supabaseService
+          .from("contacts")
+          .update({ embedding_text: embeddingText, embedding })
+          .eq("id", contact.id);
+      })
+      .catch((err) => console.error("Embedding generation failed:", err));
+  }
+
   return NextResponse.json({ contact }, { status: 201 });
 }

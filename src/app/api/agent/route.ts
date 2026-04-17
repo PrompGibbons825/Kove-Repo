@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getEffectivePermissions } from "@/lib/permissions";
 import { assembleSystemPrompt } from "@/lib/ai/context";
+import { generateEmbedding } from "@/lib/ai/embeddings";
 import type { User, Organization } from "@/lib/types/database";
 
 export async function POST(request: Request) {
@@ -38,11 +39,36 @@ export async function POST(request: Request) {
     const { message, conversationHistory, pageContext } = await request.json();
 
     const permissions = getEffectivePermissions(koveUser as User);
+
+    // Vector search — embed the user's message and find relevant contacts
+    let relevantContacts: string[] = [];
+    try {
+      const queryEmbedding = await generateEmbedding(message);
+      const { data: matchedContacts } = await supabase.rpc("match_contacts", {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.5,
+        match_count: 8,
+        filter_org_id: koveUser.org_id,
+      });
+      if (matchedContacts && matchedContacts.length > 0) {
+        relevantContacts = matchedContacts.map(
+          (c: { name: string; status: string; ai_summary: string | null; embedding_text: string | null; similarity: number }) =>
+            `- ${c.name} (${c.status})${
+              c.ai_summary ? `: ${c.ai_summary}` : c.embedding_text ? `: ${c.embedding_text}` : ""
+            } [similarity: ${(c.similarity * 100).toFixed(0)}%]`
+        );
+      }
+    } catch (embErr) {
+      // Non-fatal — proceed without vector context
+      console.warn("Vector search skipped:", embErr);
+    }
+
     const systemPrompt = assembleSystemPrompt(
       koveUser as User,
       org as Organization,
       permissions,
-      pageContext ?? { page: "unknown" }
+      pageContext ?? { page: "unknown" },
+      relevantContacts
     );
 
     // Call Anthropic Claude
