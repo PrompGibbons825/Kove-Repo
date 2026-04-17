@@ -179,19 +179,33 @@ export async function generateWebRTCToken(credentialId: string) {
   }
 }
 
+/** Normalize a phone number to E.164 */
+function toE164(phone: string): string {
+  const digits = phone.replace(/[^\d+]/g, "");
+  if (digits.startsWith("+")) return digits;
+  if (digits.startsWith("1") && digits.length === 11) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  return `+${digits}`;
+}
+
 /**
  * Send an SMS via Telnyx.
+ * Optionally pass a messaging_profile_id; Telnyx requires it if the
+ * number is assigned to a messaging profile.
  */
-export async function sendSMS(from: string, to: string, text: string) {
+export async function sendSMS(from: string, to: string, text: string, messagingProfileId?: string) {
+  const body: Record<string, string> = {
+    from: toE164(from),
+    to: toE164(to),
+    text,
+    type: "SMS",
+  };
+  if (messagingProfileId) body.messaging_profile_id = messagingProfileId;
+
   const res = await fetch(`${TELNYX_API}/messages`, {
     method: "POST",
     headers: headers(),
-    body: JSON.stringify({
-      from,
-      to,
-      text,
-      type: "SMS",
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.json();

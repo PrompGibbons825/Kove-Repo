@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!koveUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const { data: org } = await supabase
-    .from("organizations").select("telnyx_phone").eq("id", koveUser.org_id).single();
+    .from("organizations").select("telnyx_phone, telnyx_messaging_profile_id").eq("id", koveUser.org_id).single();
   if (!org?.telnyx_phone) {
     return NextResponse.json({ error: "No phone number configured for this organization" }, { status: 400 });
   }
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendSMS(org.telnyx_phone, to, message.trim());
+    await sendSMS(org.telnyx_phone, to, message.trim(), org.telnyx_messaging_profile_id ?? undefined);
 
     // Log the activity
     const { data: activity } = await supabase.from("activities").insert({
