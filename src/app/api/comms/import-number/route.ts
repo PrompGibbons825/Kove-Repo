@@ -86,19 +86,29 @@ export async function POST(request: Request) {
     const connectionId = await ensureConnection();
     const messagingProfileId = await ensureMessagingProfile(org?.telnyx_messaging_profile_id);
 
-    // Assign the voice connection and messaging profile to the existing number
-    const patchRes = await fetch(`${TELNYX_API}/phone_numbers/${match.id}`, {
+    // Assign voice connection (phone_numbers endpoint)
+    const voiceRes = await fetch(`${TELNYX_API}/phone_numbers/${match.id}/voice`, {
       method: "PATCH",
       headers: telnyxHeaders(),
-      body: JSON.stringify({
-        connection_id: connectionId,
-        messaging_profile_id: messagingProfileId,
-      }),
+      body: JSON.stringify({ connection_id: connectionId }),
     });
-    if (!patchRes.ok) {
-      const err = await patchRes.json();
+    if (!voiceRes.ok) {
+      const err = await voiceRes.json();
       throw new Error(
-        `Failed to assign connection to number: ${err.errors?.[0]?.detail ?? patchRes.statusText}`
+        `Failed to assign voice connection: ${err.errors?.[0]?.detail ?? voiceRes.statusText}`
+      );
+    }
+
+    // Assign messaging profile (separate messaging endpoint)
+    const msgRes = await fetch(`${TELNYX_API}/phone_numbers/${match.id}/messaging`, {
+      method: "PATCH",
+      headers: telnyxHeaders(),
+      body: JSON.stringify({ messaging_profile_id: messagingProfileId }),
+    });
+    if (!msgRes.ok) {
+      const err = await msgRes.json();
+      throw new Error(
+        `Failed to assign messaging profile: ${err.errors?.[0]?.detail ?? msgRes.statusText}`
       );
     }
 
