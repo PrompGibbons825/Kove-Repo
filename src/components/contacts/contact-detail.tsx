@@ -138,7 +138,11 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
               {initials}
             </div>
             <div>
-              <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)] leading-tight">{contact.name}</h1>
+              <EditableNameField
+                value={contact.name}
+                onSave={(v) => handleFieldSave("name", v)}
+                className="text-[22px] font-semibold text-[var(--color-text-primary)] leading-tight"
+              />
               <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginTop: 2 }}>
                 {contact.source ?? "No source"} · {contact.phone ?? "No phone"} · {contact.email ?? "No email"}
               </p>
@@ -231,7 +235,11 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
             {initials}
           </div>
           <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)] leading-tight truncate">{contact.name}</h2>
+            <EditableNameField
+              value={contact.name}
+              onSave={(v) => handleFieldSave("name", v)}
+              className="text-[15px] font-semibold text-[var(--color-text-primary)] leading-tight w-full"
+            />
             <p className="text-[11px] text-[var(--color-text-tertiary)] truncate" style={{ marginTop: 1 }}>{contact.source ?? "No source"}</p>
           </div>
         </div>
@@ -277,6 +285,46 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 }
 
 /* ── Shared sub-components ── */
+
+function EditableNameField({ value, onSave, className }: { value: string; onSave: (v: string) => void; className?: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => { if (editing) { inputRef.current?.focus(); inputRef.current?.select(); } }, [editing]);
+
+  function commit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    else setDraft(value);
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+        className={className}
+        style={{ background: "transparent", border: "none", outline: "none", padding: 0, margin: 0, display: "block" }}
+      />
+    );
+  }
+
+  return (
+    <p
+      className={`${className} cursor-text hover:opacity-80 transition-opacity`}
+      onClick={() => setEditing(true)}
+      title="Click to edit name"
+    >
+      {value}
+    </p>
+  );
+}
 
 function SectionLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 8, ...style }}>{children}</label>;
