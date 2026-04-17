@@ -135,15 +135,55 @@ function LiquidOrb() {
             animation: "orbSpin 12s linear infinite reverse",
           }}
         />
-        {/* Noise texture overlay */}
+        {/* INTERIOR: Deep core vortex — gives sense of depth inside the sphere */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: "18%",
+            background: "radial-gradient(circle at 55% 50%, rgba(15,5,40,0.7) 0%, transparent 50%), conic-gradient(from 45deg, rgba(99,102,241,0.3), rgba(139,92,246,0.15), rgba(34,211,238,0.2), rgba(168,85,247,0.25), rgba(99,102,241,0.3))",
+            filter: "blur(6px)",
+            animation: "orbSpin 15s linear infinite",
+            mixBlendMode: "multiply" as React.CSSProperties["mixBlendMode"],
+          }}
+        />
+        {/* INTERIOR: Fine grain noise — inner turbulence */}
         <div
           className="absolute inset-0 rounded-full"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
             backgroundSize: "128px 128px",
-            opacity: 0.12,
+            opacity: 0.18,
             mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
             animation: "orbSpin 20s linear infinite reverse",
+          }}
+        />
+        {/* EXTERIOR: Surface cell texture — like plasma surface detail */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.12' numOctaves='3' seed='5'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E")`,
+            backgroundSize: "200px 200px",
+            opacity: 0.22,
+            mixBlendMode: "soft-light" as React.CSSProperties["mixBlendMode"],
+            animation: "orbSpin 25s linear infinite",
+          }}
+        />
+        {/* EXTERIOR: High-frequency surface grain — tactile roughness */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='hf'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' seed='8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23hf)'/%3E%3C/svg%3E")`,
+            backgroundSize: "80px 80px",
+            opacity: 0.14,
+            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
+          }}
+        />
+        {/* EXTERIOR: Fresnel rim — bright edge lighting like a real sphere */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: "radial-gradient(circle, transparent 48%, rgba(168,130,255,0.25) 68%, rgba(192,132,252,0.45) 82%, rgba(232,121,249,0.3) 92%, transparent 100%)",
+            mixBlendMode: "screen" as React.CSSProperties["mixBlendMode"],
           }}
         />
         {/* Caustic ripple layer */}
@@ -198,13 +238,26 @@ function LiquidOrb() {
             animation: "orbPulse 3s ease-in-out infinite",
           }}
         />
-        {/* Edge dissolution — fades orb boundary into wispy tendrils */}
+        {/* Edge dissolution — fades orb boundary with noisy texture */}
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
             inset: "-4%",
-            background: "radial-gradient(circle, transparent 42%, rgba(15,23,42,0.4) 58%, rgba(15,23,42,0.85) 72%, var(--color-sidebar-bg,#0f172a) 88%)",
+            background: "radial-gradient(circle, transparent 40%, rgba(15,23,42,0.35) 55%, rgba(15,23,42,0.8) 70%, var(--color-sidebar-bg,#0f172a) 85%)",
             mixBlendMode: "normal" as React.CSSProperties["mixBlendMode"],
+          }}
+        />
+        {/* Noisy edge mask — breaks up the perfect circle silhouette */}
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            inset: "-6%",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='em'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.06' numOctaves='5' seed='12'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23em)'/%3E%3C/svg%3E")`,
+            backgroundSize: "256px 256px",
+            opacity: 0.5,
+            maskImage: "radial-gradient(circle, transparent 44%, black 58%)",
+            WebkitMaskImage: "radial-gradient(circle, transparent 44%, black 58%)",
+            mixBlendMode: "multiply" as React.CSSProperties["mixBlendMode"],
           }}
         />
       </div>
