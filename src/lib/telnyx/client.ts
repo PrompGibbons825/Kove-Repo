@@ -32,6 +32,60 @@ export async function searchNumbers(areaCode?: string, limit = 5) {
 
 /**
  * Purchase a phone number and assign it to the kove connection.
+ * Auto-creates a credential connection if TELNYX_CONNECTION_ID is not set.
+ */
+export async function ensureConnection(): Promise<string> {
+  const existing = process.env.TELNYX_CONNECTION_ID;
+  if (existing) return existing;
+
+  // Auto-create a credential connection named "kove"
+  const res = await fetch(`${TELNYX_API}/credential_connections`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      connection_name: "kove",
+      webhook_event_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://kove-seven.vercel.app"}/api/comms/call/webhook`,
+      webhook_event_failover_url: "",
+      active: true,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Telnyx connection creation failed: ${err.errors?.[0]?.detail ?? res.statusText}`);
+  }
+  const conn = (await res.json()).data;
+  // NOTE: persist this ID to your env for future calls
+  return conn.id as string;
+}
+
+/**
+ * Ensure a Telnyx credential connection exists.
+ * If TELNYX_CONNECTION_ID is set, returns it directly.
+ * Otherwise auto-creates one named "kove" via the API.
+ */
+export async function ensureConnection(): Promise<string> {
+  const existing = process.env.TELNYX_CONNECTION_ID;
+  if (existing) return existing;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kove-seven.vercel.app";
+  const res = await fetch(`${TELNYX_API}/credential_connections`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      connection_name: "kove",
+      webhook_event_url: `${appUrl}/api/comms/call/webhook`,
+      active: true,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Telnyx connection creation failed: ${err.errors?.[0]?.detail ?? res.statusText}`);
+  }
+  return ((await res.json()).data.id) as string;
+}
+
+/**
+ * Purchase a phone number and assign it to the kove connection.
  */
 export async function purchaseNumber(phoneNumber: string) {
   const connectionId = process.env.TELNYX_CONNECTION_ID;

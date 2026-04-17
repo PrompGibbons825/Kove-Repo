@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { searchNumbers, purchaseNumber } from "@/lib/telnyx/client";
+import { searchNumbers, purchaseNumber, ensureConnection } from "@/lib/telnyx/client";
 
 /**
  * POST /api/comms/provision-number
@@ -31,6 +31,17 @@ export async function POST(request: Request) {
   const areaCode = body.area_code;
 
   try {
+    // Ensure connection exists (uses env var or auto-creates)
+    const connectionId = await ensureConnection();
+
+    // Patch webhook URL onto the connection to make sure it's current
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kove-seven.vercel.app";
+    await fetch(`https://api.telnyx.com/v2/credential_connections/${connectionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.TELNYX_API_KEY}` },
+      body: JSON.stringify({ webhook_event_url: `${appUrl}/api/comms/call/webhook` }),
+    });
+
     // Search for available numbers
     const available = await searchNumbers(areaCode, 1);
     if (!available.length) {
@@ -47,7 +58,7 @@ export async function POST(request: Request) {
       .from("organizations")
       .update({
         telnyx_phone: phoneNumber,
-        telnyx_connection_id: process.env.TELNYX_CONNECTION_ID ?? null,
+        telnyx_connection_id: connectionId,
       })
       .eq("id", koveUser.org_id);
 
