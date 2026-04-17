@@ -17,6 +17,7 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
   const [bcc, setBcc] = useState("");
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load message activities
@@ -42,6 +43,7 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
   const sendMessage = useCallback(async () => {
     if (!draft.trim()) return;
     setSending(true);
+    setSendError(null);
     try {
       if (sendAs === "sms") {
         const res = await fetch("/api/comms/sms/send", {
@@ -105,9 +107,13 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
           setCc("");
           setBcc("");
           setShowCcBcc(false);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          setSendError(err.error ?? "Failed to send email");
         }
       }
-    } catch {
+    } catch (err) {
+      setSendError("Network error — please try again");
     } finally {
       setSending(false);
     }
@@ -253,6 +259,14 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Error banner */}
+        {sendError && (
+          <div className="flex items-center justify-between rounded-lg text-[12px]" style={{ padding: "7px 10px", marginBottom: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" }}>
+            <span>{sendError}</span>
+            <button onClick={() => setSendError(null)} className="ml-2 opacity-60 hover:opacity-100 cursor-pointer">✕</button>
           </div>
         )}
 

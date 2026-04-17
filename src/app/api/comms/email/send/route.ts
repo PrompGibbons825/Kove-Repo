@@ -25,8 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "SMTP not configured. Go to Settings → Communications to set up email." }, { status: 400 });
   }
 
-  const body = await request.json();
-  const { contact_id, to, subject, html, text } = body;
+  const payload = await request.json();
+  const { contact_id, to, subject, cc, bcc, html } = payload;
+  const text: string | undefined = payload.text ?? payload.body;
 
   if (!to || (!html && !text)) {
     return NextResponse.json({ error: "to and message body are required" }, { status: 400 });
@@ -43,6 +44,8 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from: smtp.from_name ? `"${smtp.from_name}" <${smtp.from_email || smtp.user}>` : smtp.from_email || smtp.user,
       to,
+      cc: cc ?? undefined,
+      bcc: bcc ?? undefined,
       subject: subject ?? "(no subject)",
       text: text ?? undefined,
       html: html ?? undefined,
