@@ -176,33 +176,22 @@ function LiquidOrb() {
             background: "radial-gradient(circle, transparent 55%, rgba(255,255,255,0.18) 72%, rgba(255,255,255,0.35) 85%, rgba(255,255,255,0.12) 95%, transparent 100%)",
           }}
         />
-        {/* Moving wave bands — linear streaks, not centered spokes */}
+        {/* Slow-orbiting soft white blobs — organic surface shimmer */}
         <div
-          className="absolute rounded-full overflow-hidden"
-          style={{ inset: "0%", animation: "orbSpin 20s linear infinite" }}
+          className="absolute inset-0 rounded-full overflow-hidden"
+          style={{ animation: "orbSpin 22s linear infinite" }}
         >
-          <div
-            className="absolute"
-            style={{
-              inset: "-50%",
-              background: "repeating-linear-gradient(60deg, transparent 0px, rgba(255,255,255,0.1) 4px, transparent 8px, transparent 28px, rgba(255,255,255,0.07) 32px, transparent 36px, transparent 60px)",
-              filter: "blur(3px)",
-            }}
-          />
+          <div className="absolute rounded-full" style={{ width: "60%", height: "35%", top: "8%", left: "-5%", background: "radial-gradient(ellipse, rgba(255,255,255,0.14) 0%, transparent 70%)", filter: "blur(12px)" }} />
+          <div className="absolute rounded-full" style={{ width: "45%", height: "50%", bottom: "5%", right: "-8%", background: "radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%)", filter: "blur(14px)" }} />
+          <div className="absolute rounded-full" style={{ width: "35%", height: "30%", top: "45%", left: "15%", background: "radial-gradient(ellipse, rgba(255,255,255,0.08) 0%, transparent 65%)", filter: "blur(10px)" }} />
         </div>
-        {/* Counter-rotating wave band */}
+        {/* Counter-orbiting blobs */}
         <div
-          className="absolute rounded-full overflow-hidden"
-          style={{ inset: "0%", animation: "orbSpin 28s linear infinite reverse" }}
+          className="absolute inset-0 rounded-full overflow-hidden"
+          style={{ animation: "orbSpin 30s linear infinite reverse" }}
         >
-          <div
-            className="absolute"
-            style={{
-              inset: "-50%",
-              background: "repeating-linear-gradient(135deg, transparent 0px, rgba(255,255,255,0.08) 3px, transparent 6px, transparent 22px, rgba(255,255,255,0.06) 25px, transparent 28px, transparent 50px)",
-              filter: "blur(2px)",
-            }}
-          />
+          <div className="absolute rounded-full" style={{ width: "50%", height: "40%", top: "-5%", right: "10%", background: "radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%)", filter: "blur(14px)" }} />
+          <div className="absolute rounded-full" style={{ width: "40%", height: "45%", bottom: "10%", left: "-3%", background: "radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 65%)", filter: "blur(12px)" }} />
         </div>
       </div>
     </div>
