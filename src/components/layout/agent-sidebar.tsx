@@ -21,7 +21,7 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
     {
       id: "welcome",
       role: "assistant",
-      content: `Hey ${user.full_name.split(" ")[0]}. What can I help you with?`,
+      content: `Hey ${user.full_name.split(" ")[0]}! I'm your AI sales assistant. Ask me anything — lead priorities, follow-up suggestions, or data insights.`,
       timestamp: new Date(),
     },
   ]);
@@ -101,23 +101,23 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
   }
 
   return (
-    <aside className="flex h-full w-80 flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)]">
+    <aside className="flex h-full w-[360px] flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] animate-slide-in-right">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-text)]">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5Z" />
-              <path d="M12 19v3" />
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] shadow-sm shadow-[var(--color-accent)]/20">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
           </div>
-          <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-            kove agent
-          </span>
+          <div>
+            <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">kove AI</p>
+            <p className="text-[11px] text-[var(--color-text-tertiary)]">Always ready to help</p>
+          </div>
         </div>
         <button
           onClick={onClose}
-          className="rounded-md p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-all duration-150"
           aria-label="Close agent"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -128,14 +128,19 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            {msg.role === "assistant" && (
+              <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10">
+                <span className="text-[10px]">✨</span>
+              </div>
+            )}
             <div
-              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+              className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-[var(--color-accent)] text-[var(--color-accent-text)]"
-                  : "bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]"
+                  ? "bg-[var(--color-accent)] text-white rounded-br-md"
+                  : "bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] rounded-bl-md"
               }`}
             >
               {msg.content}
@@ -144,11 +149,14 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="rounded-xl bg-[var(--color-surface-hover)] px-3.5 py-2.5">
-              <div className="flex gap-1">
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--color-text-tertiary)]" style={{ animationDelay: "0ms" }} />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--color-text-tertiary)]" style={{ animationDelay: "150ms" }} />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--color-text-tertiary)]" style={{ animationDelay: "300ms" }} />
+            <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10">
+              <span className="text-[10px]">✨</span>
+            </div>
+            <div className="rounded-2xl rounded-bl-md bg-[var(--color-surface-hover)] px-4 py-3">
+              <div className="flex gap-1.5">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-text-tertiary)]" style={{ animationDelay: "0ms" }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-text-tertiary)]" style={{ animationDelay: "150ms" }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-text-tertiary)]" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
@@ -157,29 +165,32 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-[var(--color-border)] p-3">
-        <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+      <form onSubmit={handleSubmit} className="border-t border-[var(--color-border)] p-4">
+        <div className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 shadow-[var(--shadow-xs)] focus-within:border-[var(--color-accent)]/40 focus-within:shadow-[var(--shadow-sm)] transition-all duration-150">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your sales..."
+            placeholder="Ask about your leads, tasks, or pipeline..."
             rows={1}
-            className="flex-1 resize-none bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none"
+            className="flex-1 resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none leading-relaxed"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-text)] disabled:opacity-30 transition-opacity"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white disabled:opacity-20 transition-all duration-150 hover:bg-[var(--color-accent-hover)]"
             aria-label="Send message"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m5 12 7-7 7 7" />
               <path d="M12 19V5" />
             </svg>
           </button>
         </div>
+        <p className="mt-2 text-center text-[10px] text-[var(--color-text-tertiary)]">
+          kove AI can make mistakes. Verify important information.
+        </p>
       </form>
     </aside>
   );

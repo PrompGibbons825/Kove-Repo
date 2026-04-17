@@ -4,7 +4,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-[var(--color-background)]">
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[#1e40af] via-[#2563eb] to-[#3b82f6]">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[#312e81] via-[#4338ca] to-[#6366f1]">
         <div className="relative z-10 flex flex-col justify-between p-12 text-white">
           <div>
             <span className="text-2xl font-bold tracking-tight">kove</span>
