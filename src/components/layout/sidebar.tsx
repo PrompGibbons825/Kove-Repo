@@ -67,7 +67,7 @@ export function Sidebar({ user, org }: SidebarProps) {
     <aside
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col py-[10px] bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)] select-none transition-[width] duration-300 ease-in-out overflow-hidden ${expanded ? "w-[240px]" : "w-[68px]"}`}
+      className={`fixed top-[10px] bottom-[10px] left-0 z-50 flex flex-col bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)] select-none transition-[width] duration-300 ease-in-out overflow-hidden ${expanded ? "w-[240px]" : "w-[68px]"}`}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 pt-2 pb-3" style={{ paddingLeft: '14px' }}>
