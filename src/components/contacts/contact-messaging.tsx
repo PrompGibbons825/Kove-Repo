@@ -43,7 +43,7 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
         const res = await fetch("/api/comms/sms/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: contact.phone, text: draft.trim() }),
+          body: JSON.stringify({ contact_id: contact.id, to: contact.phone, message: draft.trim() }),
         });
         if (res.ok) {
           const data = await res.json();
