@@ -21,7 +21,7 @@ export function AppShell({ user, org, children }: AppShellProps) {
 
       {/* Main content area */}
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-6 py-6">
+        <div className="mx-auto max-w-5xl px-8 py-8">
           {children}
         </div>
 
@@ -29,14 +29,13 @@ export function AppShell({ user, org, children }: AppShellProps) {
         {!agentOpen && (
           <button
             onClick={() => setAgentOpen(true)}
-            className="fixed bottom-6 right-6 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-accent-text)] shadow-lg hover:bg-[var(--color-accent-hover)] transition-colors z-50"
+            className="fixed bottom-6 right-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-hover)] text-white shadow-lg shadow-[var(--color-accent)]/20 hover:shadow-xl hover:shadow-[var(--color-accent)]/30 hover:scale-105 active:scale-95 transition-all z-50"
             aria-label="Open AI Agent"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5Z" />
-              <path d="M17 10v1a5 5 0 0 1-10 0v-1" />
-              <path d="M12 19v3" />
-              <path d="M8 22h8" />
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <path d="M12 17h.01" />
             </svg>
           </button>
         )}

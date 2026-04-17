@@ -78,8 +78,15 @@ export function Sidebar({ user, org }: SidebarProps) {
     return hasPermission(user, item.permission);
   });
 
+  const initials = user.full_name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
-    <aside className="flex h-full w-56 flex-col border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)]">
+    <aside className="flex h-full w-[220px] flex-col border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)]">
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-5">
         <span className="text-xl font-bold text-[var(--color-text-primary)]">kove</span>
@@ -96,13 +103,15 @@ export function Sidebar({ user, org }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
                 isActive
-                  ? "bg-[var(--color-sidebar-active)] text-[var(--color-accent)]"
+                  ? "bg-[var(--color-accent)] text-white shadow-sm"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
               }`}
             >
-              {ICONS[item.icon]}
+              <span className={isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100 transition-opacity"}>
+                {ICONS[item.icon]}
+              </span>
               {item.label}
             </Link>
           );
@@ -115,9 +124,9 @@ export function Sidebar({ user, org }: SidebarProps) {
         {(user.is_owner || hasPermission(user, "manage_users")) && (
           <Link
             href="/settings"
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="opacity-60" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
@@ -128,15 +137,15 @@ export function Sidebar({ user, org }: SidebarProps) {
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
         >
           {theme === "dark" ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="opacity-60" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="opacity-60" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
             </svg>
           )}
@@ -144,22 +153,19 @@ export function Sidebar({ user, org }: SidebarProps) {
         </button>
 
         {/* User info */}
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-xs font-semibold text-[var(--color-accent)]">
-            {user.full_name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
-              {user.full_name}
-            </p>
-            <p className="truncate text-xs text-[var(--color-text-tertiary)]">
-              {org.name}
-            </p>
+        <div className="rounded-xl bg-[var(--color-surface-hover)]/50 px-3 py-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent-hover)] text-xs font-semibold text-white">
+              {initials}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">
+                {user.full_name}
+              </p>
+              <p className="truncate text-xs text-[var(--color-text-tertiary)]">
+                {org.name}
+              </p>
+            </div>
           </div>
         </div>
       </div>
