@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Contact, Activity, ContactStatus } from "@/lib/types/database";
 import { useContactPanel, type ContactViewMode } from "./contact-panel-context";
+import { useCall, formatDuration, type CallState } from "@/hooks/use-call";
+import { useLiveTranscript } from "@/hooks/use-live-transcript";
+import { LiveSession } from "@/components/calls/live-session";
+import { ContactMessaging } from "./contact-messaging";
 
 const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -27,6 +31,83 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [pipelineOptions, setPipelineOptions] = useState<string[]>([]);
   const [sourceOptions, setSourceOptions] = useState<string[]>([]);
+
+  // ── Call state ──
+  const [callSummaryLoading, setCallSummaryLoading] = useState(false);
+
+  const { callState, muted, duration, remoteStream, startCall, endCall, toggleMute } = useCall({
+    onCallStarted: () => {},
+    onCallEnded: async (info) => {
+      const transcript = transcriptHook.getFullTranscript();
+      if (transcript && contact) {
+        setCallSummaryLoading(true);
+        try {
+          const res = await fetch("/api/ai/call-summary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contactId: contact.id,
+              transcript,
+              duration: info.duration,
+              direction: "outbound",
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.summary?.contact_summary_update) {
+              updateContact({ ai_summary: data.summary.contact_summary_update });
+            }
+            if (data.summary?.suggested_next_status) {
+              updateContact({ status: data.summary.suggested_next_status });
+              setStatus(data.summary.suggested_next_status);
+            }
+            // Refresh activities
+            fetch(`/api/activities?contact_id=${contact.id}`)
+              .then((r) => r.json())
+              .then((d) => setActivities(Array.isArray(d) ? d : (d.activities ?? [])))
+              .catch(() => {});
+          }
+        } catch {}
+        setCallSummaryLoading(false);
+      }
+      transcriptHook.reset();
+    },
+  });
+
+  const transcriptHook = useLiveTranscript({
+    remoteStream,
+    active: callState === "active",
+  });
+
+  const handleStartCall = useCallback(() => {
+    if (!contact?.phone) return;
+    startCall(contact.phone);
+  }, [contact?.phone, startCall]);
+
+  const handleCallAction = useCallback(async (action: string, params?: Record<string, unknown>) => {
+    if (!contact) return;
+    try {
+      await fetch("/api/ai/call-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, contactId: contact.id, params }),
+      });
+      // Refresh activities after action
+      fetch(`/api/activities?contact_id=${contact.id}`)
+        .then((r) => r.json())
+        .then((d) => setActivities(Array.isArray(d) ? d : (d.activities ?? [])))
+        .catch(() => {});
+      // Refresh contact if status advanced
+      if (action === "advance_status") {
+        fetch(`/api/contacts/${contact.id}`)
+          .then((r) => r.json())
+          .then((c) => {
+            if (c.status) { updateContact({ status: c.status }); setStatus(c.status); }
+          })
+          .catch(() => {});
+      }
+    } catch {}
+  }, [contact, updateContact]);
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
@@ -159,6 +240,10 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
                 {contact.source ?? "No source"} · {contact.phone ?? "No phone"} · {contact.email ?? "No email"}
               </p>
             </div>
+            {/* Phone call button */}
+            {contact.phone && (
+              <PhoneButton callState={callState} onClick={callState === "idle" ? handleStartCall : endCall} />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ViewModeButtons viewMode={viewMode} onSet={setViewMode} />
@@ -167,25 +252,37 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           </div>
         </div>
 
-        {/* 2-column */}
+        {/* Active call bar */}
+        {callState !== "idle" && (
+          <CallBar callState={callState} duration={duration} muted={muted} onToggleMute={toggleMute} onEndCall={endCall} callSummaryLoading={callSummaryLoading} />
+        )}
+
+        {/* 3-column */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left ~60% */}
-          <div className="flex-1 overflow-y-auto" style={{ padding: "24px 32px" }}>
-            <div style={{ marginBottom: 24 }}>
+          {/* Left — Contact info (~280px) */}
+          <div className="overflow-y-auto border-r border-[var(--color-border)]" style={{ width: 300, minWidth: 260, padding: "20px 24px" }}>
+            <div style={{ marginBottom: 20 }}>
               <SectionLabel>Status</SectionLabel>
               <StatusStepper status={status} onChange={handleStatusChange} />
             </div>
-            <div className="grid grid-cols-4 gap-3" style={{ marginBottom: 24 }}>
+            <div className="grid grid-cols-2 gap-2" style={{ marginBottom: 20 }}>
               <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
               <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
               <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
               <EditableSelectField label="Source" value={contact.source ?? ""} options={sourceOptions} onSave={(v) => handleFieldSave("source", v)} />
             </div>
+            <AssignedMembers
+              contact={contact}
+              orgMembers={orgMembers}
+              showPicker={showMemberPicker}
+              setShowPicker={setShowMemberPicker}
+              updateContact={updateContact}
+            />
             <AISummary summary={contact.ai_summary} />
             {contact.handoff_notes && (
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 20 }}>
                 <SectionLabel>Handoff Notes</SectionLabel>
-                <div className="rounded-xl border border-[var(--color-border)] text-[13px] text-[var(--color-text-secondary)] leading-relaxed" style={{ padding: "12px 16px", background: "var(--color-surface-hover)" }}>
+                <div className="rounded-xl border border-[var(--color-border)] text-[13px] text-[var(--color-text-secondary)] leading-relaxed" style={{ padding: "10px 14px", background: "var(--color-surface-hover)" }}>
                   {contact.handoff_notes}
                 </div>
               </div>
@@ -194,26 +291,26 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
             <Timeline activities={activities} loading={loadingActivities} />
           </div>
 
-          {/* Right ~40% — live session stub */}
-          <div className="border-l border-[var(--color-border)] flex flex-col" style={{ width: "40%", minWidth: 320 }}>
-            <div className="flex items-center border-b border-[var(--color-border)]" style={{ padding: "14px 24px" }}>
+          {/* Center — Messaging (flex-1) */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ContactMessaging contact={contact} />
+          </div>
+
+          {/* Right — Live Session (~340px) */}
+          <div className="border-l border-[var(--color-border)] flex flex-col" style={{ width: 340, minWidth: 300 }}>
+            <div className="flex items-center border-b border-[var(--color-border)]" style={{ padding: "14px 16px" }}>
               <SectionLabel style={{ marginBottom: 0 }}>Live Session</SectionLabel>
+              {callState === "active" && (
+                <div className="rounded-full animate-pulse" style={{ width: 8, height: 8, background: "#ef4444", marginLeft: 8 }} />
+              )}
             </div>
-            <div className="flex-1 flex items-center justify-center" style={{ padding: 32 }}>
-              <div className="text-center">
-                <div className="mx-auto rounded-2xl border-2 border-dashed border-[var(--color-border)] flex items-center justify-center" style={{ width: 80, height: 80, marginBottom: 16 }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" x2="12" y1="19" y2="22" />
-                  </svg>
-                </div>
-                <p className="text-[14px] font-medium text-[var(--color-text-tertiary)]">Live transcript will appear here</p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginTop: 6, opacity: 0.7 }}>
-                  During calls, the AI assistant will surface<br />talking points and real-time suggestions.
-                </p>
-              </div>
-            </div>
+            <LiveSession
+              active={callState === "active"}
+              entries={transcriptHook.entries}
+              contact={contact}
+              onAction={handleCallAction}
+              callDuration={duration}
+            />
           </div>
         </div>
       </div>
@@ -257,10 +354,18 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {contact.phone && (
+            <PhoneButton callState={callState} onClick={callState === "idle" ? handleStartCall : endCall} size="sm" />
+          )}
           <ViewModeButtons viewMode={viewMode} onSet={setViewMode} />
           <CloseBtn onClick={handleClose} size={14} />
         </div>
       </div>
+
+      {/* Active call bar in sidebar */}
+      {callState !== "idle" && (
+        <CallBar callState={callState} duration={duration} muted={muted} onToggleMute={toggleMute} onEndCall={endCall} callSummaryLoading={callSummaryLoading} />
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto" style={{ padding: "16px 20px" }}>
@@ -538,6 +643,70 @@ function EditBtn({ onClick, size = 16 }: { onClick: () => void; size?: number })
         <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" />
       </svg>
     </button>
+  );
+}
+
+function PhoneButton({ callState, onClick, size = "md" }: { callState: CallState; onClick: () => void; size?: "sm" | "md" }) {
+  const isActive = callState !== "idle";
+  const dim = size === "sm" ? 28 : 36;
+  const iconSize = size === "sm" ? 14 : 18;
+  return (
+    <button
+      onClick={onClick}
+      title={isActive ? "End call" : "Call contact"}
+      className="flex items-center justify-center rounded-full transition-all cursor-pointer"
+      style={{
+        width: dim, height: dim,
+        background: isActive ? "#ef4444" : "var(--color-accent)",
+        color: "white",
+      }}
+    >
+      <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        style={isActive ? { transform: "rotate(135deg)" } : {}}
+      >
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+      </svg>
+    </button>
+  );
+}
+
+function CallBar({ callState, duration, muted, onToggleMute, onEndCall, callSummaryLoading }: {
+  callState: CallState; duration: number; muted: boolean;
+  onToggleMute: () => void; onEndCall: () => void; callSummaryLoading: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-[var(--color-border)]"
+      style={{ padding: "8px 24px", background: callState === "active" ? "rgba(34,197,94,0.08)" : "var(--color-surface-hover)" }}
+    >
+      <div className="flex items-center gap-3">
+        <div className="rounded-full animate-pulse" style={{ width: 10, height: 10, background: callState === "active" ? "#22c55e" : "#f59e0b" }} />
+        <span className="text-[13px] font-medium text-[var(--color-text-primary)]">
+          {callState === "connecting" ? "Connecting..." : callState === "ringing" ? "Ringing..." : callSummaryLoading ? "Generating summary..." : `In Call — ${formatDuration(duration)}`}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {callState === "active" && (
+          <button onClick={onToggleMute} title={muted ? "Unmute" : "Mute"}
+            className="flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+            style={{ width: 32, height: 32, background: muted ? "var(--color-accent)" : "var(--color-surface-hover)", color: muted ? "white" : "var(--color-text-secondary)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {muted ? (
+                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /><line x1="2" x2="22" y1="2" y2="22" /></>
+              ) : (
+                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></>
+              )}
+            </svg>
+          </button>
+        )}
+        <button onClick={onEndCall}
+          className="flex items-center justify-center rounded-lg text-white transition-colors cursor-pointer"
+          style={{ height: 32, padding: "0 12px", background: "#ef4444", fontSize: 12, fontWeight: 600 }}
+        >
+          End Call
+        </button>
+      </div>
+    </div>
   );
 }
 
