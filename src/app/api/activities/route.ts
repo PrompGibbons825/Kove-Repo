@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateEmbedding } from "@/lib/ai/embeddings";
+import { evaluateAndAssignMember } from "@/lib/ai/assign-members";
 import type { User } from "@/lib/types/database";
 
 export async function GET(request: Request) {
@@ -52,6 +53,17 @@ export async function POST(request: Request) {
         await sb.from("activities").update({ embedding_text: embeddingText, embedding }).eq("id", data.id);
       })
       .catch((err) => console.error("Activity embedding failed:", err));
+
+    // AI auto-assign: check if rep should be added to contact
+    if (body.contact_id && body.content) {
+      evaluateAndAssignMember({
+        contactId: body.contact_id,
+        orgId: koveUser.org_id,
+        userId: koveUser.id,
+        activityType: body.type ?? "note",
+        content: body.content,
+      }).catch((err) => console.error("Activity auto-assign failed:", err));
+    }
   }
 
   return NextResponse.json(data);

@@ -19,6 +19,8 @@ export async function GET() {
   return NextResponse.json({
     source_options: org.source_options ?? [],
     custom_field_schema: org.custom_field_schema ?? [],
+    telnyx_phone: org.telnyx_phone ?? null,
+    smtp_config: org.smtp_config ?? {},
   });
 }
 
@@ -41,6 +43,7 @@ export async function PATCH(request: Request) {
 
   if (body.source_options !== undefined) update.source_options = body.source_options;
   if (body.custom_field_schema !== undefined) update.custom_field_schema = body.custom_field_schema;
+  if (body.smtp_config !== undefined) update.smtp_config = body.smtp_config;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

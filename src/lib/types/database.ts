@@ -133,7 +133,19 @@ export interface Organization {
   custom_field_schema: CustomFieldDef[];
   source_options: string[];
   commission_rules: Json;
+  telnyx_phone: string | null;
+  telnyx_connection_id: string | null;
+  smtp_config: SmtpConfig | null;
   created_at: string;
+}
+
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from_name: string;
+  from_email: string;
 }
 
 export interface PermissionTag {
@@ -185,6 +197,11 @@ export interface Activity {
   content: string | null;
   ai_summary: string | null;
   action_items: Json;
+  direction: "inbound" | "outbound";
+  duration_seconds: number | null;
+  recording_url: string | null;
+  transcript: string | null;
+  metadata: Json;
   occurred_at: string;
 }
 

@@ -23,6 +23,8 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const [savingNote, setSavingNote] = useState(false);
   const [visible, setVisible] = useState(false);
   const resizingRef = useRef(false);
+  const [orgMembers, setOrgMembers] = useState<{ id: string; full_name: string; email: string }[]>([]);
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
@@ -42,6 +44,13 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
       .catch(() => {})
       .finally(() => setLoadingActivities(false));
   }, [contact?.id]);
+
+  useEffect(() => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((data) => setOrgMembers(data.users ?? []))
+      .catch(() => {});
+  }, []);
 
   const startResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -229,6 +238,13 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           <InfoCard label="Pipeline" value={contact.pipeline_stage ?? "—"} />
           <InfoCard label="Last Contact" value={contact.last_contacted_at ? new Date(contact.last_contacted_at).toLocaleDateString() : "Never"} />
         </div>
+        <AssignedMembers
+          contact={contact}
+          orgMembers={orgMembers}
+          showPicker={showMemberPicker}
+          setShowPicker={setShowMemberPicker}
+          updateContact={updateContact}
+        />
         <div style={{ marginBottom: 20 }}>
           <SectionLabel>Status</SectionLabel>
           <StatusPills status={status} onChange={handleStatusChange} />
@@ -383,4 +399,104 @@ function CloseBtn({ onClick, size = 16 }: { onClick: () => void; size?: number }
 
 function Sep() {
   return <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />;
+}
+
+function AssignedMembers({
+  contact,
+  orgMembers,
+  showPicker,
+  setShowPicker,
+  updateContact,
+}: {
+  contact: Contact;
+  orgMembers: { id: string; full_name: string; email: string }[];
+  showPicker: boolean;
+  setShowPicker: (v: boolean) => void;
+  updateContact: (partial: Partial<Contact>) => void;
+}) {
+  const assigned = contact.assigned_to ?? [];
+  const assignedMembers = orgMembers.filter((m) => assigned.includes(m.id));
+  const unassigned = orgMembers.filter((m) => !assigned.includes(m.id));
+
+  async function addMember(userId: string) {
+    const newAssigned = [...assigned, userId];
+    await fetch(`/api/contacts/${contact.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigned_to: newAssigned }),
+    });
+    updateContact({ assigned_to: newAssigned });
+    setShowPicker(false);
+  }
+
+  async function removeMember(userId: string) {
+    const newAssigned = assigned.filter((id: string) => id !== userId);
+    await fetch(`/api/contacts/${contact.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigned_to: newAssigned }),
+    });
+    updateContact({ assigned_to: newAssigned });
+  }
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">
+          Assigned Members
+        </label>
+        <button
+          onClick={() => setShowPicker(!showPicker)}
+          className="text-[11px] font-medium text-[var(--color-accent)] hover:underline cursor-pointer"
+        >
+          + Add
+        </button>
+      </div>
+      {assignedMembers.length === 0 ? (
+        <p className="text-[12px] text-[var(--color-text-tertiary)] italic">No members assigned</p>
+      ) : (
+        <div className="space-y-1.5">
+          {assignedMembers.map((m) => (
+            <div key={m.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)]" style={{ padding: "6px 10px" }}>
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                  style={{ width: 24, height: 24, background: "var(--color-accent)" }}
+                >
+                  {m.full_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <span className="text-[12px] text-[var(--color-text-primary)]">{m.full_name}</span>
+              </div>
+              <button
+                onClick={() => removeMember(m.id)}
+                className="text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] cursor-pointer"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {showPicker && unassigned.length > 0 && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)]" style={{ marginTop: 8 }}>
+          {unassigned.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => addMember(m.id)}
+              className="w-full text-left flex items-center gap-2 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+              style={{ padding: "6px 10px" }}
+            >
+              <div
+                className="flex items-center justify-center rounded-full text-[9px] font-semibold text-white"
+                style={{ width: 22, height: 22, background: "var(--color-text-tertiary)" }}
+              >
+                {m.full_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <span className="text-[12px] text-[var(--color-text-secondary)]">{m.full_name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
