@@ -26,6 +26,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const [orgMembers, setOrgMembers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [pipelineOptions, setPipelineOptions] = useState<string[]>([]);
+  const [sourceOptions, setSourceOptions] = useState<string[]>([]);
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
@@ -56,7 +57,10 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   useEffect(() => {
     fetch("/api/settings/org")
       .then((r) => r.json())
-      .then((data) => setPipelineOptions(data.pipeline_options ?? []))
+      .then((data) => {
+        setPipelineOptions(data.pipeline_options ?? []);
+        setSourceOptions(data.source_options ?? []);
+      })
       .catch(() => {});
   }, []);
 
@@ -171,10 +175,11 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
               <SectionLabel>Status</SectionLabel>
               <StatusStepper status={status} onChange={handleStatusChange} />
             </div>
-            <div className="grid grid-cols-3 gap-3" style={{ marginBottom: 24 }}>
+            <div className="grid grid-cols-4 gap-3" style={{ marginBottom: 24 }}>
               <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
               <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
               <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
+              <EditableSelectField label="Source" value={contact.source ?? ""} options={sourceOptions} onSave={(v) => handleFieldSave("source", v)} />
             </div>
             <AISummary summary={contact.ai_summary} />
             {contact.handoff_notes && (
@@ -263,7 +268,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
           <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
           <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
-          <EditableField label="Source" value={contact.source ?? ""} onSave={(v) => handleFieldSave("source", v)} />
+          <EditableSelectField label="Source" value={contact.source ?? ""} options={sourceOptions} onSave={(v) => handleFieldSave("source", v)} />
         </div>
         <AssignedMembers
           contact={contact}
