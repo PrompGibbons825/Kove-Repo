@@ -52,6 +52,33 @@ export default function SettingsPage() {
   const [existingNumber, setExistingNumber] = useState("");
   const [importingNumber, setImportingNumber] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  // 10DLC registration state
+  const [tcrBrandId, setTcrBrandId] = useState<string | null>(null);
+  const [tcrBrandStatus, setTcrBrandStatus] = useState<string | null>(null);
+  const [tcrCampaignId, setTcrCampaignId] = useState<string | null>(null);
+  const [tcrCampaignStatus, setTcrCampaignStatus] = useState<string | null>(null);
+  const [tcrStep, setTcrStep] = useState<"brand" | "campaign">("brand");
+  const [tcrSubmitting, setTcrSubmitting] = useState(false);
+  const [tcrError, setTcrError] = useState<string | null>(null);
+  // Brand form
+  const [tcrEntityType, setTcrEntityType] = useState("PRIVATE_PROFIT");
+  const [tcrDisplayName, setTcrDisplayName] = useState("");
+  const [tcrCompanyName, setTcrCompanyName] = useState("");
+  const [tcrEin, setTcrEin] = useState("");
+  const [tcrPhone, setTcrPhone] = useState("");
+  const [tcrEmail, setTcrEmail] = useState("");
+  const [tcrStreet, setTcrStreet] = useState("");
+  const [tcrCity, setTcrCity] = useState("");
+  const [tcrState, setTcrState] = useState("");
+  const [tcrZip, setTcrZip] = useState("");
+  const [tcrVertical, setTcrVertical] = useState("TECHNOLOGY");
+  const [tcrWebsite, setTcrWebsite] = useState("");
+  // Campaign form
+  const [tcrUsecase, setTcrUsecase] = useState("CUSTOMER_CARE");
+  const [tcrDescription, setTcrDescription] = useState("");
+  const [tcrMessageFlow, setTcrMessageFlow] = useState("");
+  const [tcrSample1, setTcrSample1] = useState("");
+  const [tcrSample2, setTcrSample2] = useState("");
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -68,6 +95,11 @@ export default function SettingsPage() {
       setSmtpPass(smtp.pass ?? "");
       setSmtpFromName(smtp.from_name ?? "");
       setSmtpFromEmail(smtp.from_email ?? "");
+      setTcrBrandId(data.tcr_brand_id ?? null);
+      setTcrBrandStatus(data.tcr_brand_status ?? null);
+      setTcrCampaignId(data.tcr_campaign_id ?? null);
+      setTcrCampaignStatus(data.tcr_campaign_status ?? null);
+      if (data.tcr_brand_id) setTcrStep("campaign");
     } catch { /* silent */ } finally {
       setLoading(false);
     }
@@ -558,6 +590,283 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+            {/* 10DLC Registration — only shown once a phone is configured */}
+            {orgPhone && (
+              <div className="rounded-xl border border-[var(--color-border)]" style={{ padding: "20px 24px", marginBottom: 24 }}>
+                <div className="flex items-center gap-2" style={{ marginBottom: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+                  </svg>
+                  <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">SMS Compliance (10DLC)</h3>
+                </div>
+                <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 16 }}>
+                  US carriers require all business SMS to be registered with The Campaign Registry (TCR).
+                  Complete brand + campaign registration below so messages are delivered instead of filtered.
+                </p>
+
+                {/* Progress steps */}
+                <div className="flex items-center gap-2" style={{ marginBottom: 20 }}>
+                  {[
+                    { key: "brand", label: "1. Brand", done: !!tcrBrandId },
+                    { key: "campaign", label: "2. Campaign", done: !!tcrCampaignId },
+                  ].map((step, i) => (
+                    <div key={step.key} className="flex items-center gap-2">
+                      {i > 0 && <div className="w-8 h-px bg-[var(--color-border)]" />}
+                      <button
+                        onClick={() => { if (step.key === "campaign" && !tcrBrandId) return; setTcrStep(step.key as "brand" | "campaign"); setTcrError(null); }}
+                        className="flex items-center gap-1.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer"
+                        style={{
+                          padding: "4px 12px",
+                          background: step.done ? "rgba(34,197,94,0.1)" : tcrStep === step.key ? "var(--color-accent-soft)" : "var(--color-surface)",
+                          border: `1px solid ${step.done ? "rgba(34,197,94,0.3)" : tcrStep === step.key ? "var(--color-accent)" : "var(--color-border)"}`,
+                          color: step.done ? "#16a34a" : tcrStep === step.key ? "var(--color-accent)" : "var(--color-text-tertiary)",
+                        }}
+                      >
+                        {step.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                        {step.label}
+                        {step.done && (
+                          <span style={{ marginLeft: 2, opacity: 0.7 }}>
+                            {step.key === "brand" ? tcrBrandStatus : tcrCampaignStatus}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Brand form */}
+                {tcrStep === "brand" && !tcrBrandId && (
+                  <div>
+                    <p className="text-[12px] font-medium text-[var(--color-text-secondary)]" style={{ marginBottom: 12 }}>
+                      Register your business with TCR. This must match your legal business registration.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 12 }}>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Business Type</label>
+                        <select value={tcrEntityType} onChange={(e) => setTcrEntityType(e.target.value)}
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+                          style={{ padding: "8px 12px" }}>
+                          <option value="PRIVATE_PROFIT">Private For-Profit</option>
+                          <option value="PUBLIC_PROFIT">Publicly Traded</option>
+                          <option value="NON_PROFIT">Non-Profit</option>
+                          <option value="GOVERNMENT">Government</option>
+                          <option value="SOLE_PROPRIETOR">Sole Proprietor</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Industry</label>
+                        <select value={tcrVertical} onChange={(e) => setTcrVertical(e.target.value)}
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+                          style={{ padding: "8px 12px" }}>
+                          {["TECHNOLOGY","REAL_ESTATE","FINANCIAL","HEALTHCARE","RETAIL","PROFESSIONAL","COMMUNICATION","EDUCATION","INSURANCE","LEGAL","MARKETING","TRANSPORTATION","OTHER"].map(v => (
+                            <option key={v} value={v}>{v.replace(/_/g, " ")}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Display Name</label>
+                        <input value={tcrDisplayName} onChange={(e) => setTcrDisplayName(e.target.value)} placeholder="Acme Inc"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Legal Company Name</label>
+                        <input value={tcrCompanyName} onChange={(e) => setTcrCompanyName(e.target.value)} placeholder="Acme Inc LLC"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>EIN / Tax ID</label>
+                        <input value={tcrEin} onChange={(e) => setTcrEin(e.target.value)} placeholder="12-3456789"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Business Phone</label>
+                        <input value={tcrPhone} onChange={(e) => setTcrPhone(e.target.value)} placeholder="+12025551234"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Business Email</label>
+                        <input value={tcrEmail} onChange={(e) => setTcrEmail(e.target.value)} placeholder="contact@company.com"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Street Address</label>
+                        <input value={tcrStreet} onChange={(e) => setTcrStreet(e.target.value)} placeholder="123 Main St"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>City</label>
+                        <input value={tcrCity} onChange={(e) => setTcrCity(e.target.value)} placeholder="San Francisco"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>State</label>
+                          <input value={tcrState} onChange={(e) => setTcrState(e.target.value)} placeholder="CA" maxLength={2}
+                            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>ZIP</label>
+                          <input value={tcrZip} onChange={(e) => setTcrZip(e.target.value)} placeholder="94105"
+                            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Website (optional)</label>
+                        <input value={tcrWebsite} onChange={(e) => setTcrWebsite(e.target.value)} placeholder="https://company.com"
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                    </div>
+                    {tcrError && <p className="text-[12px] text-red-500" style={{ marginBottom: 8 }}>{tcrError}</p>}
+                    <button
+                      onClick={async () => {
+                        setTcrSubmitting(true); setTcrError(null);
+                        try {
+                          const res = await fetch("/api/comms/tcr/brand", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              entityType: tcrEntityType, displayName: tcrDisplayName,
+                              companyName: tcrCompanyName, ein: tcrEin, phone: tcrPhone,
+                              email: tcrEmail, street: tcrStreet, city: tcrCity,
+                              state: tcrState.toUpperCase(), postalCode: tcrZip,
+                              vertical: tcrVertical, website: tcrWebsite || undefined,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) { setTcrError(data.error ?? "Registration failed"); return; }
+                          setTcrBrandId(data.brand_id);
+                          setTcrBrandStatus(data.brand_status);
+                          setTcrStep("campaign");
+                        } catch { setTcrError("Request failed"); }
+                        finally { setTcrSubmitting(false); }
+                      }}
+                      disabled={tcrSubmitting || !tcrDisplayName || !tcrCompanyName || !tcrEin || !tcrPhone || !tcrEmail || !tcrStreet || !tcrCity || !tcrState || !tcrZip}
+                      className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-30 transition-colors cursor-pointer"
+                      style={{ padding: "8px 20px" }}
+                    >
+                      {tcrSubmitting ? "Submitting..." : "Register Brand"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Brand registered — show status */}
+                {tcrBrandId && tcrStep === "brand" && (
+                  <div className="flex items-center gap-3 rounded-lg border border-[var(--color-border)]" style={{ padding: "12px 16px" }}>
+                    <span className="text-[13px] text-[var(--color-text-primary)] font-medium">{tcrBrandId}</span>
+                    <span className="rounded-full text-[11px] font-medium" style={{
+                      padding: "2px 10px",
+                      background: tcrBrandStatus === "VERIFIED" ? "rgba(34,197,94,0.1)" : "rgba(234,179,8,0.1)",
+                      color: tcrBrandStatus === "VERIFIED" ? "#16a34a" : "#a16207",
+                      border: `1px solid ${tcrBrandStatus === "VERIFIED" ? "rgba(34,197,94,0.3)" : "rgba(234,179,8,0.3)"}`,
+                    }}>{tcrBrandStatus ?? "PENDING"}</span>
+                    <button onClick={() => setTcrStep("campaign")}
+                      className="text-[12px] text-[var(--color-accent)] hover:underline cursor-pointer" style={{ marginLeft: "auto" }}>
+                      Next: Campaign →
+                    </button>
+                  </div>
+                )}
+
+                {/* Campaign form */}
+                {tcrStep === "campaign" && !tcrCampaignId && (
+                  <div>
+                    <p className="text-[12px] font-medium text-[var(--color-text-secondary)]" style={{ marginBottom: 12 }}>
+                      Describe how you&apos;ll use SMS. Be specific — vague descriptions are rejected.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3" style={{ marginBottom: 12 }}>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Use Case</label>
+                        <select value={tcrUsecase} onChange={(e) => setTcrUsecase(e.target.value)}
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+                          style={{ padding: "8px 12px" }}>
+                          <option value="CUSTOMER_CARE">Customer Care</option>
+                          <option value="MARKETING">Marketing</option>
+                          <option value="ACCOUNT_NOTIFICATION">Account Notifications</option>
+                          <option value="2FA">Two-Factor Authentication</option>
+                          <option value="DELIVERY_NOTIFICATION">Delivery Notifications</option>
+                          <option value="FRAUD_ALERT">Fraud Alerts</option>
+                          <option value="MIXED">Mixed / General</option>
+                          <option value="LOW_VOLUME">Low Volume Mixed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Campaign Description</label>
+                        <textarea value={tcrDescription} onChange={(e) => setTcrDescription(e.target.value)}
+                          placeholder="e.g. CRM platform sending follow-up messages, appointment reminders, and deal updates to existing customers who have opted in via our web form."
+                          rows={3}
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 resize-none"
+                          style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Message Flow (how recipients opt in)</label>
+                        <textarea value={tcrMessageFlow} onChange={(e) => setTcrMessageFlow(e.target.value)}
+                          placeholder="e.g. End users provide their phone number and consent to receive SMS messages when signing up on our website at company.com/signup."
+                          rows={2}
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 resize-none"
+                          style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Sample Message 1</label>
+                        <input value={tcrSample1} onChange={(e) => setTcrSample1(e.target.value)}
+                          placeholder="Hi [Name], just following up on your inquiry. Are you available for a quick call? Reply STOP to opt out."
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 4 }}>Sample Message 2</label>
+                        <input value={tcrSample2} onChange={(e) => setTcrSample2(e.target.value)}
+                          placeholder="Your appointment is confirmed for [Date] at [Time]. Reply STOP to opt out."
+                          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40" style={{ padding: "8px 12px" }} />
+                      </div>
+                    </div>
+                    {tcrError && <p className="text-[12px] text-red-500" style={{ marginBottom: 8 }}>{tcrError}</p>}
+                    <button
+                      onClick={async () => {
+                        setTcrSubmitting(true); setTcrError(null);
+                        try {
+                          const res = await fetch("/api/comms/tcr/campaign", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              usecase: tcrUsecase, description: tcrDescription,
+                              messageFlow: tcrMessageFlow, sample1: tcrSample1, sample2: tcrSample2,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) { setTcrError(data.error ?? "Campaign registration failed"); return; }
+                          setTcrCampaignId(data.campaign_id);
+                          setTcrCampaignStatus(data.campaign_status);
+                        } catch { setTcrError("Request failed"); }
+                        finally { setTcrSubmitting(false); }
+                      }}
+                      disabled={tcrSubmitting || !tcrDescription || !tcrMessageFlow || !tcrSample1 || !tcrSample2}
+                      className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-30 transition-colors cursor-pointer"
+                      style={{ padding: "8px 20px" }}
+                    >
+                      {tcrSubmitting ? "Submitting..." : "Register Campaign"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Campaign registered — show status */}
+                {tcrCampaignId && (
+                  <div className="flex items-center gap-3 rounded-lg border border-[var(--color-border)]" style={{ padding: "12px 16px", marginTop: tcrStep === "campaign" ? 0 : 12 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={tcrCampaignStatus === "ACTIVE" ? "#16a34a" : "#a16207"} strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                    <span className="text-[13px] text-[var(--color-text-primary)] font-medium">Campaign {tcrCampaignId}</span>
+                    <span className="rounded-full text-[11px] font-medium" style={{
+                      padding: "2px 10px",
+                      background: tcrCampaignStatus === "ACTIVE" ? "rgba(34,197,94,0.1)" : "rgba(234,179,8,0.1)",
+                      color: tcrCampaignStatus === "ACTIVE" ? "#16a34a" : "#a16207",
+                      border: `1px solid ${tcrCampaignStatus === "ACTIVE" ? "rgba(34,197,94,0.3)" : "rgba(234,179,8,0.3)"}`,
+                    }}>{tcrCampaignStatus ?? "PENDING"}</span>
+                    {tcrCampaignStatus !== "ACTIVE" && (
+                      <span className="text-[11px] text-[var(--color-text-tertiary)]" style={{ marginLeft: "auto" }}>
+                        Approval takes 1–5 business days
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Email SMTP Section */}
             <div className="rounded-xl border border-[var(--color-border)]" style={{ padding: "20px 24px" }}>

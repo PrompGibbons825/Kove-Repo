@@ -22,6 +22,10 @@ export async function GET() {
     custom_field_schema: org.custom_field_schema ?? [],
     telnyx_phone: org.telnyx_phone ?? null,
     smtp_config: org.smtp_config ?? {},
+    tcr_brand_id: org.tcr_brand_id ?? null,
+    tcr_brand_status: org.tcr_brand_status ?? null,
+    tcr_campaign_id: org.tcr_campaign_id ?? null,
+    tcr_campaign_status: org.tcr_campaign_status ?? null,
   });
 }
 
