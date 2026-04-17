@@ -40,27 +40,51 @@ export async function POST(request: Request) {
 
     const permissions = getEffectivePermissions(koveUser as User);
 
-    // Vector search — embed the user's message and find relevant contacts
+    // Always fetch recent contacts to give Claude real data
+    const contactQuery = supabase
+      .from("contacts")
+      .select("id, name, email, phone, source, status, pipeline_stage, ai_summary, last_contacted_at, created_at")
+      .eq("org_id", koveUser.org_id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!permissions.view_all_contacts) {
+      contactQuery.contains("assigned_to", [koveUser.id]);
+    }
+
+    const { data: allContacts } = await contactQuery;
+
+    // Try vector search to find the most relevant subset — falls back to recency order
     let relevantContacts: string[] = [];
     try {
       const queryEmbedding = await generateEmbedding(message);
       const { data: matchedContacts } = await supabase.rpc("match_contacts", {
         query_embedding: queryEmbedding,
-        match_threshold: 0.5,
-        match_count: 8,
+        match_threshold: 0.3,
+        match_count: 10,
         filter_org_id: koveUser.org_id,
       });
       if (matchedContacts && matchedContacts.length > 0) {
         relevantContacts = matchedContacts.map(
           (c: { name: string; status: string; ai_summary: string | null; embedding_text: string | null; similarity: number }) =>
-            `- ${c.name} (${c.status})${
-              c.ai_summary ? `: ${c.ai_summary}` : c.embedding_text ? `: ${c.embedding_text}` : ""
-            } [similarity: ${(c.similarity * 100).toFixed(0)}%]`
+            `- ${c.name} (${c.status})${c.ai_summary ? `: ${c.ai_summary}` : c.embedding_text ? `: ${c.embedding_text}` : ""} [match: ${(c.similarity * 100).toFixed(0)}%]`
         );
       }
     } catch (embErr) {
-      // Non-fatal — proceed without vector context
       console.warn("Vector search skipped:", embErr);
+    }
+
+    // If vector search returned nothing, use all contacts as context
+    if (relevantContacts.length === 0 && allContacts && allContacts.length > 0) {
+      relevantContacts = allContacts.map(
+        (c) =>
+          `- ${c.name} (${c.status})` +
+          (c.pipeline_stage ? ` | Stage: ${c.pipeline_stage}` : "") +
+          (c.source ? ` | Source: ${c.source}` : "") +
+          (c.email ? ` | ${c.email}` : "") +
+          (c.phone ? ` | ${c.phone}` : "") +
+          (c.ai_summary ? ` | ${c.ai_summary}` : "")
+      );
     }
 
     const systemPrompt = assembleSystemPrompt(
