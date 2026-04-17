@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import type { CustomFieldDef, CustomFieldType } from "@/lib/types/database";
 
-type Tab = "general" | "team" | "fields" | "sources" | "comms" | "commissions" | "billing";
+type Tab = "general" | "team" | "fields" | "sources" | "pipelines" | "comms" | "commissions" | "billing";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "team", label: "Team" },
   { id: "fields", label: "Contact Fields" },
   { id: "sources", label: "Sources" },
+  { id: "pipelines", label: "Pipelines" },
   { id: "comms", label: "Communications" },
   { id: "commissions", label: "Commissions" },
   { id: "billing", label: "Billing" },
@@ -27,10 +28,12 @@ const FIELD_TYPES: { value: CustomFieldType; label: string }[] = [
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("sources");
   const [sources, setSources] = useState<string[]>([]);
+  const [pipelines, setPipelines] = useState<string[]>([]);
   const [fields, setFields] = useState<CustomFieldDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newSource, setNewSource] = useState("");
+  const [newPipeline, setNewPipeline] = useState("");
   const [newFieldLabel, setNewFieldLabel] = useState("");
   const [newFieldType, setNewFieldType] = useState<CustomFieldType>("text");
   const [newFieldOptions, setNewFieldOptions] = useState("");
@@ -51,6 +54,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings/org");
       const data = await res.json();
       setSources(data.source_options ?? []);
+      setPipelines(data.pipeline_options ?? []);
       setFields(data.custom_field_schema ?? []);
       setOrgPhone(data.telnyx_phone ?? null);
       const smtp = data.smtp_config ?? {};
@@ -93,6 +97,21 @@ export default function SettingsPage() {
     const next = sources.filter((x) => x !== s);
     setSources(next);
     save({ source_options: next });
+  }
+
+  function addPipeline() {
+    const p = newPipeline.trim();
+    if (!p || pipelines.includes(p)) return;
+    const next = [...pipelines, p];
+    setPipelines(next);
+    setNewPipeline("");
+    save({ pipeline_options: next });
+  }
+
+  function removePipeline(p: string) {
+    const next = pipelines.filter((x) => x !== p);
+    setPipelines(next);
+    save({ pipeline_options: next });
   }
 
   function addField() {
@@ -209,6 +228,54 @@ export default function SettingsPage() {
               <button
                 onClick={addSource}
                 disabled={!newSource.trim() || saving}
+                className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-30 transition-colors cursor-pointer"
+                style={{ padding: "8px 20px" }}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pipelines tab */}
+        {tab === "pipelines" && (
+          <div>
+            <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Pipelines</h2>
+            <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginTop: 4, marginBottom: 24 }}>
+              Define your deal tracks or pipeline types. These appear as a dropdown on every contact.
+            </p>
+
+            <div className="space-y-2" style={{ marginBottom: 20 }}>
+              {pipelines.length === 0 && (
+                <p className="text-[13px] text-[var(--color-text-tertiary)] italic">No pipelines defined yet.</p>
+              )}
+              {pipelines.map((p) => (
+                <div key={p} className="flex items-center justify-between rounded-lg border border-[var(--color-border)]" style={{ padding: "8px 14px" }}>
+                  <span className="text-[13px] text-[var(--color-text-primary)]">{p}</span>
+                  <button
+                    onClick={() => removePipeline(p)}
+                    className="text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                value={newPipeline}
+                onChange={(e) => setNewPipeline(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addPipeline()}
+                placeholder="e.g. Enterprise, SMB, Partner"
+                className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors"
+                style={{ padding: "8px 12px" }}
+              />
+              <button
+                onClick={addPipeline}
+                disabled={!newPipeline.trim() || saving}
                 className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-30 transition-colors cursor-pointer"
                 style={{ padding: "8px 20px" }}
               >
@@ -479,7 +546,7 @@ export default function SettingsPage() {
         )}
 
         {/* Placeholder tabs */}
-        {!["sources", "fields", "comms"].includes(tab) && (
+        {!['sources', 'fields', 'comms', 'pipelines'].includes(tab) && (
           <div>
             <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">{TABS.find((t) => t.id === tab)?.label}</h2>
             <div

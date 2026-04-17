@@ -18,6 +18,7 @@ export async function GET() {
 
   return NextResponse.json({
     source_options: org.source_options ?? [],
+    pipeline_options: org.pipeline_options ?? [],
     custom_field_schema: org.custom_field_schema ?? [],
     telnyx_phone: org.telnyx_phone ?? null,
     smtp_config: org.smtp_config ?? {},
@@ -42,6 +43,7 @@ export async function PATCH(request: Request) {
   const update: Record<string, unknown> = {};
 
   if (body.source_options !== undefined) update.source_options = body.source_options;
+  if (body.pipeline_options !== undefined) update.pipeline_options = body.pipeline_options;
   if (body.custom_field_schema !== undefined) update.custom_field_schema = body.custom_field_schema;
   if (body.smtp_config !== undefined) update.smtp_config = body.smtp_config;
 

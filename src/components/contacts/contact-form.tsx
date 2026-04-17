@@ -37,6 +37,7 @@ export function ContactForm({ contact, onClose, onSaved }: ContactFormProps) {
 
   // Org settings
   const [sourceOptions, setSourceOptions] = useState<string[]>([]);
+  const [pipelineOptions, setPipelineOptions] = useState<string[]>([]);
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
@@ -45,6 +46,7 @@ export function ContactForm({ contact, onClose, onSaved }: ContactFormProps) {
       const res = await fetch("/api/settings/org");
       const data = await res.json();
       setSourceOptions(data.source_options ?? []);
+      setPipelineOptions(data.pipeline_options ?? []);
       setCustomFieldDefs(data.custom_field_schema ?? []);
     } catch { /* silent */ } finally {
       setLoadingSettings(false);
@@ -152,7 +154,37 @@ export function ContactForm({ contact, onClose, onSaved }: ContactFormProps) {
               )}
             </div>
 
-            <Field label="Pipeline Stage" value={pipelineStage} onChange={setPipelineStage} placeholder="e.g. Initial Contact" />
+            {/* Pipeline — dropdown from org settings */}
+            <div>
+              <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ marginBottom: 6, display: "block" }}>Pipeline</label>
+              {loadingSettings ? (
+                <div className="text-[12px] text-[var(--color-text-tertiary)]">Loading...</div>
+              ) : pipelineOptions.length > 0 ? (
+                <select
+                  value={pipelineStage}
+                  onChange={(e) => setPipelineStage(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/40 cursor-pointer"
+                  style={{ padding: "8px 12px" }}
+                >
+                  <option value="">Select pipeline</option>
+                  {pipelineOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              ) : (
+                <div>
+                  <input
+                    type="text"
+                    value={pipelineStage}
+                    onChange={(e) => setPipelineStage(e.target.value)}
+                    placeholder="e.g. Enterprise"
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors"
+                    style={{ padding: "8px 12px" }}
+                  />
+                  <p className="text-[11px] text-[var(--color-text-tertiary)]" style={{ marginTop: 4 }}>
+                    Tip: Define pipelines in Settings → Pipelines for consistent tracking.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Status */}
             <div>

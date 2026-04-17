@@ -25,6 +25,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const resizingRef = useRef(false);
   const [orgMembers, setOrgMembers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [pipelineOptions, setPipelineOptions] = useState<string[]>([]);
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
@@ -49,6 +50,13 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
     fetch("/api/users")
       .then((r) => r.json())
       .then((data) => setOrgMembers(data.users ?? []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/settings/org")
+      .then((r) => r.json())
+      .then((data) => setPipelineOptions(data.pipeline_options ?? []))
       .catch(() => {});
   }, []);
 
@@ -166,7 +174,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
             <div className="grid grid-cols-3 gap-3" style={{ marginBottom: 24 }}>
               <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
               <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
-              <EditableField label="Pipeline" value={contact.pipeline_stage ?? ""} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
+              <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
             </div>
             <AISummary summary={contact.ai_summary} />
             {contact.handoff_notes && (
@@ -254,7 +262,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
         <div className="grid grid-cols-2 gap-2" style={{ marginBottom: 20 }}>
           <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
           <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
-          <EditableField label="Pipeline" value={contact.pipeline_stage ?? ""} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
+          <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
           <EditableField label="Source" value={contact.source ?? ""} onSave={(v) => handleFieldSave("source", v)} />
         </div>
         <AssignedMembers
@@ -285,6 +293,26 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 }
 
 /* ── Shared sub-components ── */
+
+function EditableSelectField({ label, value, options, onSave }: { label: string; value: string; options: string[]; onSave: (v: string) => void }) {
+  if (options.length === 0) {
+    return <EditableField label={label} value={value} onSave={onSave} />;
+  }
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)]/40 transition-colors" style={{ padding: "8px 12px" }}>
+      <p className="text-[10px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">{label}</p>
+      <select
+        value={value}
+        onChange={(e) => onSave(e.target.value)}
+        className="w-full text-[13px] text-[var(--color-text-primary)] font-medium bg-transparent border-none outline-none cursor-pointer p-0"
+        style={{ marginTop: 3 }}
+      >
+        <option value="">—</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
 
 function EditableNameField({ value, onSave, className }: { value: string; onSave: (v: string) => void; className?: string }) {
   const [editing, setEditing] = useState(false);

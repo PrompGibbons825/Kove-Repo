@@ -133,6 +133,7 @@ export interface Organization {
   business_context: Json;
   custom_field_schema: CustomFieldDef[];
   source_options: string[];
+  pipeline_options: string[];
   commission_rules: Json;
   telnyx_phone: string | null;
   telnyx_connection_id: string | null;
