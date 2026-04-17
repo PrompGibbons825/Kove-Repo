@@ -67,9 +67,7 @@ export function Sidebar({ user, org }: SidebarProps) {
     <aside
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)] select-none transition-[width] duration-300 ease-in-out overflow-hidden ${
-        expanded ? "w-[240px]" : "w-[68px]"
-      }`}
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col py-[10px] bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)] select-none transition-[width] duration-300 ease-in-out overflow-hidden ${expanded ? "w-[240px]" : "w-[68px]"}`}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 pt-6 pb-4" style={{ paddingLeft: '14px' }}>
@@ -150,19 +148,19 @@ export function Sidebar({ user, org }: SidebarProps) {
         </button>
 
         {/* User avatar */}
-        <div className="mt-1 rounded-xl bg-white/[0.04] px-3 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 min-w-[40px] min-h-[40px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white">
+        <div className="mt-1 rounded-xl bg-white/[0.04] py-2.5 flex items-center gap-3" style={{ paddingLeft: '10px' }}>
+          <div className="w-[44px] h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white">
               {initials}
             </div>
-            <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0"}`}>
-              <p className="truncate text-sm font-medium text-white/90 whitespace-nowrap">
-                {user.full_name}
-              </p>
-              <p className="truncate text-xs text-white/40 whitespace-nowrap">
-                {user.is_owner ? "Owner" : "Member"}
-              </p>
-            </div>
+          </div>
+          <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0"}`}>
+            <p className="truncate text-sm font-medium text-white/90 whitespace-nowrap">
+              {user.full_name}
+            </p>
+            <p className="truncate text-xs text-white/40 whitespace-nowrap">
+              {user.is_owner ? "Owner" : "Member"}
+            </p>
           </div>
         </div>
       </div>
