@@ -15,11 +15,11 @@ export function AppShell({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--color-background)]">
+    <div className="h-screen overflow-hidden bg-[var(--color-background)]">
       <Sidebar user={user} org={org} />
 
-      <main className="relative flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-12 py-12">
+      <main className="ml-[68px] h-screen overflow-y-auto transition-[margin] duration-300 ease-in-out">
+        <div className="mx-auto max-w-5xl px-10 py-10">
           {children}
         </div>
 

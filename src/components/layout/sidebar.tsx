@@ -67,12 +67,12 @@ export function Sidebar({ user, org }: SidebarProps) {
     <aside
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
-      className={`flex h-full flex-col bg-[var(--color-sidebar-bg)] select-none transition-all duration-300 ease-in-out overflow-hidden ${
-        expanded ? "w-[260px]" : "w-[72px]"
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)] select-none transition-[width] duration-300 ease-in-out overflow-hidden ${
+        expanded ? "w-[240px]" : "w-[68px]"
       }`}
     >
       {/* Logo */}
-      <div className={`flex items-center pt-7 pb-4 ${expanded ? "gap-3 px-5" : "justify-center"}`}>
+      <div className={`flex items-center pt-6 pb-4 ${expanded ? "gap-4 px-5" : "justify-center"}`}>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
           <span className="text-[16px] font-bold text-white leading-none">K</span>
         </div>
@@ -88,7 +88,7 @@ export function Sidebar({ user, org }: SidebarProps) {
       <div className="mx-3 border-t border-[var(--color-sidebar-border)]" />
 
       {/* Navigation */}
-      <nav className="flex-1 pt-5 space-y-2 px-2">
+      <nav className="flex-1 pt-4 pb-3 space-y-1 px-2">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -96,12 +96,12 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-              className={`group relative flex items-center rounded-xl text-[15px] font-medium transition-all duration-150 ${
-                expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"
+              className={`group relative flex items-center rounded-xl transition-all duration-200 ${
+                expanded ? "gap-4 px-3 py-3" : "justify-center py-3"
               } ${
                 isActive
-                  ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
-                  : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)]"
+                  ? "bg-[var(--color-accent)]/15 text-[var(--color-sidebar-text-active)]"
+                  : "text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)]"
               }`}
             >
               {isActive && (
@@ -111,7 +111,7 @@ export function Sidebar({ user, org }: SidebarProps) {
                 <Icon name={item.icon} />
               </span>
               {expanded && (
-                <span className="whitespace-nowrap">
+                <span className="whitespace-nowrap text-sm font-medium">
                   {item.label}
                 </span>
               )}
@@ -121,48 +121,48 @@ export function Sidebar({ user, org }: SidebarProps) {
       </nav>
 
       {/* Bottom section */}
-      <div className="border-t border-[var(--color-sidebar-border)] px-2 py-3 space-y-2">
+      <div className="border-t border-[var(--color-sidebar-border)] px-2 pt-3 pb-3 space-y-1">
         {(user.is_owner || hasPermission(user, "manage_users")) && (
           <Link
             href="/settings"
             title={!expanded ? "Settings" : undefined}
-            className={`flex items-center rounded-xl text-[15px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150 ${expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"}`}
+            className={`flex items-center rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200 ${expanded ? "gap-4 px-3 py-3" : "justify-center py-3"}`}
           >
             <span className="shrink-0"><Icon name="settings" /></span>
-            {expanded && <span className="whitespace-nowrap">Settings</span>}
+            {expanded && <span className="whitespace-nowrap text-sm font-medium">Settings</span>}
           </Link>
         )}
 
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title={!expanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
-          className={`flex w-full items-center rounded-xl text-[15px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150 ${expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"}`}
+          className={`flex w-full items-center rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200 ${expanded ? "gap-4 px-3 py-3" : "justify-center py-3"}`}
         >
           <span className="shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} /></span>
-          {expanded && <span className="whitespace-nowrap">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+          {expanded && <span className="whitespace-nowrap text-sm font-medium">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
         </button>
 
         <button
           onClick={handleLogout}
           title={!expanded ? "Log Out" : undefined}
-          className={`flex w-full items-center rounded-xl text-[15px] text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-150 ${expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"}`}
+          className={`flex w-full items-center rounded-xl text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 ${expanded ? "gap-4 px-3 py-3" : "justify-center py-3"}`}
         >
           <span className="shrink-0"><Icon name="logout" /></span>
-          {expanded && <span className="whitespace-nowrap">Log Out</span>}
+          {expanded && <span className="whitespace-nowrap text-sm font-medium">Log Out</span>}
         </button>
 
         {/* User avatar */}
-        <div className={`mt-2 rounded-xl bg-white/[0.04] py-3 ${expanded ? "px-4" : "flex justify-center"}`}>
-          <div className={`flex items-center ${expanded ? "gap-4" : "justify-center"}`}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white shadow-inner">
+        <div className={`mt-1 rounded-xl bg-white/[0.04] py-3 ${expanded ? "px-3" : "flex justify-center px-0"}`}>
+          <div className={`flex items-center ${expanded ? "gap-3" : "justify-center"}`}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white">
               {initials}
             </div>
             {expanded && (
               <div className="flex-1 overflow-hidden">
-                <p className="truncate text-[14px] font-medium text-white/90 whitespace-nowrap">
+                <p className="truncate text-sm font-medium text-white/90 whitespace-nowrap">
                   {user.full_name}
                 </p>
-                <p className="truncate text-[12px] text-white/40 whitespace-nowrap">
+                <p className="truncate text-xs text-white/40 whitespace-nowrap">
                   {user.is_owner ? "Owner" : "Member"}
                 </p>
               </div>
