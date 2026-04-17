@@ -17,7 +17,23 @@ export async function GET(request: Request) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ activities: data ?? [] });
+
+  const activities = data ?? [];
+
+  // Fetch user names for attribution
+  const userIds = [...new Set(activities.filter((a) => a.user_id).map((a) => a.user_id))] as string[];
+  const userMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: users } = await supabase.from("users").select("id, full_name").in("id", userIds);
+    for (const u of users ?? []) userMap[u.id] = u.full_name;
+  }
+
+  const enriched = activities.map((a) => ({
+    ...a,
+    user_name: a.user_id ? (userMap[a.user_id] ?? null) : null,
+  }));
+
+  return NextResponse.json({ activities: enriched });
 }
 
 export async function POST(request: Request) {

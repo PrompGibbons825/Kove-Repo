@@ -250,6 +250,24 @@ export default function InboxPage({ user: _user }: { user: User }) {
     } catch {}
   }, [selectedContact]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function handleUpdateActivity(id: string, content: string) {
+    const res = await fetch(`/api/activities/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (res.ok) {
+      setContactActivities((prev) => prev.map((a) => a.id === id ? { ...a, content } : a));
+    }
+  }
+
+  async function handleDeleteActivity(id: string) {
+    const res = await fetch(`/api/activities/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setContactActivities((prev) => prev.filter((a) => a.id !== id));
+    }
+  }
+
   const isInCall = callState !== "idle";
 
   return (
@@ -469,17 +487,9 @@ export default function InboxPage({ user: _user }: { user: User }) {
               No activity yet.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {contactActivities.map((a) => (
-                <div key={a.id} className="flex gap-2 text-[12px]">
-                  <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: 24, height: 24, background: "var(--color-surface-hover)" }}>
-                    <span className="text-[10px]">{activityIcon(a.type)}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[var(--color-text-primary)] truncate">{a.ai_summary ?? a.content ?? a.type}</p>
-                    <p className="text-[10px] text-[var(--color-text-tertiary)]">{new Date(a.occurred_at).toLocaleString()}</p>
-                  </div>
-                </div>
+                <InboxTimelineEntry key={a.id} activity={a} onUpdate={handleUpdateActivity} onDelete={handleDeleteActivity} />
               ))}
             </div>
           )}
@@ -578,6 +588,122 @@ function SidebarAssigned({ contact, orgMembers, updateContact }: {
               {m.full_name}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function inboxTimelineIcon(type: string) {
+  switch (type) {
+    case "call": return "📞";
+    case "sms": return "💬";
+    case "email": return "✉️";
+    case "voicemail": return "📱";
+    case "note": return "📝";
+    default: return "•";
+  }
+}
+
+function inboxTimelineLabel(type: string, direction?: string | null) {
+  if (type === "call") return direction === "inbound" ? "Inbound call" : "Outbound call";
+  if (type === "sms") return direction === "inbound" ? "Inbound SMS" : "Outbound SMS";
+  if (type === "email") return direction === "inbound" ? "Inbound email" : "Outbound email";
+  if (type === "voicemail") return "Voicemail";
+  return "Note";
+}
+
+function InboxTimelineEntry({
+  activity,
+  onUpdate,
+  onDelete,
+}: {
+  activity: Activity & { user_name?: string | null };
+  onUpdate: (id: string, content: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(activity.content ?? "");
+  const [deleting, setDeleting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isNote = activity.type === "note";
+
+  useEffect(() => { setDraft(activity.content ?? ""); }, [activity.content]);
+  useEffect(() => { if (editing) textareaRef.current?.focus(); }, [editing]);
+
+  function commitEdit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== activity.content) onUpdate(activity.id, trimmed);
+    else setDraft(activity.content ?? "");
+  }
+
+  const displayText = activity.ai_summary ?? activity.content ?? activity.type;
+  const attribution = activity.user_name ?? (activity.direction === "inbound" ? "Contact" : null);
+
+  return (
+    <div className="flex gap-2 group">
+      <div className="flex items-start justify-center rounded-full shrink-0" style={{ width: 24, height: 24, marginTop: 2, background: "var(--color-surface-hover)" }}>
+        <span style={{ fontSize: 10, lineHeight: "24px" }}>{inboxTimelineIcon(activity.type)}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1 flex-wrap" style={{ marginBottom: 1 }}>
+          <span className="text-[10px] font-medium text-[var(--color-text-secondary)]">
+            {inboxTimelineLabel(activity.type, activity.direction)}
+          </span>
+          {attribution && (
+            <span className="text-[10px] text-[var(--color-text-tertiary)]">by {attribution}</span>
+          )}
+          {activity.duration_seconds != null && (
+            <span className="text-[10px] text-[var(--color-text-tertiary)]">
+              · {Math.floor(activity.duration_seconds / 60)}:{String(activity.duration_seconds % 60).padStart(2, "0")}
+            </span>
+          )}
+        </div>
+        {editing ? (
+          <div className="flex gap-1 items-end" style={{ marginTop: 3 }}>
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              className="flex-1 rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-background)] text-[11px] text-[var(--color-text-primary)] focus:outline-none resize-none"
+              style={{ padding: "4px 8px" }}
+            />
+            <div className="flex flex-col gap-1">
+              <button onClick={commitEdit}
+                className="flex items-center justify-center rounded-lg bg-[var(--color-accent)] text-white cursor-pointer"
+                style={{ width: 24, height: 24 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+              <button onClick={() => { setEditing(false); setDraft(activity.content ?? ""); }}
+                className="flex items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-tertiary)] cursor-pointer"
+                style={{ width: 24, height: 24 }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[11px] leading-relaxed text-[var(--color-text-primary)]" style={{ whiteSpace: "pre-wrap" }}>
+            {displayText}
+          </p>
+        )}
+        <p className="text-[9px] text-[var(--color-text-tertiary)]" style={{ marginTop: 1 }}>
+          {new Date(activity.occurred_at).toLocaleString()}
+        </p>
+      </div>
+      {isNote && !editing && (
+        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <button onClick={() => setEditing(true)} title="Edit note"
+            className="flex items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
+            style={{ width: 20, height: 20 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </button>
+          <button onClick={() => { setDeleting(true); onDelete(activity.id); }} disabled={deleting} title="Delete note"
+            className="flex items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-red-500 hover:bg-[var(--color-surface-hover)] cursor-pointer disabled:opacity-30"
+            style={{ width: 20, height: 20 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
         </div>
       )}
     </div>
