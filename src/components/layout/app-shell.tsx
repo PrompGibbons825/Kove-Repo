@@ -25,7 +25,7 @@ export function AppShell({ user, org, children }: AppShellProps) {
     <div className="min-h-screen flex w-full bg-[var(--color-background)]">
       <Sidebar user={user} org={org} />
 
-      <main className="flex-1 flex flex-col min-h-screen ml-[68px] transition-[margin] duration-300 ease-in-out">
+      <main className="flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out" style={{ marginLeft: 68 }}>
         {/* Top Header Bar */}
         <header className="flex items-center justify-end gap-3 px-8 py-4 shrink-0">
           {/* Notification bell */}
