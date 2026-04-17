@@ -27,8 +27,11 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
       .then((r) => r.json())
       .then((data) => {
         const all: Activity[] = Array.isArray(data) ? data : (data.activities ?? []);
-        // Filter to only sms and email
-        setMessages(all.filter((a) => a.type === "sms" || a.type === "email"));
+        // Filter to sms and email, sort oldest first so newest is at bottom
+        const msgs = all
+          .filter((a) => a.type === "sms" || a.type === "email")
+          .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+        setMessages(msgs);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -70,6 +73,9 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
             occurred_at: new Date().toISOString(),
           }]);
           setDraft("");
+        } else {
+          const err = await res.json().catch(() => ({}));
+          setSendError(err.error ?? "Failed to send SMS");
         }
       } else {
         // Email sending
