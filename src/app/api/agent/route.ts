@@ -69,6 +69,14 @@ export async function POST(request: Request) {
 
     const data = await anthropicResponse.json();
 
+    if (!anthropicResponse.ok || data.type === "error") {
+      console.error("Anthropic API error:", JSON.stringify(data));
+      return NextResponse.json(
+        { response: `AI error: ${data.error?.message ?? "Unknown error"}` },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json({
       response:
         data.content?.[0]?.text ?? "I couldn't process that. Try again.",
@@ -76,7 +84,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Agent error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { response: `Server error: ${error instanceof Error ? error.message : String(error)}` },
       { status: 500 }
     );
   }
