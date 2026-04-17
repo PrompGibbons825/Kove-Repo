@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Sidebar } from "./sidebar";
 import { AgentSidebar } from "./agent-sidebar";
 import { ContactPanelProvider, useContactPanel } from "@/components/contacts/contact-panel-context";
@@ -23,20 +23,60 @@ export function AppShell({ user, org, children }: AppShellProps) {
 
 function AppShellInner({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
-  const [agentWidth, setAgentWidth] = useState(380);
+  const [columnWidth, setColumnWidth] = useState(400);
+  const [splitRatio, setSplitRatio] = useState(0.5);
   const { contact, viewMode, width: contactWidth, setRightOffset } = useContactPanel();
 
   const contactSidebarOpen = !!(contact && viewMode === "sidebar");
   const contactFullscreen = !!(contact && viewMode === "fullscreen");
+  const bothOpen = contactSidebarOpen && agentOpen;
 
-  // Sync right offset so contact panel knows where to position itself
-  const agentOffset = agentOpen ? agentWidth : 0;
-  useEffect(() => { setRightOffset(agentOffset); }, [agentOffset, setRightOffset]);
+  // Right column is always a single fixed panel — no offset needed
+  useEffect(() => { setRightOffset(0); }, [setRightOffset]);
 
-  // Right margin = agent sidebar width + contact sidebar width (when both open as sidebars)
-  const rightMargin =
-    (agentOpen ? agentWidth : 0) +
-    (contactSidebarOpen ? contactWidth : 0);
+  const rightColumnWidth = agentOpen ? columnWidth : (contactSidebarOpen ? contactWidth : 0);
+  const rightMargin = contactFullscreen ? 0 : rightColumnWidth;
+
+  // ── Column width resize (left edge drag) ──
+  const colResizingRef = useRef(false);
+  const startColumnResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    colResizingRef.current = true;
+    const startX = e.clientX;
+    const startW = columnWidth;
+    const onMove = (ev: MouseEvent) => {
+      if (!colResizingRef.current) return;
+      setColumnWidth(Math.max(320, Math.min(800, startW + (startX - ev.clientX))));
+    };
+    const onUp = () => {
+      colResizingRef.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [columnWidth]);
+
+  // ── Vertical split resize ──
+  const rightColumnRef = useRef<HTMLDivElement>(null);
+  const splitResizingRef = useRef(false);
+  const startSplitResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    splitResizingRef.current = true;
+    const rect = rightColumnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const onMove = (ev: MouseEvent) => {
+      if (!splitResizingRef.current) return;
+      setSplitRatio(Math.max(0.2, Math.min(0.8, (ev.clientY - rect.top) / rect.height)));
+    };
+    const onUp = () => {
+      splitResizingRef.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
 
   return (
     <div className="min-h-screen flex w-full bg-[var(--color-background)]">
@@ -46,7 +86,7 @@ function AppShellInner({ user, org, children }: AppShellProps) {
         className="flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out relative"
         style={{ marginLeft: 68, marginRight: rightMargin }}
       >
-        {/* Top-right agent trigger — hidden when sidebar open */}
+        {/* Top-right agent trigger — hidden when agent open */}
         {!agentOpen && (
           <button
             onClick={() => setAgentOpen(true)}
@@ -62,24 +102,60 @@ function AppShellInner({ user, org, children }: AppShellProps) {
           </button>
         )}
         <div className="flex-1 overflow-auto">
-          {/* Fullscreen contact view renders over main content */}
           {contactFullscreen && <ContactDetail />}
           {!contactFullscreen && children}
         </div>
       </main>
 
-      {/* Contact sidebar — uses rightOffset from context */}
-      {contactSidebarOpen && <ContactDetail />}
+      {/* Single right column — contact + agent share it, split top/bottom when both open */}
+      {(contactSidebarOpen || agentOpen) && !contactFullscreen && (
+        <div
+          ref={rightColumnRef}
+          className="fixed top-0 right-0 h-screen z-40 flex flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
+          style={{ width: rightColumnWidth, transition: "width 250ms cubic-bezier(0.16,1,0.3,1)" }}
+        >
+          {/* Left-edge horizontal resize handle */}
+          <div
+            onMouseDown={startColumnResize}
+            className="absolute left-0 top-0 bottom-0 z-10 cursor-col-resize hover:bg-[var(--color-accent)]/20 transition-colors"
+            style={{ width: 6 }}
+          />
 
-      {/* Agent sidebar — always rightmost */}
-      {agentOpen && (
-        <AgentSidebar
-          user={user}
-          org={org}
-          width={agentWidth}
-          onWidthChange={setAgentWidth}
-          onClose={() => setAgentOpen(false)}
-        />
+          {bothOpen ? (
+            <>
+              {/* Top pane: contact detail */}
+              <div style={{ height: `${splitRatio * 100}%`, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <ContactDetail contained />
+              </div>
+              {/* Horizontal drag divider */}
+              <div
+                onMouseDown={startSplitResize}
+                className="shrink-0 flex items-center justify-center cursor-row-resize hover:bg-[var(--color-accent)]/15 transition-colors group"
+                style={{ height: 8, background: "var(--color-border)" }}
+              >
+                <div className="rounded-full opacity-40 group-hover:opacity-80 transition-opacity" style={{ width: 32, height: 3, background: "var(--color-text-tertiary)" }} />
+              </div>
+              {/* Bottom pane: agent */}
+              <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <AgentSidebar
+                  user={user} org={org}
+                  width={columnWidth} onWidthChange={setColumnWidth}
+                  onClose={() => setAgentOpen(false)}
+                  contained
+                />
+              </div>
+            </>
+          ) : contactSidebarOpen ? (
+            <ContactDetail contained />
+          ) : (
+            <AgentSidebar
+              user={user} org={org}
+              width={columnWidth} onWidthChange={setColumnWidth}
+              onClose={() => setAgentOpen(false)}
+              contained
+            />
+          )}
+        </div>
       )}
     </div>
   );

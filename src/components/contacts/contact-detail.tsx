@@ -14,7 +14,7 @@ const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: "renewal", label: "Renewal" },
 ];
 
-export function ContactDetail() {
+export function ContactDetail({ contained }: { contained?: boolean }) {
   const { contact, viewMode, width, rightOffset, closeContact, setViewMode, setWidth, updateContact } = useContactPanel();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
@@ -185,8 +185,12 @@ export function ContactDetail() {
   // ── Sidebar mode ──
   return (
     <aside
-      className="fixed top-0 z-40 flex h-screen flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
-      style={{
+      className={
+        contained
+          ? "relative flex h-full w-full flex-col overflow-hidden bg-[var(--color-surface)]"
+          : "fixed top-0 z-40 flex h-screen flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
+      }
+      style={contained ? { opacity: visible ? 1 : 0, transition: "opacity 200ms ease" } : {
         width: visible ? width : 0,
         right: rightOffset,
         opacity: visible ? 1 : 0,
@@ -194,8 +198,10 @@ export function ContactDetail() {
         transition: "width 250ms cubic-bezier(0.16,1,0.3,1), opacity 200ms ease, transform 250ms cubic-bezier(0.16,1,0.3,1)",
       }}
     >
-      {/* Resize handle */}
-      <div onMouseDown={startResize} className="absolute left-0 top-0 bottom-0 cursor-col-resize hover:bg-[var(--color-accent)]/20 transition-colors z-10" style={{ width: 6 }} />
+      {/* Resize handle — only in standalone mode */}
+      {!contained && (
+        <div onMouseDown={startResize} className="absolute left-0 top-0 bottom-0 cursor-col-resize hover:bg-[var(--color-accent)]/20 transition-colors z-10" style={{ width: 6 }} />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--color-border)]" style={{ padding: "14px 20px" }}>

@@ -11,6 +11,7 @@ interface AgentSidebarProps {
   width: number;
   onWidthChange: (w: number) => void;
   onClose: () => void;
+  contained?: boolean;
 }
 
 interface Message {
@@ -25,7 +26,7 @@ const MODE_META: Record<Mode, { label: string; desc: string; color: string }> = 
   agent: { label: "Agent", desc: "Autonomous task execution",           color: "#10b981" },
 };
 
-export function AgentSidebar({ user, org, width, onWidthChange, onClose }: AgentSidebarProps) {
+export function AgentSidebar({ user, org, width, onWidthChange, onClose, contained }: AgentSidebarProps) {
   const [mode, setMode] = useState<Mode>("agent");
   const [modeOpen, setModeOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -112,20 +113,26 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose }: Agent
 
   return (
     <aside
-      className="fixed top-0 right-0 z-50 flex h-screen flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
-      style={{
+      className={
+        contained
+          ? "relative flex h-full w-full flex-col overflow-hidden bg-[var(--color-surface)]"
+          : "fixed top-0 right-0 z-50 flex h-screen flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
+      }
+      style={contained ? {} : {
         width: visible ? width : 40,
         opacity: visible ? 1 : 0,
         transform: visible ? "translateX(0)" : "translateX(100%)",
         transition: "width 250ms cubic-bezier(0.16,1,0.3,1), opacity 200ms ease, transform 250ms cubic-bezier(0.16,1,0.3,1)",
       }}
     >
-      {/* Resize handle */}
-      <div
-        onMouseDown={startResize}
-        className="absolute left-0 top-0 bottom-0 cursor-col-resize hover:bg-[var(--color-accent)]/20 transition-colors z-10"
-        style={{ width: 6 }}
-      />
+      {/* Resize handle — only in standalone mode */}
+      {!contained && (
+        <div
+          onMouseDown={startResize}
+          className="absolute left-0 top-0 bottom-0 cursor-col-resize hover:bg-[var(--color-accent)]/20 transition-colors z-10"
+          style={{ width: 6 }}
+        />
+      )}
 
       {/* Header */}
       <div style={{ padding: "16px 20px 12px" }} className="flex items-center justify-between border-b border-[var(--color-border)]">
