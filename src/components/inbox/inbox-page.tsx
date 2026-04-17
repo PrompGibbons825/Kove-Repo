@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { User, Activity, Contact } from "@/lib/types/database";
-import { ContactPanelProvider, useContactPanel } from "@/components/contacts/contact-panel-context";
-import { ContactDetail } from "@/components/contacts/contact-detail";
+import { useContactPanel } from "@/components/contacts/contact-panel-context";
 import { ContactMessaging } from "@/components/contacts/contact-messaging";
 
 type InboxFilter = "all" | "calls" | "sms" | "email";
@@ -50,8 +49,7 @@ function activityPreview(a: Activity): string {
   return a.content || a.ai_summary || a.type;
 }
 
-// ── Inner component (needs ContactPanelProvider above it) ──
-function InboxContent() {
+export default function InboxPage({ user: _user }: { user: User }) {
   const { openContact } = useContactPanel();
 
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -225,24 +223,6 @@ function InboxContent() {
         )}
       </div>
 
-      {/* ── Right column: Actual ContactDetail sidebar ── */}
-      {selectedContact && (
-        <div
-          className="border-l border-[var(--color-border)] shrink-0 flex flex-col overflow-hidden"
-          style={{ width: 380 }}
-        >
-          <ContactDetail contained />
-        </div>
-      )}
     </div>
-  );
-}
-
-// ── Export: wrap with ContactPanelProvider ──
-export default function InboxPage({ user: _user }: { user: User }) {
-  return (
-    <ContactPanelProvider>
-      <InboxContent />
-    </ContactPanelProvider>
   );
 }
