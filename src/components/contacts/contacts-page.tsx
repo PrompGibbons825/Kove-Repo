@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Contact, ContactStatus } from "@/lib/types/database";
-import { ContactDetail } from "./contact-detail";
+import { useContactPanel } from "./contact-panel-context";
 import { ContactForm } from "./contact-form";
 import { CsvImport } from "./csv-import";
 
@@ -21,10 +21,7 @@ const ALL_STATUSES: ContactStatus[] = ["new", "qualifying", "qualified", "closin
 function StatusBadge({ status }: { status: ContactStatus }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.new;
   return (
-    <span
-      className="text-[11px] font-medium rounded-full"
-      style={{ padding: "2px 10px", background: cfg.bg, color: cfg.text }}
-    >
+    <span className="text-[11px] font-medium rounded-full" style={{ padding: "2px 10px", background: cfg.bg, color: cfg.text }}>
       {cfg.label}
     </span>
   );
@@ -43,31 +40,41 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export function ContactsPage() {
+  const { openContact } = useContactPanel();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContactStatus | "all">("all");
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const fetchContacts = useCallback(async () => {
     try {
       const res = await fetch("/api/contacts");
       const data = await res.json();
       setContacts(data.contacts ?? []);
-    } catch {
-      // silent
-    } finally {
+    } catch { /* silent */ } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const filtered = contacts.filter((c) => {
+  // Auto-focus search on mount
+  useEffect(() => { searchRef.current?.focus(); }, []);
+
+  // Sort: most recently active first (last_contacted_at desc, then created_at desc)
+  const sorted = [...contacts].sort((a, b) => {
+    const aTime = a.last_contacted_at ? new Date(a.last_contacted_at).getTime() : 0;
+    const bTime = b.last_contacted_at ? new Date(b.last_contacted_at).getTime() : 0;
+    if (bTime !== aTime) return bTime - aTime;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const filtered = sorted.filter((c) => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -92,64 +99,66 @@ export function ContactsPage() {
 
   return (
     <div style={{ padding: "32px 40px" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between" style={{ marginBottom: 24 }}>
-        <div>
-          <h1 className="text-[24px] font-semibold text-[var(--color-text-primary)]">Contacts</h1>
-          <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginTop: 4 }}>
-            {contacts.length} total · {filtered.length} shown
-          </p>
+      {/* Hero search */}
+      <div style={{ marginBottom: 28 }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+          <div>
+            <h1 className="text-[24px] font-semibold text-[var(--color-text-primary)]">Contacts</h1>
+            <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginTop: 4 }}>
+              {contacts.length} total{filtered.length !== contacts.length ? ` · ${filtered.length} shown` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[13px] font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+              style={{ padding: "7px 14px" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Import
+            </button>
+            <button
+              onClick={() => { setEditingContact(null); setShowForm(true); }}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[13px] font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+              style={{ padding: "7px 14px" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-            style={{ padding: "8px 16px" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            Import CSV
-          </button>
-          <button
-            onClick={() => { setEditingContact(null); setShowForm(true); }}
-            className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
-            style={{ padding: "8px 16px" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add Contact
-          </button>
-        </div>
-      </div>
 
-      {/* Filters bar */}
-      <div className="flex items-center gap-3" style={{ marginBottom: 16 }}>
-        {/* Search */}
-        <div className="relative flex-1" style={{ maxWidth: 360 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute text-[var(--color-text-tertiary)]" style={{ left: 12, top: "50%", transform: "translateY(-50%)" }}>
+        {/* Search bar — full width, prominent */}
+        <div className="relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute text-[var(--color-text-tertiary)]" style={{ left: 16, top: "50%", transform: "translateY(-50%)" }}>
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
+            ref={searchRef}
             type="text"
-            placeholder="Search contacts..."
+            placeholder="Search by name, phone, email, or source..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors"
-            style={{ padding: "8px 12px 8px 36px" }}
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[14px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors"
+            style={{ padding: "12px 16px 12px 44px" }}
           />
         </div>
+      </div>
 
-        {/* Status filter pills */}
-        <div className="flex items-center gap-1.5">
+      {/* Secondary filters row */}
+      <div className="flex items-center gap-3" style={{ marginBottom: 12 }}>
+        <div className="flex items-center gap-1.5 flex-1">
           <button
             onClick={() => setStatusFilter("all")}
             className="rounded-full text-[11px] font-medium transition-colors cursor-pointer"
             style={{
               padding: "4px 12px",
               background: statusFilter === "all" ? "var(--color-accent)" : "var(--color-surface-hover)",
-              color: statusFilter === "all" ? "white" : "var(--color-text-secondary)",
+              color: statusFilter === "all" ? "white" : "var(--color-text-tertiary)",
             }}
           >
             All
@@ -170,7 +179,6 @@ export function ContactsPage() {
           ))}
         </div>
 
-        {/* Bulk actions */}
         {selectedIds.size > 0 && (
           <button
             onClick={() => handleDelete(Array.from(selectedIds))}
@@ -178,7 +186,7 @@ export function ContactsPage() {
             style={{ padding: "6px 12px", background: "var(--color-error-soft)", color: "var(--color-error)" }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" />
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
             </svg>
             Delete {selectedIds.size}
           </button>
@@ -203,24 +211,23 @@ export function ContactsPage() {
               </th>
               <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Name</th>
               <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Contact</th>
-              <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Status</th>
               <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Source</th>
-              <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Last Contact</th>
+              <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Last Active</th>
               <th className="text-left text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ padding: "10px 16px" }}>Created</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center text-[var(--color-text-tertiary)]" style={{ padding: 40 }}>Loading contacts...</td></tr>
+              <tr><td colSpan={6} className="text-center text-[var(--color-text-tertiary)]" style={{ padding: 40 }}>Loading contacts...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-[var(--color-text-tertiary)]" style={{ padding: 40 }}>
-                {contacts.length === 0 ? "No contacts yet. Add one or import a CSV." : "No contacts match your filters."}
+              <tr><td colSpan={6} className="text-center text-[var(--color-text-tertiary)]" style={{ padding: 40 }}>
+                {contacts.length === 0 ? "No contacts yet. Add one or import a CSV." : "No contacts match your search."}
               </td></tr>
             ) : (
               filtered.map((c) => (
                 <tr
                   key={c.id}
-                  onClick={() => setSelectedContact(c)}
+                  onClick={() => openContact(c)}
                   className="border-b border-[var(--color-border)] last:border-b-0 hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors"
                 >
                   <td style={{ padding: "10px 16px" }} onClick={(e) => e.stopPropagation()}>
@@ -243,14 +250,16 @@ export function ContactsPage() {
                       >
                         {c.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
                       </div>
-                      <span className="font-medium text-[var(--color-text-primary)]">{c.name}</span>
+                      <div>
+                        <span className="font-medium text-[var(--color-text-primary)]">{c.name}</span>
+                        <StatusBadge status={c.status} />
+                      </div>
                     </div>
                   </td>
                   <td style={{ padding: "10px 16px" }} className="text-[var(--color-text-secondary)]">
                     <div>{c.phone ?? "—"}</div>
                     <div className="text-[11px] text-[var(--color-text-tertiary)]">{c.email ?? ""}</div>
                   </td>
-                  <td style={{ padding: "10px 16px" }}><StatusBadge status={c.status} /></td>
                   <td style={{ padding: "10px 16px" }} className="text-[var(--color-text-secondary)]">{c.source ?? "—"}</td>
                   <td style={{ padding: "10px 16px" }} className="text-[var(--color-text-secondary)]">{timeAgo(c.last_contacted_at)}</td>
                   <td style={{ padding: "10px 16px" }} className="text-[var(--color-text-tertiary)]">{new Date(c.created_at).toLocaleDateString()}</td>
@@ -260,17 +269,6 @@ export function ContactsPage() {
           </tbody>
         </table>
       </div>
-
-      {/* Contact detail slide-over */}
-      {selectedContact && (
-        <ContactDetail
-          contact={selectedContact}
-          onClose={() => setSelectedContact(null)}
-          onEdit={(c) => { setEditingContact(c); setShowForm(true); setSelectedContact(null); }}
-          onDelete={async (id) => { await handleDelete([id]); setSelectedContact(null); }}
-          onRefresh={fetchContacts}
-        />
-      )}
 
       {/* New / Edit form */}
       {showForm && (

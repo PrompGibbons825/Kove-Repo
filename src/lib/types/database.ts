@@ -113,6 +113,16 @@ export type CommissionStatus = "pending" | "approved" | "paid";
 
 export type WorkflowStatus = "draft" | "active" | "paused";
 
+export type CustomFieldType = "text" | "number" | "boolean" | "select";
+
+export interface CustomFieldDef {
+  id: string;
+  label: string;
+  type: CustomFieldType;
+  options?: string[]; // for select type
+  required?: boolean;
+}
+
 // --------------- Table Row Types ---------------
 
 export interface Organization {
@@ -120,7 +130,8 @@ export interface Organization {
   name: string;
   vertical: string;
   business_context: Json;
-  custom_field_schema: Json;
+  custom_field_schema: CustomFieldDef[];
+  source_options: string[];
   commission_rules: Json;
   created_at: string;
 }

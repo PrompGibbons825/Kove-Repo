@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Sidebar } from "./sidebar";
 import { AgentSidebar } from "./agent-sidebar";
+import { ContactPanelProvider, useContactPanel } from "@/components/contacts/contact-panel-context";
+import { ContactDetail } from "@/components/contacts/contact-detail";
 import type { User, Organization } from "@/lib/types/database";
 
 interface AppShellProps {
@@ -12,21 +14,41 @@ interface AppShellProps {
 }
 
 export function AppShell({ user, org, children }: AppShellProps) {
+  return (
+    <ContactPanelProvider>
+      <AppShellInner user={user} org={org}>{children}</AppShellInner>
+    </ContactPanelProvider>
+  );
+}
+
+function AppShellInner({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentWidth, setAgentWidth] = useState(380);
+  const { contact, viewMode, width: contactWidth } = useContactPanel();
+
+  const contactSidebarOpen = contact && viewMode === "sidebar";
+  const contactFullscreen = contact && viewMode === "fullscreen";
+
+  // Right margin = agent sidebar width + contact sidebar width (when both open as sidebars)
+  const rightMargin =
+    (agentOpen ? agentWidth : 0) +
+    (contactSidebarOpen ? contactWidth : 0);
 
   return (
     <div className="min-h-screen flex w-full bg-[var(--color-background)]">
       <Sidebar user={user} org={org} />
 
-      <main className="flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out" style={{ marginLeft: 68, marginRight: agentOpen ? agentWidth : 0 }}>
+      <main
+        className="flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out relative"
+        style={{ marginLeft: 68, marginRight: rightMargin }}
+      >
         {/* Top-right agent trigger — hidden when sidebar open */}
         {!agentOpen && (
           <button
             onClick={() => setAgentOpen(true)}
             aria-label="Open AI assistant"
             className="fixed top-4 z-40 flex items-center justify-center rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md hover:border-[var(--color-accent)]/30 transition-all duration-200 cursor-pointer"
-            style={{ right: 20, width: 40, height: 40 }}
+            style={{ right: (contactSidebarOpen ? contactWidth : 0) + 20, width: 40, height: 40 }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)]">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -36,11 +58,20 @@ export function AppShell({ user, org, children }: AppShellProps) {
           </button>
         )}
         <div className="flex-1 overflow-auto">
-          {children}
+          {/* Fullscreen contact view renders over main content */}
+          {contactFullscreen && <ContactDetail />}
+          {!contactFullscreen && children}
         </div>
       </main>
 
-      {/* Agent sidebar — always mounted when open, persists across tab navigation */}
+      {/* Contact sidebar — sits to the left of agent sidebar when both open */}
+      {contactSidebarOpen && (
+        <div style={{ position: "fixed", top: 0, right: agentOpen ? agentWidth : 0, height: "100vh", zIndex: 40 }}>
+          <ContactDetail />
+        </div>
+      )}
+
+      {/* Agent sidebar — always rightmost */}
       {agentOpen && (
         <AgentSidebar
           user={user}
