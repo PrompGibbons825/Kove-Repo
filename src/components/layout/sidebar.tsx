@@ -72,16 +72,14 @@ export function Sidebar({ user, org }: SidebarProps) {
       }`}
     >
       {/* Logo */}
-      <div className={`flex items-center pt-6 pb-4 ${expanded ? "gap-4 px-5" : "justify-center"}`}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
+      <div className="flex items-center gap-3 px-2 pt-6 pb-4">
+        <div className="flex h-10 w-10 min-w-[40px] min-h-[40px] shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
           <span className="text-[16px] font-bold text-white leading-none">K</span>
         </div>
-        {expanded && (
-          <div>
-            <p className="text-[16px] font-bold text-white leading-tight whitespace-nowrap">kove</p>
-            <p className="text-[12px] text-[var(--color-sidebar-text)] leading-tight truncate max-w-[160px] whitespace-nowrap">{org.name}</p>
-          </div>
-        )}
+        <div className={`min-w-0 overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0"}`}>
+          <p className="text-[16px] font-bold text-white leading-tight whitespace-nowrap">kove</p>
+          <p className="text-[12px] text-[var(--color-sidebar-text)] leading-tight truncate whitespace-nowrap">{org.name}</p>
+        </div>
       </div>
 
       {/* Divider */}
@@ -96,9 +94,7 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-              className={`group relative flex items-center rounded-xl transition-all duration-200 ${
-                expanded ? "gap-4 px-3 py-3" : "justify-center py-3"
-              } ${
+              className={`group relative flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 ${
                 isActive
                   ? "bg-[var(--color-accent)]/15 text-[var(--color-sidebar-text-active)]"
                   : "text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)]"
@@ -107,14 +103,12 @@ export function Sidebar({ user, org }: SidebarProps) {
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
               )}
-              <span className={`shrink-0 transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
+              <span className={`w-6 h-6 flex-shrink-0 transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
                 <Icon name={item.icon} />
               </span>
-              {expanded && (
-                <span className="whitespace-nowrap text-sm font-medium">
-                  {item.label}
-                </span>
-              )}
+              <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
@@ -126,47 +120,45 @@ export function Sidebar({ user, org }: SidebarProps) {
           <Link
             href="/settings"
             title={!expanded ? "Settings" : undefined}
-            className={`flex items-center rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200 ${expanded ? "gap-4 px-3 py-3" : "justify-center py-3"}`}
+            className="flex items-center gap-4 px-3 py-3 rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200"
           >
-            <span className="shrink-0"><Icon name="settings" /></span>
-            {expanded && <span className="whitespace-nowrap text-sm font-medium">Settings</span>}
+            <span className="w-6 h-6 flex-shrink-0"><Icon name="settings" /></span>
+            <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>Settings</span>
           </Link>
         )}
 
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title={!expanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
-          className={`flex w-full items-center rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200 ${expanded ? "gap-4 px-3 py-3" : "justify-center py-3"}`}
+          className="flex w-full items-center gap-4 px-3 py-3 rounded-xl text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)] transition-all duration-200"
         >
-          <span className="shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} /></span>
-          {expanded && <span className="whitespace-nowrap text-sm font-medium">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+          <span className="w-6 h-6 flex-shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} /></span>
+          <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
         </button>
 
         <button
           onClick={handleLogout}
           title={!expanded ? "Log Out" : undefined}
-          className={`flex w-full items-center rounded-xl text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 ${expanded ? "gap-4 px-3 py-3" : "justify-center py-3"}`}
+          className="flex w-full items-center gap-4 px-3 py-3 rounded-xl text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
         >
-          <span className="shrink-0"><Icon name="logout" /></span>
-          {expanded && <span className="whitespace-nowrap text-sm font-medium">Log Out</span>}
+          <span className="w-6 h-6 flex-shrink-0"><Icon name="logout" /></span>
+          <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[160px]" : "opacity-0 max-w-0"}`}>Log Out</span>
         </button>
 
         {/* User avatar */}
-        <div className={`mt-1 rounded-xl bg-white/[0.04] py-3 ${expanded ? "px-3" : "flex justify-center px-0"}`}>
-          <div className={`flex items-center ${expanded ? "gap-3" : "justify-center"}`}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white">
+        <div className="mt-1 rounded-xl bg-white/[0.04] px-3 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 min-w-[40px] min-h-[40px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white">
               {initials}
             </div>
-            {expanded && (
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium text-white/90 whitespace-nowrap">
-                  {user.full_name}
-                </p>
-                <p className="truncate text-xs text-white/40 whitespace-nowrap">
-                  {user.is_owner ? "Owner" : "Member"}
-                </p>
-              </div>
-            )}
+            <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ease-in-out ${expanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0"}`}>
+              <p className="truncate text-sm font-medium text-white/90 whitespace-nowrap">
+                {user.full_name}
+              </p>
+              <p className="truncate text-xs text-white/40 whitespace-nowrap">
+                {user.is_owner ? "Owner" : "Member"}
+              </p>
+            </div>
           </div>
         </div>
       </div>

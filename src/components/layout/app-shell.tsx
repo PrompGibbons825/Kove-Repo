@@ -15,12 +15,14 @@ export function AppShell({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--color-background)]">
+    <div className="min-h-screen flex w-full bg-[var(--color-background)]">
       <Sidebar user={user} org={org} />
 
-      <main className="ml-[68px] h-screen overflow-y-auto transition-[margin] duration-300 ease-in-out">
+      <main className="flex-1 flex flex-col min-h-screen ml-[68px] transition-[margin] duration-300 ease-in-out">
+        <div className="flex-1 overflow-auto">
         <div className="mx-auto max-w-5xl px-10 py-10">
           {children}
+        </div>
         </div>
 
         {/* Floating AI FAB */}
