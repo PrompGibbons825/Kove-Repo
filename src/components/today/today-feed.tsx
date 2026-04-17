@@ -1,181 +1,175 @@
 "use client";
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
+import { useRef, useState, useEffect, useCallback } from "react";
 
-// Demo data — will be replaced with real data from Supabase
-const DEMO_TASKS = [
-  { id: 1, label: "Call back John Ramirez", icon: "phone", urgent: true },
-  { id: 2, label: "Appointment with Jenny Cole", icon: "calendar", urgent: false },
-  { id: 3, label: "Complete handoff with Benjamin Tyler", icon: "handoff", urgent: false },
+/* ── Priority contacts (demo) ── */
+const PRIORITY = [
+  { name: "Juan Ramirez", tag: "Sales Call", tagColor: "bg-rose-300 text-rose-900", detail: "12pm – Construction" },
+  { name: "John Smith", tag: "Inquiry", tagColor: "bg-amber-300 text-amber-900", detail: "4/15 – 7:00pm" },
+  { name: "Mary Crab", tag: "Follow up", tagColor: "bg-emerald-400 text-emerald-900", detail: "4/14 – Last Communication" },
 ];
 
-function TaskIcon({ type }: { type: string }) {
-  const cls = "w-5 h-5";
-  const props = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  if (type === "phone")
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-        <svg {...props} className={`${cls} text-blue-400`}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
-      </div>
-    );
-  if (type === "calendar")
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10">
-        <svg {...props} className={`${cls} text-purple-400`}><rect width="18" height="18" x="3" y="4" rx="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
-      </div>
-    );
-  return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-      <svg {...props} className={`${cls} text-emerald-400`}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-    </div>
-  );
-}
+/* ── Liquid Orb ── */
+function LiquidOrb() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mouse, setMouse] = useState({ x: 0, y: 0, active: false });
+  const rafRef = useRef<number>(0);
+  const smoothRef = useRef({ x: 0, y: 0 });
 
-function UrgentIcon({ type }: { type: string }) {
-  const props = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  if (type === "phone")
-    return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/15">
-        <svg {...props} className="w-[18px] h-[18px] text-red-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
-      </div>
-    );
+  const handleMove = useCallback((e: MouseEvent) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    setMouse({ x: dx, y: dy, active: dist < 2.5 });
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    setMouse({ x: 0, y: 0, active: false });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseleave", handleLeave);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseleave", handleLeave);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [handleMove, handleLeave]);
+
+  useEffect(() => {
+    function tick() {
+      smoothRef.current.x += (mouse.x - smoothRef.current.x) * 0.08;
+      smoothRef.current.y += (mouse.y - smoothRef.current.y) * 0.08;
+      const el = containerRef.current;
+      if (el) {
+        el.style.setProperty("--mx", String(smoothRef.current.x));
+        el.style.setProperty("--my", String(smoothRef.current.y));
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [mouse]);
+
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-hover)]">
-      <svg {...props} className="w-[18px] h-[18px] text-[var(--color-text-tertiary)]"><rect width="18" height="18" x="3" y="4" rx="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
+    <div
+      ref={containerRef}
+      className="relative mx-auto cursor-pointer"
+      style={{ width: 220, height: 220, perspective: 600 }}
+    >
+      {/* Ambient glow */}
+      <div
+        className="absolute rounded-full transition-opacity duration-700"
+        style={{
+          inset: "-30%",
+          filter: "blur(60px)",
+          opacity: mouse.active ? 0.6 : 0.35,
+          background: "radial-gradient(circle, rgba(168,130,255,0.6) 0%, rgba(120,200,255,0.3) 40%, transparent 70%)",
+        }}
+      />
+      {/* Orb body */}
+      <div
+        className="absolute inset-0 rounded-full overflow-hidden"
+        style={{
+          transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
+          transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
+          animation: "orbFloat 6s ease-in-out infinite",
+        }}
+      >
+        {/* Spinning gradient base */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: "conic-gradient(from 0deg, #c084fc, #818cf8, #67e8f9, #a78bfa, #f0abfc, #c084fc)",
+            filter: "blur(18px)",
+            animation: "orbSpin 8s linear infinite",
+          }}
+        />
+        {/* Counter-rotating inner */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: "8%",
+            background: "conic-gradient(from 180deg, #e879f9, #6366f1, #22d3ee, #a855f7, #e879f9)",
+            filter: "blur(14px)",
+            opacity: 0.8,
+            animation: "orbSpin 12s linear infinite reverse",
+          }}
+        />
+        {/* Specular highlight that follows mouse */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: "55%",
+            height: "35%",
+            top: "10%",
+            left: "18%",
+            background: "radial-gradient(ellipse, rgba(255,255,255,0.5) 0%, transparent 70%)",
+            filter: "blur(8px)",
+            transform: "translate(calc(var(--mx,0) * 12px), calc(var(--my,0) * 6px))",
+            transition: "transform 0.3s ease-out",
+          }}
+        />
+        {/* Glass refraction */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ background: "radial-gradient(circle at 35% 25%, rgba(255,255,255,0.3) 0%, transparent 50%)" }}
+        />
+        {/* Pulsing inner glow */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: "15%",
+            background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 60%)",
+            animation: "orbPulse 3s ease-in-out infinite",
+          }}
+        />
+      </div>
     </div>
   );
 }
 
 export function TodayFeed() {
-  const greeting = getGreeting();
-
   return (
-    <div className="flex gap-8">
-      {/* Left: main content */}
-      <div className="flex-1 min-w-0 space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
-            {greeting}, Jeffrey
-          </h1>
-          <p className="mt-1.5 text-[15px] text-[var(--color-text-secondary)]">
-            You have 6 tasks and 1 appointment today
-          </p>
-        </div>
+    <div className="flex flex-col items-center justify-center gap-10" style={{ minHeight: "calc(100vh - 80px)" }}>
+      {/* Animated Orb */}
+      <LiquidOrb />
 
-        {/* AI Insight Banner */}
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--color-accent)]/20 bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 p-6">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent" />
-          <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/30">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <p className="text-[17px] font-semibold text-white/95">
-                You have <span className="text-white font-bold">3</span> hot leads from last week that haven&apos;t been called.
-              </p>
-              <p className="mt-1 text-[15px] text-white/60">
-                Prioritize them now?
-              </p>
-              <button className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:brightness-110 transition-all">
-                Prioritize leads
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Today tasks */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Today</h2>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)]"><path d="m9 18 6-6-6-6" /></svg>
-          </div>
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden divide-y divide-[var(--color-border-subtle)]">
-            {DEMO_TASKS.map((task) => (
-              <div key={task.id} className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group">
-                <TaskIcon type={task.icon} />
-                <span className="flex-1 text-[15px] font-medium text-[var(--color-text-primary)]">
-                  {task.label}
-                </span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity"><path d="m9 18 6-6-6-6" /></svg>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Urgent tasks */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-lg font-semibold text-red-400">Urgent</h2>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)]"><path d="m9 18 6-6-6-6" /></svg>
-          </div>
-          <div className="rounded-2xl border border-red-500/15 bg-[var(--color-surface)] overflow-hidden divide-y divide-[var(--color-border-subtle)]">
-            {DEMO_TASKS.map((task) => (
-              <div key={`urgent-${task.id}`} className="flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer group">
-                <UrgentIcon type={task.icon} />
-                <span className="flex-1 text-[14px] font-medium text-[var(--color-text-primary)]">
-                  {task.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Search / Ask input */}
+      <div style={{ width: "100%", maxWidth: 600 }}>
+        <input
+          type="text"
+          placeholder="How can we get started today?"
+          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]/50 transition-all"
+          style={{ padding: "16px 24px", fontSize: 16 }}
+        />
       </div>
 
-      {/* Right sidebar panel */}
-      <div className="w-[260px] shrink-0 space-y-6">
-        {/* Urgent summary */}
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Urgent</h3>
-          <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-bold text-[var(--color-accent)]">3</span>
-            <span className="text-sm text-[var(--color-text-secondary)]">Leads untouched</span>
-          </div>
-        </div>
-
-        {/* Next Appointment */}
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Next Appointment</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">10:15 AM</p>
-              <p className="text-sm text-[var(--color-text-secondary)]">- Jenny Cole</p>
-            </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-tertiary)]"><path d="m9 18 6-6-6-6" /></svg>
-          </div>
-        </div>
-
-        {/* Pipeline mini */}
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">Pipeline</h3>
-          <div className="space-y-3">
-            {[
-              { stage: "New", dots: 7, fill: 1, color: "bg-gray-400" },
-              { stage: "Qualifying", dots: 7, fill: 4, color: "bg-blue-500" },
-              { stage: "Closing", dots: 7, fill: 6, color: "bg-emerald-500" },
-            ].map((row) => (
-              <div key={row.stage} className="flex items-center gap-3">
-                <div className={`h-2 w-2 rounded-full ${row.color}`} />
-                <span className="text-xs text-[var(--color-text-secondary)] w-[70px]">{row.stage}</span>
-                <div className="flex-1 flex items-center gap-1">
-                  {Array.from({ length: row.dots }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-2 w-2 rounded-full ${i < row.fill ? row.color : "bg-[var(--color-border)]"}`}
-                    />
-                  ))}
-                  <div className={`flex-1 h-1 rounded-full ml-1 ${row.color}`} style={{ opacity: row.fill / row.dots }} />
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Priority contacts */}
+      <div style={{ width: "100%", maxWidth: 700 }}>
+        <h2 className="text-[15px] font-medium text-[var(--color-text-secondary)]" style={{ marginBottom: 16 }}>Priority</h2>
+        <div className="grid grid-cols-3 gap-4">
+          {PRIORITY.map((c) => (
+            <button
+              key={c.name}
+              className="flex flex-col items-start gap-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-left transition-all duration-200 hover:shadow-md hover:border-[var(--color-accent)]/20 cursor-pointer"
+              style={{ padding: 20, transform: "translateY(0)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+            >
+              <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">{c.name}</p>
+              <span className={`inline-block rounded-full text-[11px] font-semibold ${c.tagColor}`} style={{ padding: "2px 12px" }}>
+                {c.tag}
+              </span>
+              <p className="text-[13px] text-[var(--color-text-tertiary)]">{c.detail}</p>
+            </button>
+          ))}
         </div>
       </div>
     </div>
