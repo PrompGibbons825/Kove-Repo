@@ -54,6 +54,13 @@ export async function POST(request: Request) {
         activityType: "sms",
         content: message.trim(),
       }).catch((err) => console.error("[sms] auto-assign failed:", err));
+
+      // Trigger batched conversation summary (fire-and-forget)
+      fetch(new URL("/api/ai/sms-summary", request.url).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactId: contact_id, orgId: koveUser.org_id, userId: koveUser.id }),
+      }).catch((err) => console.error("[sms] conversation summary failed:", err));
     }
 
     return NextResponse.json({ success: true, activity });

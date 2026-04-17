@@ -62,5 +62,17 @@ export async function POST(request: Request) {
     }).catch((err) => console.error("[sms-webhook] auto-assign failed:", err));
   }
 
+  // Trigger batched conversation summary (fire-and-forget)
+  if (activity && contact?.id) {
+    const baseUrl = request.headers.get("x-forwarded-proto") === "https"
+      ? `https://${request.headers.get("host")}`
+      : new URL(request.url).origin;
+    fetch(`${baseUrl}/api/ai/sms-summary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId: contact.id, orgId: org.id }),
+    }).catch((err) => console.error("[sms-webhook] conversation summary failed:", err));
+  }
+
   return NextResponse.json({ ok: true });
 }
