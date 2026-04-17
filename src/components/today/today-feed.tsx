@@ -94,21 +94,10 @@ function LiquidOrb() {
           animation: "orbPulse 4s ease-in-out infinite",
         }}
       />
-      {/* SVG filter for organic edge distortion */}
-      <svg width="0" height="0" style={{ position: "absolute" }}>
-        <defs>
-          <filter id="orb-edge">
-            <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" seed="2" result="warp" />
-            <feDisplacementMap in="SourceGraphic" in2="warp" scale="14" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-      </svg>
       {/* Orb body */}
       <div
-        className="absolute rounded-full overflow-hidden"
+        className="absolute inset-0 rounded-full overflow-hidden"
         style={{
-          inset: "-6%",
-          filter: "url(#orb-edge)",
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
           transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
           animation: "orbFloat 6s ease-in-out infinite",
@@ -135,46 +124,6 @@ function LiquidOrb() {
             animation: "orbSpin 12s linear infinite reverse",
           }}
         />
-        {/* INTERIOR: Fine grain noise — inner turbulence */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-            backgroundSize: "128px 128px",
-            opacity: 0.18,
-            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
-            animation: "orbSpin 20s linear infinite reverse",
-          }}
-        />
-        {/* EXTERIOR: Surface cell texture — like plasma surface detail */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.12' numOctaves='3' seed='5'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E")`,
-            backgroundSize: "200px 200px",
-            opacity: 0.22,
-            mixBlendMode: "soft-light" as React.CSSProperties["mixBlendMode"],
-            animation: "orbSpin 25s linear infinite",
-          }}
-        />
-        {/* EXTERIOR: High-frequency surface grain — tactile roughness */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='hf'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' seed='8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23hf)'/%3E%3C/svg%3E")`,
-            backgroundSize: "80px 80px",
-            opacity: 0.14,
-            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
-          }}
-        />
-        {/* EXTERIOR: Fresnel rim — bright edge lighting like a real sphere */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: "radial-gradient(circle, transparent 48%, rgba(168,130,255,0.25) 68%, rgba(192,132,252,0.45) 82%, rgba(232,121,249,0.3) 92%, transparent 100%)",
-            mixBlendMode: "screen" as React.CSSProperties["mixBlendMode"],
-          }}
-        />
         {/* Caustic ripple layer */}
         <div
           className="absolute rounded-full"
@@ -199,20 +148,6 @@ function LiquidOrb() {
             transition: "transform 0.3s ease-out",
           }}
         />
-        {/* Secondary specular (bottom) */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: "40%",
-            height: "20%",
-            bottom: "12%",
-            right: "15%",
-            background: "radial-gradient(ellipse, rgba(103,232,249,0.3) 0%, transparent 70%)",
-            filter: "blur(10px)",
-            transform: "translate(calc(var(--mx,0) * -8px), calc(var(--my,0) * -4px))",
-            transition: "transform 0.4s ease-out",
-          }}
-        />
         {/* Glass refraction */}
         <div
           className="absolute inset-0 rounded-full"
@@ -227,8 +162,45 @@ function LiquidOrb() {
             animation: "orbPulse 3s ease-in-out infinite",
           }}
         />
-        {/* Edge dissolution — fades orb boundary with noisy texture */}
-        {/* Noisy edge mask — breaks up the perfect circle silhouette */}
+      </div>
+      {/* EXTERIOR: White translucent shell with depth */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(circle at 38% 28%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.05) 55%, transparent 70%)",
+        }}
+      />
+      {/* EXTERIOR: Rim highlight — white edge catch */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, transparent 52%, rgba(255,255,255,0.2) 70%, rgba(255,255,255,0.4) 84%, rgba(255,255,255,0.15) 94%, transparent 100%)",
+        }}
+      />
+      {/* EXTERIOR: Moving wave bands — slow rotating white streaks across surface */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
+        style={{ animation: "orbSpin 18s linear infinite" }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.12) 8deg, transparent 16deg, transparent 30deg, rgba(255,255,255,0.08) 38deg, transparent 46deg, transparent 72deg)",
+          }}
+        />
+      </div>
+      {/* EXTERIOR: Counter-rotating wave band */}
+      <div
+        className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
+        style={{ animation: "orbSpin 25s linear infinite reverse" }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "repeating-conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.06) 5deg, transparent 10deg, transparent 25deg, rgba(255,255,255,0.1) 30deg, transparent 35deg, transparent 60deg)",
+            filter: "blur(2px)",
+          }}
+        />
       </div>
     </div>
   );
