@@ -109,7 +109,10 @@ Analyze this call and provide the structured summary.`,
     // 3. Regenerate contact embedding with updated summary
     const svc = createServiceClient();
     const updatedContact = { ...contact, ...contactUpdate } as Contact;
-    const embeddingText = buildContactEmbeddingText(updatedContact);
+    const embeddingText = buildContactEmbeddingText({
+      ...updatedContact,
+      custom_fields: (updatedContact.custom_fields as Record<string, unknown>) ?? undefined,
+    });
     generateEmbedding(embeddingText)
       .then(async (embedding) => {
         await svc.from("contacts").update({ embedding_text: embeddingText, embedding }).eq("id", contactId);
