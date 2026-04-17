@@ -636,6 +636,8 @@ function TimelineEntry({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [hovered, setHovered] = useState(false);
   const isNote = activity.type === "note";
+  const canEdit = activity.type === "note" || activity.type === "sms" || activity.type === "email";
+  const canDelete = true; // any activity type can be removed from timeline
 
   useEffect(() => { setDraft(activity.content ?? ""); }, [activity.content]);
   useEffect(() => { if (editing) textareaRef.current?.focus(); }, [editing]);
@@ -706,14 +708,16 @@ function TimelineEntry({
           {new Date(activity.occurred_at).toLocaleString()}
         </p>
       </div>
-      {isNote && !editing && (
+      {!editing && (canEdit || canDelete) && (
         <div className="flex gap-1 shrink-0 transition-opacity" style={{ opacity: hovered ? 1 : 0 }}>
-          <button onClick={() => setEditing(true)} title="Edit note"
-            className="flex items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
-            style={{ width: 22, height: 22 }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-          </button>
-          <button onClick={handleDelete} disabled={deleting} title="Delete note"
+          {canEdit && (
+            <button onClick={() => setEditing(true)} title="Edit"
+              className="flex items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
+              style={{ width: 22, height: 22 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+          )}
+          <button onClick={handleDelete} disabled={deleting} title="Delete"
             className="flex items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-red-500 hover:bg-[var(--color-surface-hover)] cursor-pointer disabled:opacity-30"
             style={{ width: 22, height: 22 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>

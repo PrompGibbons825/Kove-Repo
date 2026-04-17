@@ -29,7 +29,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .single();
 
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (existing.type !== "note") return NextResponse.json({ error: "Only notes can be edited" }, { status: 400 });
+  if (!(["note", "sms", "email"].includes(existing.type))) return NextResponse.json({ error: "Only notes, SMS, and email activities can be edited" }, { status: 400 });
 
   const { data, error } = await supabase
     .from("activities")
@@ -65,7 +65,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .single();
 
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (existing.type !== "note") return NextResponse.json({ error: "Only notes can be deleted" }, { status: 400 });
 
   const { error } = await supabase.from("activities").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
