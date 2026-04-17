@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { href: "/workflows", label: "Workflows", icon: "zap", permission: "create_workflows" as const },
 ];
 
-function Icon({ name, size = 22 }: { name: string; size?: number }) {
+function Icon({ name, size = 24 }: { name: string; size?: number }) {
   const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const icons: Record<string, ReactElement> = {
     home: <svg {...props}><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
@@ -72,21 +72,23 @@ export function Sidebar({ user, org }: SidebarProps) {
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-[22px] pt-7 pb-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
-          <span className="text-[15px] font-bold text-white leading-none">K</span>
+      <div className={`flex items-center pt-7 pb-4 ${expanded ? "gap-3 px-5" : "justify-center"}`}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
+          <span className="text-[16px] font-bold text-white leading-none">K</span>
         </div>
-        <div className={`overflow-hidden transition-all duration-300 ${expanded ? "w-auto opacity-100" : "w-0 opacity-0"}`}>
-          <p className="text-[15px] font-bold text-white leading-tight whitespace-nowrap">kove</p>
-          <p className="text-[12px] text-[var(--color-sidebar-text)] leading-tight truncate max-w-[160px] whitespace-nowrap">{org.name}</p>
-        </div>
+        {expanded && (
+          <div>
+            <p className="text-[16px] font-bold text-white leading-tight whitespace-nowrap">kove</p>
+            <p className="text-[12px] text-[var(--color-sidebar-text)] leading-tight truncate max-w-[160px] whitespace-nowrap">{org.name}</p>
+          </div>
+        )}
       </div>
 
       {/* Divider */}
-      <div className="mx-4 border-t border-[var(--color-sidebar-border)]" />
+      <div className="mx-3 border-t border-[var(--color-sidebar-border)]" />
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 pt-5 space-y-1">
+      <nav className="flex-1 pt-5 space-y-2 px-2">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -94,73 +96,77 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-              className={`group relative flex items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] font-medium transition-all duration-150 ${
+              className={`group relative flex items-center rounded-xl text-[15px] font-medium transition-all duration-150 ${
+                expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"
+              } ${
                 isActive
                   ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
                   : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)]"
               }`}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
               )}
               <span className={`shrink-0 transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
                 <Icon name={item.icon} />
               </span>
-              <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
-                {item.label}
-              </span>
+              {expanded && (
+                <span className="whitespace-nowrap">
+                  {item.label}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
       {/* Bottom section */}
-      <div className="border-t border-[var(--color-sidebar-border)] p-3 space-y-1">
+      <div className="border-t border-[var(--color-sidebar-border)] px-2 py-3 space-y-2">
         {(user.is_owner || hasPermission(user, "manage_users")) && (
           <Link
             href="/settings"
             title={!expanded ? "Settings" : undefined}
-            className="flex items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150"
+            className={`flex items-center rounded-xl text-[15px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150 ${expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"}`}
           >
-            <span className="shrink-0"><Icon name="settings" size={22} /></span>
-            <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>Settings</span>
+            <span className="shrink-0"><Icon name="settings" /></span>
+            {expanded && <span className="whitespace-nowrap">Settings</span>}
           </Link>
         )}
 
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           title={!expanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
-          className="flex w-full items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150"
+          className={`flex w-full items-center rounded-xl text-[15px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150 ${expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"}`}
         >
-          <span className="shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} size={22} /></span>
-          <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
-            {theme === "dark" ? "Light Mode" : "Dark Mode"}
-          </span>
+          <span className="shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} /></span>
+          {expanded && <span className="whitespace-nowrap">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
         </button>
 
         <button
           onClick={handleLogout}
           title={!expanded ? "Log Out" : undefined}
-          className="flex w-full items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
+          className={`flex w-full items-center rounded-xl text-[15px] text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-150 ${expanded ? "gap-4 px-4 py-3" : "justify-center py-3.5"}`}
         >
-          <span className="shrink-0"><Icon name="logout" size={22} /></span>
-          <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>Log Out</span>
+          <span className="shrink-0"><Icon name="logout" /></span>
+          {expanded && <span className="whitespace-nowrap">Log Out</span>}
         </button>
 
         {/* User avatar */}
-        <div className="mt-2 rounded-xl bg-white/[0.04] px-[14px] py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[12px] font-bold text-white shadow-inner">
+        <div className={`mt-2 rounded-xl bg-white/[0.04] py-3 ${expanded ? "px-4" : "flex justify-center"}`}>
+          <div className={`flex items-center ${expanded ? "gap-4" : "justify-center"}`}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[13px] font-bold text-white shadow-inner">
               {initials}
             </div>
-            <div className={`flex-1 overflow-hidden transition-all duration-300 ${expanded ? "w-auto opacity-100" : "w-0 opacity-0"}`}>
-              <p className="truncate text-[14px] font-medium text-white/90 whitespace-nowrap">
-                {user.full_name}
-              </p>
-              <p className="truncate text-[12px] text-white/40 whitespace-nowrap">
-                {user.is_owner ? "Owner" : "Member"}
-              </p>
-            </div>
+            {expanded && (
+              <div className="flex-1 overflow-hidden">
+                <p className="truncate text-[14px] font-medium text-white/90 whitespace-nowrap">
+                  {user.full_name}
+                </p>
+                <p className="truncate text-[12px] text-white/40 whitespace-nowrap">
+                  {user.is_owner ? "Owner" : "Member"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
