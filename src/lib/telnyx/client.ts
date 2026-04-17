@@ -202,14 +202,21 @@ export async function sendSMS(from: string, to: string, text: string, messagingP
   };
   if (messagingProfileId) body.messaging_profile_id = messagingProfileId;
 
+  console.log("[sendSMS] payload:", JSON.stringify(body));
+
   const res = await fetch(`${TELNYX_API}/messages`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify(body),
   });
+
+  const json = await res.json();
+  console.log("[sendSMS] Telnyx HTTP status:", res.status);
+  console.log("[sendSMS] Telnyx response:", JSON.stringify(json));
+
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`Telnyx SMS failed: ${err.errors?.[0]?.detail ?? res.statusText}`);
+    const detail = json.errors?.[0]?.detail ?? json.errors?.[0]?.title ?? res.statusText;
+    throw new Error(`Telnyx SMS failed (${res.status}): ${detail}`);
   }
-  return (await res.json()).data;
+  return json.data;
 }
