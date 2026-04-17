@@ -113,13 +113,14 @@ export type CommissionStatus = "pending" | "approved" | "paid";
 
 export type WorkflowStatus = "draft" | "active" | "paused";
 
-export type CustomFieldType = "text" | "number" | "boolean" | "select";
+export type CustomFieldType = "text" | "number" | "boolean" | "select" | "address" | "checklist";
 
 export interface CustomFieldDef {
   id: string;
   label: string;
   type: CustomFieldType;
   options?: string[]; // for select type
+  items?: string[];   // for checklist type — default items
   required?: boolean;
 }
 

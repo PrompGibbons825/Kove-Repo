@@ -40,9 +40,17 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export function ContactsPage() {
-  const { openContact } = useContactPanel();
+  const { openContact, contact: panelContact } = useContactPanel();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Sync changes from contact panel back into local contacts list
+  useEffect(() => {
+    if (!panelContact) return;
+    setContacts((prev) =>
+      prev.map((c) => (c.id === panelContact.id ? { ...c, ...panelContact } : c))
+    );
+  }, [panelContact]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContactStatus | "all">("all");
   const [pipelineFilter, setPipelineFilter] = useState<string | "all">("all");

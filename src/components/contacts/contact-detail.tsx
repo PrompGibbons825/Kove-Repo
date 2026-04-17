@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Contact, Activity, ContactStatus } from "@/lib/types/database";
 import { useContactPanel, type ContactViewMode } from "./contact-panel-context";
-import { ContactForm } from "./contact-form";
 
 const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -26,7 +25,6 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const resizingRef = useRef(false);
   const [orgMembers, setOrgMembers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
@@ -106,6 +104,17 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
     }
   }
 
+  async function handleFieldSave(field: string, value: string) {
+    if (!contact) return;
+    const update: Partial<Contact> = { [field]: value || null };
+    await fetch(`/api/contacts/${contact.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update),
+    });
+    updateContact(update);
+  }
+
   function handleClose() {
     setVisible(false);
     setTimeout(closeContact, 250);
@@ -136,27 +145,11 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <EditBtn onClick={() => setShowEditForm(true)} />
-            <Sep />
             <ViewModeButtons viewMode={viewMode} onSet={setViewMode} />
             <Sep />
             <CloseBtn onClick={handleClose} />
           </div>
         </div>
-
-        {showEditForm && (
-          <ContactForm
-            contact={contact}
-            onClose={() => setShowEditForm(false)}
-            onSaved={() => {
-              setShowEditForm(false);
-              // Refresh the contact data
-              fetch(`/api/contacts/${contact.id}`).then(r => r.json()).then(data => {
-                if (data.contact) updateContact(data.contact);
-              }).catch(() => {});
-            }}
-          />
-        )}
 
         {/* 2-column */}
         <div className="flex-1 flex overflow-hidden">
@@ -164,12 +157,12 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           <div className="flex-1 overflow-y-auto" style={{ padding: "24px 32px" }}>
             <div style={{ marginBottom: 24 }}>
               <SectionLabel>Status</SectionLabel>
-              <StatusPills status={status} onChange={handleStatusChange} />
+              <StatusStepper status={status} onChange={handleStatusChange} />
             </div>
             <div className="grid grid-cols-3 gap-3" style={{ marginBottom: 24 }}>
-              <InfoCard label="Phone" value={contact.phone ?? "—"} />
-              <InfoCard label="Email" value={contact.email ?? "—"} />
-              <InfoCard label="Pipeline" value={contact.pipeline_stage ?? "—"} />
+              <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
+              <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
+              <EditableField label="Pipeline" value={contact.pipeline_stage ?? ""} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
             </div>
             <AISummary summary={contact.ai_summary} />
             {contact.handoff_notes && (
@@ -243,32 +236,18 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <EditBtn onClick={() => setShowEditForm(true)} size={14} />
           <ViewModeButtons viewMode={viewMode} onSet={setViewMode} />
           <CloseBtn onClick={handleClose} size={14} />
         </div>
       </div>
 
-      {showEditForm && (
-        <ContactForm
-          contact={contact}
-          onClose={() => setShowEditForm(false)}
-          onSaved={() => {
-            setShowEditForm(false);
-            fetch(`/api/contacts/${contact.id}`).then(r => r.json()).then(data => {
-              if (data.contact) updateContact(data.contact);
-            }).catch(() => {});
-          }}
-        />
-      )}
-
       {/* Content */}
       <div className="flex-1 overflow-y-auto" style={{ padding: "16px 20px" }}>
         <div className="grid grid-cols-2 gap-2" style={{ marginBottom: 20 }}>
-          <InfoCard label="Phone" value={contact.phone ?? "—"} />
-          <InfoCard label="Email" value={contact.email ?? "—"} />
-          <InfoCard label="Pipeline" value={contact.pipeline_stage ?? "—"} />
-          <InfoCard label="Last Contact" value={contact.last_contacted_at ? new Date(contact.last_contacted_at).toLocaleDateString() : "Never"} />
+          <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
+          <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
+          <EditableField label="Pipeline" value={contact.pipeline_stage ?? ""} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
+          <EditableField label="Source" value={contact.source ?? ""} onSave={(v) => handleFieldSave("source", v)} />
         </div>
         <AssignedMembers
           contact={contact}
@@ -279,7 +258,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
         />
         <div style={{ marginBottom: 20 }}>
           <SectionLabel>Status</SectionLabel>
-          <StatusPills status={status} onChange={handleStatusChange} />
+          <StatusStepper status={status} onChange={handleStatusChange} />
         </div>
         <AISummary summary={contact.ai_summary} />
         {contact.handoff_notes && (
@@ -303,32 +282,74 @@ function SectionLabel({ children, style }: { children: React.ReactNode; style?: 
   return <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 8, ...style }}>{children}</label>;
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function EditableField({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  function commit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== value) onSave(trimmed);
+  }
+
   return (
-    <div className="rounded-lg border border-[var(--color-border)]" style={{ padding: "8px 12px" }}>
+    <div
+      className="rounded-lg border border-[var(--color-border)] cursor-text hover:border-[var(--color-accent)]/40 transition-colors"
+      style={{ padding: "8px 12px" }}
+      onClick={() => { if (!editing) setEditing(true); }}
+    >
       <p className="text-[10px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">{label}</p>
-      <p className="text-[13px] text-[var(--color-text-primary)] font-medium truncate" style={{ marginTop: 3 }}>{value}</p>
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+          className="w-full text-[13px] text-[var(--color-text-primary)] font-medium bg-transparent border-none outline-none p-0"
+          style={{ marginTop: 3 }}
+        />
+      ) : (
+        <p className="text-[13px] text-[var(--color-text-primary)] font-medium truncate" style={{ marginTop: 3 }}>{value || "—"}</p>
+      )}
     </div>
   );
 }
 
-function StatusPills({ status, onChange }: { status: ContactStatus; onChange: (s: ContactStatus) => void }) {
+function StatusStepper({ status, onChange }: { status: ContactStatus; onChange: (s: ContactStatus) => void }) {
+  const idx = STATUS_OPTIONS.findIndex((o) => o.value === status);
+  const label = STATUS_OPTIONS[idx]?.label ?? status;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {STATUS_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className="rounded-full text-[11px] font-medium transition-all cursor-pointer"
-          style={{
-            padding: "3px 12px",
-            background: status === opt.value ? "var(--color-accent)" : "var(--color-surface-hover)",
-            color: status === opt.value ? "white" : "var(--color-text-secondary)",
-          }}
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => { if (idx > 0) onChange(STATUS_OPTIONS[idx - 1].value); }}
+        disabled={idx <= 0}
+        className="flex items-center justify-center rounded-lg border border-[var(--color-border)] disabled:opacity-20 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+        style={{ width: 30, height: 30 }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <span
+        className="rounded-full text-[13px] font-semibold text-white text-center"
+        style={{ padding: "5px 20px", background: "var(--color-accent)", minWidth: 100 }}
+      >
+        {label}
+      </span>
+      <button
+        onClick={() => { if (idx < STATUS_OPTIONS.length - 1) onChange(STATUS_OPTIONS[idx + 1].value); }}
+        disabled={idx >= STATUS_OPTIONS.length - 1}
+        className="flex items-center justify-center rounded-lg border border-[var(--color-border)] disabled:opacity-20 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+        style={{ width: 30, height: 30 }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+      <span className="text-[11px] text-[var(--color-text-tertiary)]" style={{ marginLeft: 4 }}>
+        {idx + 1} / {STATUS_OPTIONS.length}
+      </span>
     </div>
   );
 }

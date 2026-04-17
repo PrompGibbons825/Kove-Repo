@@ -20,6 +20,8 @@ const FIELD_TYPES: { value: CustomFieldType; label: string }[] = [
   { value: "number", label: "Number" },
   { value: "boolean", label: "Yes / No" },
   { value: "select", label: "Dropdown" },
+  { value: "address", label: "Address" },
+  { value: "checklist", label: "Checklist" },
 ];
 
 export default function SettingsPage() {
@@ -32,6 +34,7 @@ export default function SettingsPage() {
   const [newFieldLabel, setNewFieldLabel] = useState("");
   const [newFieldType, setNewFieldType] = useState<CustomFieldType>("text");
   const [newFieldOptions, setNewFieldOptions] = useState("");
+  const [newFieldItems, setNewFieldItems] = useState("");
   // Communications state
   const [orgPhone, setOrgPhone] = useState<string | null>(null);
   const [smtpHost, setSmtpHost] = useState("");
@@ -102,12 +105,16 @@ export default function SettingsPage() {
       ...(newFieldType === "select" && newFieldOptions.trim()
         ? { options: newFieldOptions.split(",").map((o) => o.trim()).filter(Boolean) }
         : {}),
+      ...(newFieldType === "checklist" && newFieldItems.trim()
+        ? { items: newFieldItems.split(",").map((o) => o.trim()).filter(Boolean) }
+        : {}),
     };
     const next = [...fields, def];
     setFields(next);
     setNewFieldLabel("");
     setNewFieldType("text");
     setNewFieldOptions("");
+    setNewFieldItems("");
     save({ custom_field_schema: next });
   }
 
@@ -239,6 +246,7 @@ export default function SettingsPage() {
                     <p className="text-[11px] text-[var(--color-text-tertiary)]">
                       {FIELD_TYPES.find((t) => t.value === f.type)?.label ?? f.type}
                       {f.options && f.options.length > 0 ? ` · ${f.options.join(", ")}` : ""}
+                      {f.items && f.items.length > 0 ? ` · ${f.items.length} items` : ""}
                       {f.required ? " · Required" : ""}
                     </p>
                   </div>
@@ -252,6 +260,43 @@ export default function SettingsPage() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* Presets */}
+            <div className="rounded-xl border border-dashed border-[var(--color-border)]" style={{ padding: "16px 20px", marginBottom: 20 }}>
+              <p className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ marginBottom: 10 }}>Quick Presets</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    if (fields.some(f => f.type === "address")) return;
+                    const def: CustomFieldDef = { id: crypto.randomUUID(), label: "Address", type: "address" };
+                    const next = [...fields, def];
+                    setFields(next);
+                    save({ custom_field_schema: next });
+                  }}
+                  disabled={fields.some(f => f.type === "address")}
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-30 transition-colors cursor-pointer"
+                  style={{ padding: "6px 14px" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Address
+                </button>
+                <button
+                  onClick={() => {
+                    if (fields.some(f => f.label === "Lead Qualifications")) return;
+                    const def: CustomFieldDef = { id: crypto.randomUUID(), label: "Lead Qualifications", type: "checklist", items: ["Has budget", "Decision maker", "Timeline defined", "Need identified"] };
+                    const next = [...fields, def];
+                    setFields(next);
+                    save({ custom_field_schema: next });
+                  }}
+                  disabled={fields.some(f => f.label === "Lead Qualifications")}
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] disabled:opacity-30 transition-colors cursor-pointer"
+                  style={{ padding: "6px 14px" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  Lead Qualifications
+                </button>
+              </div>
             </div>
 
             {/* Add field */}
@@ -279,6 +324,15 @@ export default function SettingsPage() {
                   value={newFieldOptions}
                   onChange={(e) => setNewFieldOptions(e.target.value)}
                   placeholder="Options (comma separated)"
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+                  style={{ padding: "8px 12px", marginTop: 8 }}
+                />
+              )}
+              {newFieldType === "checklist" && (
+                <input
+                  value={newFieldItems}
+                  onChange={(e) => setNewFieldItems(e.target.value)}
+                  placeholder="Checklist items (comma separated)"
                   className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
                   style={{ padding: "8px 12px", marginTop: 8 }}
                 />
