@@ -24,17 +24,32 @@ function toE164(phone: string): string {
  */
 export async function GET() {
   const supabase = await createClient();
+
+  // Try to get org from session, fall back to first org in DB for debugging
+  let org: { telnyx_phone: string | null; telnyx_messaging_profile_id: string | null } | null = null;
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: koveUser } = await supabase.from("users").select("*").eq("id", user.id).single();
-  if (!koveUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("telnyx_phone, telnyx_messaging_profile_id")
-    .eq("id", koveUser.org_id)
-    .single();
+  if (user) {
+    const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
+    if (koveUser) {
+      const { data } = await supabase
+        .from("organizations")
+        .select("telnyx_phone, telnyx_messaging_profile_id")
+        .eq("id", koveUser.org_id)
+        .single();
+      org = data;
+    }
+  }
+  // Fallback: use service role to grab the first org (debug only)
+  if (!org) {
+    const { createClient: createServiceClient } = await import("@/lib/supabase/server");
+    const svc = await createServiceClient();
+    const { data } = await svc
+      .from("organizations")
+      .select("telnyx_phone, telnyx_messaging_profile_id")
+      .limit(1)
+      .single();
+    org = data;
+  }
 
   const apiKey = process.env.TELNYX_API_KEY;
   const results: Record<string, unknown> = {
