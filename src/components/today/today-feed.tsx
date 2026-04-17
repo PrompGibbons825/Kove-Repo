@@ -162,45 +162,48 @@ function LiquidOrb() {
             animation: "orbPulse 3s ease-in-out infinite",
           }}
         />
-      </div>
-      {/* EXTERIOR: White translucent shell with depth */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle at 38% 28%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.05) 55%, transparent 70%)",
-        }}
-      />
-      {/* EXTERIOR: Rim highlight — white edge catch */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, transparent 52%, rgba(255,255,255,0.2) 70%, rgba(255,255,255,0.4) 84%, rgba(255,255,255,0.15) 94%, transparent 100%)",
-        }}
-      />
-      {/* EXTERIOR: Moving wave bands — slow rotating white streaks across surface */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
-        style={{ animation: "orbSpin 18s linear infinite" }}
-      >
+        {/* White translucent shell with depth */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 rounded-full"
           style={{
-            background: "repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.12) 8deg, transparent 16deg, transparent 30deg, rgba(255,255,255,0.08) 38deg, transparent 46deg, transparent 72deg)",
+            background: "radial-gradient(circle at 38% 28%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.04) 55%, transparent 70%)",
           }}
         />
-      </div>
-      {/* EXTERIOR: Counter-rotating wave band */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
-        style={{ animation: "orbSpin 25s linear infinite reverse" }}
-      >
+        {/* Rim highlight — white edge catch */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 rounded-full"
           style={{
-            background: "repeating-conic-gradient(from 45deg, transparent 0deg, rgba(255,255,255,0.06) 5deg, transparent 10deg, transparent 25deg, rgba(255,255,255,0.1) 30deg, transparent 35deg, transparent 60deg)",
-            filter: "blur(2px)",
+            background: "radial-gradient(circle, transparent 55%, rgba(255,255,255,0.18) 72%, rgba(255,255,255,0.35) 85%, rgba(255,255,255,0.12) 95%, transparent 100%)",
           }}
         />
+        {/* Moving wave bands — linear streaks, not centered spokes */}
+        <div
+          className="absolute rounded-full overflow-hidden"
+          style={{ inset: "0%", animation: "orbSpin 20s linear infinite" }}
+        >
+          <div
+            className="absolute"
+            style={{
+              inset: "-50%",
+              background: "repeating-linear-gradient(60deg, transparent 0px, rgba(255,255,255,0.1) 4px, transparent 8px, transparent 28px, rgba(255,255,255,0.07) 32px, transparent 36px, transparent 60px)",
+              filter: "blur(3px)",
+            }}
+          />
+        </div>
+        {/* Counter-rotating wave band */}
+        <div
+          className="absolute rounded-full overflow-hidden"
+          style={{ inset: "0%", animation: "orbSpin 28s linear infinite reverse" }}
+        >
+          <div
+            className="absolute"
+            style={{
+              inset: "-50%",
+              background: "repeating-linear-gradient(135deg, transparent 0px, rgba(255,255,255,0.08) 3px, transparent 6px, transparent 22px, rgba(255,255,255,0.06) 25px, transparent 28px, transparent 50px)",
+              filter: "blur(2px)",
+            }}
+          />
+        </div>
       </div>
     </div>
   );
