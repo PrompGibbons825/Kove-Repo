@@ -31,49 +31,31 @@ export async function searchNumbers(areaCode?: string, limit = 5) {
 }
 
 /**
- * Purchase a phone number and assign it to the kove connection.
- * Auto-creates a credential connection if TELNYX_CONNECTION_ID is not set.
+ * Ensure a Telnyx credential connection exists for voice/WebRTC.
+ * If TELNYX_CONNECTION_ID is set, updates its webhook URL and returns it.
+ * Otherwise auto-creates a credential connection named "kove".
  */
 export async function ensureConnection(): Promise<string> {
-  const existing = process.env.TELNYX_CONNECTION_ID;
-  if (existing) return existing;
-
-  // Auto-create a credential connection named "kove"
-  const res = await fetch(`${TELNYX_API}/credential_connections`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      connection_name: "kove",
-      webhook_event_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://kove-seven.vercel.app"}/api/comms/call/webhook`,
-      webhook_event_failover_url: "",
-      active: true,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`Telnyx connection creation failed: ${err.errors?.[0]?.detail ?? res.statusText}`);
-  }
-  const conn = (await res.json()).data;
-  // NOTE: persist this ID to your env for future calls
-  return conn.id as string;
-}
-
-/**
- * Ensure a Telnyx credential connection exists.
- * If TELNYX_CONNECTION_ID is set, returns it directly.
- * Otherwise auto-creates one named "kove" via the API.
- */
-export async function ensureConnection(): Promise<string> {
-  const existing = process.env.TELNYX_CONNECTION_ID;
-  if (existing) return existing;
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://trykove.app";
+  const webhookUrl = `${appUrl}/api/comms/call/webhook`;
+
+  const existing = process.env.TELNYX_CONNECTION_ID;
+  if (existing) {
+    // Always keep the webhook URL current
+    await fetch(`${TELNYX_API}/credential_connections/${existing}`, {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ webhook_event_url: webhookUrl }),
+    });
+    return existing;
+  }
+
   const res = await fetch(`${TELNYX_API}/credential_connections`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
       connection_name: "kove",
-      webhook_event_url: `${appUrl}/api/comms/call/webhook`,
+      webhook_event_url: webhookUrl,
       active: true,
     }),
   });
@@ -85,16 +67,61 @@ export async function ensureConnection(): Promise<string> {
 }
 
 /**
- * Purchase a phone number and assign it to the kove connection.
+ * Ensure a Telnyx messaging profile exists for SMS.
+ * Telnyx separates voice (credential connection) from SMS (messaging profile).
+ * The SMS webhook is configured here, NOT on the credential connection.
+ *
+ * Pass an existing messaging profile ID to update its webhook URL,
+ * or omit to create a new profile.
  */
-export async function purchaseNumber(phoneNumber: string) {
-  const connectionId = process.env.TELNYX_CONNECTION_ID;
+export async function ensureMessagingProfile(existingId?: string | null): Promise<string> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://trykove.app";
+  const webhookUrl = `${appUrl}/api/comms/sms/webhook`;
+
+  if (existingId) {
+    // Update webhook URL on the existing profile
+    await fetch(`${TELNYX_API}/messaging_profiles/${existingId}`, {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ webhook_url: webhookUrl }),
+    });
+    return existingId;
+  }
+
+  // Create a new messaging profile
+  const res = await fetch(`${TELNYX_API}/messaging_profiles`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      name: "kove",
+      webhook_url: webhookUrl,
+      enabled: true,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Telnyx messaging profile creation failed: ${err.errors?.[0]?.detail ?? res.statusText}`);
+  }
+  return ((await res.json()).data.id) as string;
+}
+
+/**
+ * Purchase a phone number and assign it to the kove connection (voice)
+ * and messaging profile (SMS). Both must be configured for a fully
+ * functional number.
+ */
+export async function purchaseNumber(
+  phoneNumber: string,
+  connectionId: string,
+  messagingProfileId: string
+) {
   const res = await fetch(`${TELNYX_API}/number_orders`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
       phone_numbers: [{ phone_number: phoneNumber }],
       connection_id: connectionId,
+      messaging_profile_id: messagingProfileId,
     }),
   });
   if (!res.ok) {
@@ -105,28 +132,40 @@ export async function purchaseNumber(phoneNumber: string) {
 }
 
 /**
- * Generate a WebRTC credential token for browser-based calling.
- * Uses the Telnyx TeXML / WebRTC credential approach.
+ * Ensure a telephony credential exists for a user (for WebRTC calling).
+ * Creates one if credentialId is not provided, otherwise returns the existing ID.
+ * Store the returned ID in the user's record and reuse it on subsequent calls.
  */
-export async function generateWebRTCToken(connectionId: string) {
+export async function ensureTelephonyCredential(
+  connectionId: string,
+  userId: string,
+  existingCredentialId?: string | null
+): Promise<string> {
+  if (existingCredentialId) return existingCredentialId;
+
   const res = await fetch(`${TELNYX_API}/telephony_credentials`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
       connection_id: connectionId,
-      name: `kove-webrtc-${Date.now()}`,
+      name: `kove-user-${userId}`,
     }),
   });
   if (!res.ok) throw new Error(`Telnyx credential creation failed: ${res.statusText}`);
-  const credential = (await res.json()).data;
+  return ((await res.json()).data.id) as string;
+}
 
-  // Now generate a short-lived token from the credential
+/**
+ * Generate a short-lived WebRTC token from an existing telephony credential.
+ * The credential ID should be persisted per-user (see ensureTelephonyCredential).
+ */
+export async function generateWebRTCToken(credentialId: string) {
   const tokenRes = await fetch(
-    `${TELNYX_API}/telephony_credentials/${credential.id}/token`,
+    `${TELNYX_API}/telephony_credentials/${credentialId}/token`,
     { method: "POST", headers: headers() }
   );
   if (!tokenRes.ok) throw new Error(`Telnyx token generation failed: ${tokenRes.statusText}`);
-  return (await tokenRes.text()); // returns raw JWT string
+  return tokenRes.text(); // returns raw JWT string
 }
 
 /**

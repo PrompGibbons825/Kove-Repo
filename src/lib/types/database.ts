@@ -137,6 +137,7 @@ export interface Organization {
   commission_rules: Json;
   telnyx_phone: string | null;
   telnyx_connection_id: string | null;
+  telnyx_messaging_profile_id: string | null;
   smtp_config: SmtpConfig | null;
   created_at: string;
 }
@@ -168,6 +169,7 @@ export interface User {
   tag_ids: string[];
   computed_permissions: PermissionSet;
   individual_context: Json;
+  telnyx_credential_id: string | null;
   created_at: string;
 }
 

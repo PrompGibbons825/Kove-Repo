@@ -48,6 +48,10 @@ export default function SettingsPage() {
   const [smtpFromEmail, setSmtpFromEmail] = useState("");
   const [provisioningNumber, setProvisioningNumber] = useState(false);
   const [areaCode, setAreaCode] = useState("");
+  const [phoneMode, setPhoneMode] = useState<"buy" | "existing">("buy");
+  const [existingNumber, setExistingNumber] = useState("");
+  const [importingNumber, setImportingNumber] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -445,38 +449,112 @@ export default function SettingsPage() {
               ) : (
                 <div>
                   <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 12 }}>
-                    No phone number assigned yet. Provision a number to enable calling and SMS.
+                    No phone number assigned yet. Provision a new number or connect one you already own in Telnyx.
                   </p>
-                  <div className="flex gap-2">
-                    <input
-                      value={areaCode}
-                      onChange={(e) => setAreaCode(e.target.value)}
-                      placeholder="Area code (e.g. 415)"
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
-                      style={{ padding: "8px 12px", width: 160 }}
-                    />
+                  {/* Mode toggle */}
+                  <div className="flex gap-1 rounded-lg border border-[var(--color-border)] p-1 w-fit" style={{ marginBottom: 14 }}>
                     <button
-                      onClick={async () => {
-                        setProvisioningNumber(true);
-                        try {
-                          const res = await fetch("/api/comms/provision-number", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ area_code: areaCode || undefined }),
-                          });
-                          const data = await res.json();
-                          if (data.phone) setOrgPhone(data.phone);
-                        } catch { /* silent */ } finally {
-                          setProvisioningNumber(false);
-                        }
+                      onClick={() => { setPhoneMode("buy"); setPhoneError(null); }}
+                      className="rounded-md text-[12px] font-medium transition-colors cursor-pointer"
+                      style={{
+                        padding: "5px 14px",
+                        background: phoneMode === "buy" ? "var(--color-accent)" : "transparent",
+                        color: phoneMode === "buy" ? "white" : "var(--color-text-tertiary)",
                       }}
-                      disabled={provisioningNumber}
-                      className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-50 transition-colors cursor-pointer"
-                      style={{ padding: "8px 20px" }}
                     >
-                      {provisioningNumber ? "Provisioning..." : "Get Number"}
+                      Buy new number
+                    </button>
+                    <button
+                      onClick={() => { setPhoneMode("existing"); setPhoneError(null); }}
+                      className="rounded-md text-[12px] font-medium transition-colors cursor-pointer"
+                      style={{
+                        padding: "5px 14px",
+                        background: phoneMode === "existing" ? "var(--color-accent)" : "transparent",
+                        color: phoneMode === "existing" ? "white" : "var(--color-text-tertiary)",
+                      }}
+                    >
+                      Use existing number
                     </button>
                   </div>
+
+                  {phoneMode === "buy" ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={areaCode}
+                        onChange={(e) => setAreaCode(e.target.value)}
+                        placeholder="Area code (e.g. 415)"
+                        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+                        style={{ padding: "8px 12px", width: 160 }}
+                      />
+                      <button
+                        onClick={async () => {
+                          setProvisioningNumber(true);
+                          setPhoneError(null);
+                          try {
+                            const res = await fetch("/api/comms/provision-number", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ area_code: areaCode || undefined }),
+                            });
+                            const data = await res.json();
+                            if (data.phone) setOrgPhone(data.phone);
+                            else setPhoneError(data.error ?? "Failed to provision number");
+                          } catch { setPhoneError("Request failed"); } finally {
+                            setProvisioningNumber(false);
+                          }
+                        }}
+                        disabled={provisioningNumber}
+                        className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-50 transition-colors cursor-pointer"
+                        style={{ padding: "8px 20px" }}
+                      >
+                        {provisioningNumber ? "Provisioning..." : "Get Number"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 8 }}>
+                        Enter a number already in your Telnyx account. We&apos;ll assign it to the kove connection and messaging profile so calls and SMS route correctly.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          value={existingNumber}
+                          onChange={(e) => setExistingNumber(e.target.value)}
+                          placeholder="+14155551234"
+                          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+                          style={{ padding: "8px 12px", width: 200 }}
+                        />
+                        <button
+                          onClick={async () => {
+                            const num = existingNumber.trim();
+                            if (!num) return;
+                            setImportingNumber(true);
+                            setPhoneError(null);
+                            try {
+                              const res = await fetch("/api/comms/import-number", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ phone_number: num }),
+                              });
+                              const data = await res.json();
+                              if (data.phone) setOrgPhone(data.phone);
+                              else setPhoneError(data.error ?? "Failed to import number");
+                            } catch { setPhoneError("Request failed"); } finally {
+                              setImportingNumber(false);
+                            }
+                          }}
+                          disabled={importingNumber || !existingNumber.trim()}
+                          className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-50 transition-colors cursor-pointer"
+                          style={{ padding: "8px 20px" }}
+                        >
+                          {importingNumber ? "Connecting..." : "Connect Number"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {phoneError && (
+                    <p className="text-[12px] text-red-500" style={{ marginTop: 8 }}>{phoneError}</p>
+                  )}
                 </div>
               )}
             </div>

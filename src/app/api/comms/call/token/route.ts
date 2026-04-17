@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { generateWebRTCToken } from "@/lib/telnyx/client";
+import { ensureTelephonyCredential, generateWebRTCToken } from "@/lib/telnyx/client";
 
 /**
  * GET /api/comms/call/token
  * Returns a short-lived WebRTC token for browser-based calling.
+ * Creates a telephony credential for the user on first call, then reuses it.
  */
 export async function GET() {
   const supabase = await createClient();
@@ -15,7 +16,7 @@ export async function GET() {
     .from("users").select("*").eq("id", user.id).single();
   if (!koveUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // Get org's connection ID (or use kove's default)
+  // Get org's connection ID and phone
   const { data: org } = await supabase
     .from("organizations").select("telnyx_connection_id, telnyx_phone")
     .eq("id", koveUser.org_id).single();
@@ -26,7 +27,22 @@ export async function GET() {
   }
 
   try {
-    const token = await generateWebRTCToken(connectionId);
+    // Ensure a telephony credential exists for this user (creates once, reuses after)
+    const credentialId = await ensureTelephonyCredential(
+      connectionId,
+      koveUser.id,
+      koveUser.telnyx_credential_id
+    );
+
+    // Persist the credential ID if it was just created
+    if (!koveUser.telnyx_credential_id) {
+      await supabase
+        .from("users")
+        .update({ telnyx_credential_id: credentialId })
+        .eq("id", koveUser.id);
+    }
+
+    const token = await generateWebRTCToken(credentialId);
     return NextResponse.json({
       token,
       callerNumber: org?.telnyx_phone ?? null,

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { searchNumbers, purchaseNumber, ensureConnection } from "@/lib/telnyx/client";
+import { searchNumbers, purchaseNumber, ensureConnection, ensureMessagingProfile } from "@/lib/telnyx/client";
 
 /**
  * POST /api/comms/provision-number
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
   // Check if org already has a number
   const { data: org } = await supabase
-    .from("organizations").select("telnyx_phone").eq("id", koveUser.org_id).single();
+    .from("organizations").select("telnyx_phone, telnyx_messaging_profile_id").eq("id", koveUser.org_id).single();
   if (org?.telnyx_phone) {
     return NextResponse.json({ error: "Organization already has a phone number", phone: org.telnyx_phone }, { status: 400 });
   }
@@ -31,16 +31,11 @@ export async function POST(request: Request) {
   const areaCode = body.area_code;
 
   try {
-    // Ensure connection exists (uses env var or auto-creates)
+    // Ensure credential connection exists for voice/WebRTC
     const connectionId = await ensureConnection();
 
-    // Patch webhook URL onto the connection to make sure it's current
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://trykove.app";
-    await fetch(`https://api.telnyx.com/v2/credential_connections/${connectionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.TELNYX_API_KEY}` },
-      body: JSON.stringify({ webhook_event_url: `${appUrl}/api/comms/call/webhook` }),
-    });
+    // Ensure messaging profile exists for SMS (separate from voice connection)
+    const messagingProfileId = await ensureMessagingProfile(org?.telnyx_messaging_profile_id);
 
     // Search for available numbers
     const available = await searchNumbers(areaCode, 1);
@@ -50,8 +45,8 @@ export async function POST(request: Request) {
 
     const phoneNumber = available[0].phone_number;
 
-    // Purchase the number
-    await purchaseNumber(phoneNumber);
+    // Purchase the number — assign both voice connection and SMS messaging profile
+    await purchaseNumber(phoneNumber, connectionId, messagingProfileId);
 
     // Save to org
     await supabase
@@ -59,6 +54,7 @@ export async function POST(request: Request) {
       .update({
         telnyx_phone: phoneNumber,
         telnyx_connection_id: connectionId,
+        telnyx_messaging_profile_id: messagingProfileId,
       })
       .eq("id", koveUser.org_id);
 

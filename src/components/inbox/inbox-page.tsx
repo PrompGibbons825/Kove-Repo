@@ -1,418 +1,423 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { User, Activity } from "@/lib/types/database";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { User, Activity, Contact } from "@/lib/types/database";
+import { useContactPanel } from "@/components/contacts/contact-panel-context";
 
-type InboxTab = "all" | "calls" | "sms" | "email";
+type InboxFilter = "all" | "calls" | "sms" | "email";
 
-const TABS: { id: InboxTab; label: string; icon: string }[] = [
-  { id: "all", label: "All", icon: "📥" },
-  { id: "calls", label: "Calls", icon: "📞" },
-  { id: "sms", label: "SMS", icon: "💬" },
-  { id: "email", label: "Email", icon: "✉️" },
+const FILTERS: { id: InboxFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "calls", label: "Calls" },
+  { id: "sms", label: "SMS" },
+  { id: "email", label: "Email" },
 ];
 
-interface InboxActivity extends Activity {
-  contact_name?: string;
+interface Thread {
+  contact: Contact;
+  activities: Activity[];
+  lastActivity: Activity;
 }
 
-export default function InboxPage({ user }: { user: User }) {
-  const [tab, setTab] = useState<InboxTab>("all");
-  const [activities, setActivities] = useState<InboxActivity[]>([]);
-  const [contacts, setContacts] = useState<Record<string, string>>({});
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function activityIcon(type: string) {
+  switch (type) {
+    case "call": return "📞";
+    case "sms": return "💬";
+    case "email": return "✉️";
+    case "voicemail": return "📱";
+    case "note": return "📝";
+    default: return "•";
+  }
+}
+
+function activityPreview(a: Activity): string {
+  if (a.type === "call") return a.duration_seconds != null ? `Call · ${Math.floor(a.duration_seconds / 60)}:${String(a.duration_seconds % 60).padStart(2, "0")}` : "Call";
+  if (a.type === "voicemail") return "Voicemail";
+  return a.content || a.ai_summary || a.type;
+}
+
+export default function InboxPage({ user: _user }: { user: User }) {
+  const { openContact } = useContactPanel();
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<InboxFilter>("all");
+  const [search, setSearch] = useState("");
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   // Compose states
-  const [showSmsCompose, setShowSmsCompose] = useState(false);
-  const [showEmailCompose, setShowEmailCompose] = useState(false);
-  const [showDialer, setShowDialer] = useState(false);
+  const [composeType, setComposeType] = useState<"sms" | "email" | null>(null);
+  const [composeTo, setComposeTo] = useState("");
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [composeSending, setComposeSending] = useState(false);
 
-  // SMS compose
-  const [smsTo, setSmsTo] = useState("");
-  const [smsMessage, setSmsMessage] = useState("");
-  const [smsSending, setSmsSending] = useState(false);
+  const threadBottomRef = useRef<HTMLDivElement>(null);
 
-  // Email compose
-  const [emailTo, setEmailTo] = useState("");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
-  const [emailSending, setEmailSending] = useState(false);
-
-  // Call state
-  const [callTo, setCallTo] = useState("");
-  const [calling, setCalling] = useState(false);
-  const [callStatus, setCallStatus] = useState<string | null>(null);
-
-  const fetchActivities = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/activities");
-      const data = await res.json();
-      const acts: Activity[] = data.activities ?? [];
-      // Filter to comm types
-      const comms = acts.filter((a) =>
-        ["call", "sms", "email", "voicemail"].includes(a.type)
-      );
-      setActivities(comms);
-    } catch {
-      /* silent */
-    } finally {
+      const [actRes, conRes] = await Promise.all([
+        fetch("/api/activities"),
+        fetch("/api/contacts"),
+      ]);
+      const actData = await actRes.json();
+      const conData = await conRes.json();
+      setActivities(actData.activities ?? []);
+      setContacts(conData.contacts ?? []);
+    } catch { /* silent */ } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchContacts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/contacts");
-      const data = await res.json();
-      const map: Record<string, string> = {};
-      for (const c of data.contacts ?? []) {
-        map[c.id] = c.name;
-      }
-      setContacts(map);
-    } catch {
-      /* silent */
-    }
-  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    fetchActivities();
-    fetchContacts();
-  }, [fetchActivities, fetchContacts]);
+    threadBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedContactId, activities.length]);
 
-  const filtered = tab === "all"
-    ? activities
-    : activities.filter((a) => {
-        if (tab === "calls") return a.type === "call" || a.type === "voicemail";
-        return a.type === tab;
-      });
+  const commTypes = ["call", "sms", "email", "voicemail"];
+  const commActivities = activities.filter((a) => commTypes.includes(a.type));
 
-  async function handleSendSms() {
-    if (!smsTo.trim() || !smsMessage.trim()) return;
-    setSmsSending(true);
-    try {
-      await fetch("/api/comms/sms/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: smsTo.trim(), message: smsMessage.trim() }),
-      });
-      setSmsTo("");
-      setSmsMessage("");
-      setShowSmsCompose(false);
-      fetchActivities();
-    } catch { /* silent */ } finally {
-      setSmsSending(false);
-    }
+  const threadMap = new Map<string, Activity[]>();
+  for (const a of commActivities) {
+    if (!a.contact_id) continue;
+    if (!threadMap.has(a.contact_id)) threadMap.set(a.contact_id, []);
+    threadMap.get(a.contact_id)!.push(a);
   }
 
-  async function handleSendEmail() {
-    if (!emailTo.trim() || !emailBody.trim()) return;
-    setEmailSending(true);
-    try {
-      await fetch("/api/comms/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: emailTo.trim(),
-          subject: emailSubject.trim(),
-          text: emailBody.trim(),
-        }),
-      });
-      setEmailTo("");
-      setEmailSubject("");
-      setEmailBody("");
-      setShowEmailCompose(false);
-      fetchActivities();
-    } catch { /* silent */ } finally {
-      setEmailSending(false);
-    }
-  }
-
-  async function handleCall() {
-    if (!callTo.trim()) return;
-    setCalling(true);
-    setCallStatus("Connecting...");
-    try {
-      // Get WebRTC token
-      const tokenRes = await fetch("/api/comms/call/token");
-      const tokenData = await tokenRes.json();
-      if (!tokenData.token) {
-        setCallStatus("No call token available. Check settings.");
-        setCalling(false);
-        return;
-      }
-      // In a real implementation, this would initialize the Telnyx WebRTC SDK
-      // For now, we show the call UI and log the attempt
-      setCallStatus(`Calling ${callTo}...`);
-      // TODO: Initialize TelnyxRTC client with token and make the call
-      setTimeout(() => {
-        setCallStatus("Call feature requires Telnyx WebRTC setup. Token generated successfully.");
-        setCalling(false);
-      }, 2000);
-    } catch {
-      setCallStatus("Call failed");
-      setCalling(false);
-    }
-  }
-
-  function getActivityIcon(type: string) {
-    switch (type) {
-      case "call": return "📞";
-      case "sms": return "💬";
-      case "email": return "✉️";
-      case "voicemail": return "📱";
-      default: return "📝";
-    }
-  }
-
-  function getDirectionBadge(direction?: string) {
-    if (!direction) return null;
-    const isInbound = direction === "inbound";
-    return (
-      <span
-        className="rounded-full text-[10px] font-medium"
-        style={{
-          padding: "1px 8px",
-          background: isInbound ? "var(--color-accent-soft)" : "var(--color-surface-hover)",
-          color: isInbound ? "var(--color-accent)" : "var(--color-text-tertiary)",
-        }}
-      >
-        {isInbound ? "↙ Inbound" : "↗ Outbound"}
-      </span>
+  const threads: Thread[] = [];
+  for (const contact of contacts) {
+    const acts = (threadMap.get(contact.id) ?? []).sort(
+      (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
     );
+    if (acts.length === 0) continue;
+    const lastActivity = acts[acts.length - 1];
+    threads.push({ contact, activities: acts, lastActivity });
+  }
+
+  threads.sort((a, b) => new Date(b.lastActivity.occurred_at).getTime() - new Date(a.lastActivity.occurred_at).getTime());
+
+  const filteredThreads = threads.filter((t) => {
+    if (filter !== "all") {
+      const hasType = t.activities.some((a) =>
+        filter === "calls" ? a.type === "call" || a.type === "voicemail" : a.type === filter
+      );
+      if (!hasType) return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      return t.contact.name.toLowerCase().includes(q) ||
+        (t.contact.phone ?? "").includes(q) ||
+        (t.contact.email ?? "").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const selectedThread = filteredThreads.find((t) => t.contact.id === selectedContactId) ?? filteredThreads[0] ?? null;
+  const selectedContact = selectedThread?.contact ?? null;
+
+  const threadActivities = (selectedThread?.activities ?? []).filter((a) => {
+    if (filter === "all") return true;
+    if (filter === "calls") return a.type === "call" || a.type === "voicemail";
+    return a.type === filter;
+  });
+
+  async function handleSend() {
+    if (!composeBody.trim()) return;
+    setComposeSending(true);
+    try {
+      if (composeType === "sms") {
+        await fetch("/api/comms/sms/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: composeTo, message: composeBody, contact_id: selectedContact?.id }),
+        });
+      } else if (composeType === "email") {
+        await fetch("/api/comms/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: composeTo, subject: composeSubject, text: composeBody, contact_id: selectedContact?.id }),
+        });
+      }
+      setComposeBody("");
+      setComposeSubject("");
+      setComposeType(null);
+      fetchData();
+    } catch { /* silent */ } finally {
+      setComposeSending(false);
+    }
+  }
+
+  function openCompose(type: "sms" | "email") {
+    setComposeType(type);
+    if (selectedContact) {
+      setComposeTo(type === "sms" ? (selectedContact.phone ?? "") : (selectedContact.email ?? ""));
+    }
   }
 
   return (
-    <div style={{ padding: "32px 40px" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between" style={{ marginBottom: 24 }}>
-        <div>
-          <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Inbox</h1>
-          <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginTop: 2 }}>
-            All calls, messages, and emails in one place.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { setShowDialer(true); setShowSmsCompose(false); setShowEmailCompose(false); }}
-            className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
-            style={{ padding: "8px 16px" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-            </svg>
-            Call
-          </button>
-          <button
-            onClick={() => { setShowSmsCompose(true); setShowDialer(false); setShowEmailCompose(false); }}
-            className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] font-medium hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-            style={{ padding: "8px 16px" }}
-          >
-            💬 SMS
-          </button>
-          <button
-            onClick={() => { setShowEmailCompose(true); setShowDialer(false); setShowSmsCompose(false); }}
-            className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] font-medium hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-            style={{ padding: "8px 16px" }}
-          >
-            ✉️ Email
-          </button>
-        </div>
-      </div>
-
-      {/* Compose Panels */}
-      {showDialer && (
-        <ComposePanel title="Make a Call" onClose={() => { setShowDialer(false); setCallStatus(null); }}>
-          <div className="flex gap-2">
-            <input
-              value={callTo}
-              onChange={(e) => setCallTo(e.target.value)}
-              placeholder="+1 (555) 123-4567"
-              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
-              style={{ padding: "8px 12px" }}
-            />
-            <button
-              onClick={handleCall}
-              disabled={!callTo.trim() || calling}
-              className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium disabled:opacity-30 cursor-pointer"
-              style={{ padding: "8px 20px" }}
-            >
-              {calling ? "Calling..." : "Call"}
-            </button>
-          </div>
-          {callStatus && (
-            <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginTop: 8 }}>{callStatus}</p>
-          )}
-        </ComposePanel>
-      )}
-
-      {showSmsCompose && (
-        <ComposePanel title="Send SMS" onClose={() => setShowSmsCompose(false)}>
+    <div className="flex h-full overflow-hidden">
+      {/* Left: Contact thread list */}
+      <div
+        className="flex flex-col border-r border-[var(--color-border)] shrink-0"
+        style={{ width: 300 }}
+      >
+        {/* Header */}
+        <div className="border-b border-[var(--color-border)]" style={{ padding: "20px 16px 12px" }}>
+          <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)]" style={{ marginBottom: 10 }}>Inbox</h1>
           <input
-            value={smsTo}
-            onChange={(e) => setSmsTo(e.target.value)}
-            placeholder="Phone number"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search contacts..."
             className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
-            style={{ padding: "8px 12px", marginBottom: 8 }}
+            style={{ padding: "7px 10px" }}
           />
-          <div className="flex gap-2">
-            <textarea
-              value={smsMessage}
-              onChange={(e) => setSmsMessage(e.target.value)}
-              placeholder="Type your message..."
-              rows={2}
-              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 resize-none"
-              style={{ padding: "8px 12px" }}
-            />
-            <button
-              onClick={handleSendSms}
-              disabled={!smsTo.trim() || !smsMessage.trim() || smsSending}
-              className="self-end rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium disabled:opacity-30 cursor-pointer"
-              style={{ padding: "8px 20px" }}
-            >
-              {smsSending ? "Sending..." : "Send"}
-            </button>
-          </div>
-        </ComposePanel>
-      )}
-
-      {showEmailCompose && (
-        <ComposePanel title="Compose Email" onClose={() => setShowEmailCompose(false)}>
-          <input
-            value={emailTo}
-            onChange={(e) => setEmailTo(e.target.value)}
-            placeholder="To email"
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
-            style={{ padding: "8px 12px", marginBottom: 8 }}
-          />
-          <input
-            value={emailSubject}
-            onChange={(e) => setEmailSubject(e.target.value)}
-            placeholder="Subject"
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
-            style={{ padding: "8px 12px", marginBottom: 8 }}
-          />
-          <div className="flex gap-2">
-            <textarea
-              value={emailBody}
-              onChange={(e) => setEmailBody(e.target.value)}
-              placeholder="Write your email..."
-              rows={5}
-              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 resize-none"
-              style={{ padding: "8px 12px" }}
-            />
-          </div>
-          <button
-            onClick={handleSendEmail}
-            disabled={!emailTo.trim() || !emailBody.trim() || emailSending}
-            className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium disabled:opacity-30 cursor-pointer"
-            style={{ padding: "8px 20px", marginTop: 8 }}
-          >
-            {emailSending ? "Sending..." : "Send Email"}
-          </button>
-        </ComposePanel>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-[var(--color-border)]" style={{ marginBottom: 20 }}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className="text-[13px] font-medium transition-colors cursor-pointer"
-            style={{
-              padding: "8px 16px",
-              borderBottom: tab === t.id ? "2px solid var(--color-accent)" : "2px solid transparent",
-              color: tab === t.id ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
-              marginBottom: -1,
-            }}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Activity Feed */}
-      {loading ? (
-        <div className="text-center text-[14px] text-[var(--color-text-tertiary)]" style={{ padding: 60 }}>
-          Loading inbox...
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center rounded-xl border border-dashed border-[var(--color-border)]" style={{ padding: "60px 24px" }}>
-          <p className="text-[14px] text-[var(--color-text-tertiary)]">
-            {tab === "all" ? "No communications yet." : `No ${tab} activity yet.`}
-          </p>
-          <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginTop: 4, opacity: 0.7 }}>
-            Send an SMS, make a call, or compose an email to get started.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-              style={{ padding: "14px 18px" }}
-            >
-              <div
-                className="flex items-center justify-center rounded-full shrink-0"
-                style={{ width: 36, height: 36, background: "var(--color-surface-hover)", fontSize: 16 }}
+          <div className="flex gap-1" style={{ marginTop: 8 }}>
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className="flex-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer"
+                style={{
+                  padding: "4px 0",
+                  background: filter === f.id ? "var(--color-accent)" : "var(--color-surface-hover)",
+                  color: filter === f.id ? "white" : "var(--color-text-tertiary)",
+                }}
               >
-                {getActivityIcon(a.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-medium text-[var(--color-text-primary)]">
-                    {a.contact_id && contacts[a.contact_id]
-                      ? contacts[a.contact_id]
-                      : (a.metadata as Record<string, string>)?.from ?? (a.metadata as Record<string, string>)?.to ?? "Unknown"}
-                  </span>
-                  {getDirectionBadge(a.direction)}
-                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
-                    {new Date(a.occurred_at).toLocaleString()}
-                  </span>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Thread list */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <p className="text-[13px] text-[var(--color-text-tertiary)] text-center" style={{ padding: 32 }}>Loading...</p>
+          ) : filteredThreads.length === 0 ? (
+            <p className="text-[13px] text-[var(--color-text-tertiary)] text-center" style={{ padding: 32 }}>No conversations yet.</p>
+          ) : filteredThreads.map((t) => {
+            const isSelected = t.contact.id === selectedThread?.contact.id;
+            const initials = t.contact.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+            return (
+              <button
+                key={t.contact.id}
+                onClick={() => setSelectedContactId(t.contact.id)}
+                className="w-full text-left flex items-center gap-3 transition-colors cursor-pointer border-b border-[var(--color-border)]/50"
+                style={{
+                  padding: "12px 16px",
+                  background: isSelected ? "var(--color-surface-hover)" : "transparent",
+                }}
+              >
+                <div
+                  className="flex items-center justify-center rounded-full shrink-0 text-[12px] font-semibold text-white"
+                  style={{ width: 36, height: 36, background: "var(--color-accent)" }}
+                >
+                  {initials}
                 </div>
-                <p className="text-[13px] text-[var(--color-text-secondary)] truncate" style={{ marginTop: 2 }}>
-                  {a.content || a.ai_summary || `${a.type} activity`}
-                </p>
-                {a.duration_seconds != null && (
-                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
-                    Duration: {Math.floor(a.duration_seconds / 60)}:{String(a.duration_seconds % 60).padStart(2, "0")}
-                  </span>
-                )}
-                {a.transcript && (
-                  <p className="text-[11px] text-[var(--color-text-tertiary)] truncate" style={{ marginTop: 2 }}>
-                    📝 Transcript available
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">{t.contact.name}</span>
+                    <span className="text-[11px] text-[var(--color-text-tertiary)] shrink-0" style={{ marginLeft: 8 }}>{timeAgo(t.lastActivity.occurred_at)}</span>
+                  </div>
+                  <p className="text-[12px] text-[var(--color-text-tertiary)] truncate" style={{ marginTop: 1 }}>
+                    {activityIcon(t.lastActivity.type)} {activityPreview(t.lastActivity)}
                   </p>
-                )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Right: Conversation thread */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {!selectedThread ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-[14px] text-[var(--color-text-tertiary)]">Select a contact to view their conversation</p>
+          </div>
+        ) : (
+          <>
+            {/* Thread header */}
+            <div className="flex items-center justify-between border-b border-[var(--color-border)]" style={{ padding: "14px 24px" }}>
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex items-center justify-center rounded-full text-[13px] font-semibold text-white"
+                  style={{ width: 36, height: 36, background: "var(--color-accent)" }}
+                >
+                  {selectedContact!.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">{selectedContact!.name}</p>
+                  <p className="text-[11px] text-[var(--color-text-tertiary)]">
+                    {selectedContact!.phone ?? ""}{selectedContact!.phone && selectedContact!.email ? " · " : ""}{selectedContact!.email ?? ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => openContact(selectedContact!)}
+                  className="rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                  style={{ padding: "6px 12px" }}
+                >
+                  View Contact
+                </button>
+                <button
+                  onClick={() => openCompose("sms")}
+                  className="rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                  style={{ padding: "6px 12px" }}
+                >
+                  💬 SMS
+                </button>
+                <button
+                  onClick={() => openCompose("email")}
+                  className="rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                  style={{ padding: "6px 12px" }}
+                >
+                  ✉️ Email
+                </button>
+                <button
+                  className="rounded-lg bg-[var(--color-accent)] text-white text-[12px] font-medium hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                  style={{ padding: "6px 12px" }}
+                >
+                  📞 Call
+                </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
-/* ── Compose Panel wrapper ── */
-function ComposePanel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-      style={{ padding: "16px 20px", marginBottom: 20 }}
-    >
-      <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
-        <h3 className="text-[14px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
-        <button
-          onClick={onClose}
-          className="flex items-center justify-center rounded-lg text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
-          style={{ width: 28, height: 28 }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-          </svg>
-        </button>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto" style={{ padding: "20px 24px" }}>
+              {threadActivities.length === 0 ? (
+                <p className="text-[13px] text-[var(--color-text-tertiary)] text-center" style={{ paddingTop: 40 }}>No {filter === "all" ? "activity" : filter} with this contact.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {threadActivities.map((a) => {
+                    const isOutbound = a.direction === "outbound";
+                    const isMessage = a.type === "sms" || a.type === "email";
+                    return (
+                      <div key={a.id} style={{ display: "flex", flexDirection: isOutbound && isMessage ? "row-reverse" : "row", gap: 12, alignItems: "flex-end" }}>
+                        {!isMessage && (
+                          <div
+                            className="flex items-center justify-center rounded-full shrink-0 text-[14px]"
+                            style={{ width: 32, height: 32, background: "var(--color-surface-hover)" }}
+                          >
+                            {activityIcon(a.type)}
+                          </div>
+                        )}
+                        <div style={{ maxWidth: "70%", flex: isMessage ? "0 1 auto" : "1" }}>
+                          {isMessage ? (
+                            <div
+                              className="rounded-2xl text-[13px] leading-relaxed"
+                              style={{
+                                padding: "10px 14px",
+                                background: isOutbound ? "var(--color-accent)" : "var(--color-surface-hover)",
+                                color: isOutbound ? "white" : "var(--color-text-primary)",
+                                borderBottomRightRadius: isOutbound ? 4 : 16,
+                                borderBottomLeftRadius: isOutbound ? 16 : 4,
+                              }}
+                            >
+                              {a.type === "email" && (
+                                <p className="text-[11px] font-medium opacity-70" style={{ marginBottom: 4 }}>
+                                  ✉️ {(a.metadata as Record<string, string>)?.subject ?? "Email"}
+                                </p>
+                              )}
+                              {a.content || a.ai_summary || "(no content)"}
+                            </div>
+                          ) : (
+                            <div
+                              className="rounded-xl border border-[var(--color-border)]"
+                              style={{ padding: "10px 14px" }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-medium text-[var(--color-text-primary)]">
+                                  {a.type === "voicemail" ? "Voicemail" : a.direction === "inbound" ? "Inbound call" : "Outbound call"}
+                                </span>
+                                {a.duration_seconds != null && (
+                                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
+                                    {Math.floor(a.duration_seconds / 60)}:{String(a.duration_seconds % 60).padStart(2, "0")}
+                                  </span>
+                                )}
+                              </div>
+                              {a.ai_summary && (
+                                <p className="text-[12px] text-[var(--color-text-secondary)]" style={{ marginTop: 4 }}>{a.ai_summary}</p>
+                              )}
+                              {a.transcript && (
+                                <p className="text-[11px] text-[var(--color-accent)]" style={{ marginTop: 4 }}>📝 Transcript available</p>
+                              )}
+                            </div>
+                          )}
+                          <p
+                            className="text-[10px] text-[var(--color-text-tertiary)]"
+                            style={{ marginTop: 3, textAlign: isOutbound && isMessage ? "right" : "left" }}
+                          >
+                            {new Date(a.occurred_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={threadBottomRef} />
+                </div>
+              )}
+            </div>
+
+            {/* Compose panel */}
+            {composeType && (
+              <div className="border-t border-[var(--color-border)]" style={{ padding: "14px 24px" }}>
+                <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+                  <span className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">
+                    {composeType === "sms" ? "💬 Reply via SMS" : "✉️ Reply via Email"}
+                  </span>
+                  <button onClick={() => setComposeType(null)} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] cursor-pointer">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                </div>
+                {composeType === "email" && (
+                  <input
+                    value={composeSubject}
+                    onChange={(e) => setComposeSubject(e.target.value)}
+                    placeholder="Subject"
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none"
+                    style={{ padding: "8px 12px", marginBottom: 8 }}
+                  />
+                )}
+                <div className="flex gap-2">
+                  <textarea
+                    value={composeBody}
+                    onChange={(e) => setComposeBody(e.target.value)}
+                    placeholder={composeType === "sms" ? "Type your message..." : "Write your email..."}
+                    rows={composeType === "email" ? 4 : 2}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none resize-none"
+                    style={{ padding: "8px 12px" }}
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!composeBody.trim() || composeSending}
+                    className="self-end flex items-center justify-center rounded-lg bg-[var(--color-accent)] text-white disabled:opacity-30 hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
+                    style={{ width: 36, height: 36, flexShrink: 0 }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
-      {children}
     </div>
   );
 }
