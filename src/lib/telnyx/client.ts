@@ -17,9 +17,11 @@ function headers() {
 export async function searchNumbers(areaCode?: string, limit = 5) {
   const params = new URLSearchParams({
     "filter[country_code]": "US",
-    "filter[features]": "sms,voice",
     "filter[limit]": String(limit),
   });
+  // Telnyx requires array-style feature filters
+  params.append("filter[features][]", "sms");
+  params.append("filter[features][]", "voice");
   if (areaCode) params.set("filter[national_destination_code]", areaCode);
 
   const res = await fetch(`${TELNYX_API}/available_phone_numbers?${params}`, {
@@ -89,12 +91,14 @@ export async function ensureMessagingProfile(existingId?: string | null): Promis
   }
 
   // Create a new messaging profile
+  // whitelisted_destinations is required by Telnyx — "US" allows all US numbers
   const res = await fetch(`${TELNYX_API}/messaging_profiles`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
       name: "kove",
       webhook_url: webhookUrl,
+      whitelisted_destinations: ["US"],
       enabled: true,
     }),
   });
