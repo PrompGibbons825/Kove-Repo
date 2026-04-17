@@ -12,6 +12,10 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
   const [loading, setLoading] = useState(true);
   const [sendAs, setSendAs] = useState<"sms" | "email">("sms");
   const [draft, setDraft] = useState("");
+  const [subject, setSubject] = useState("");
+  const [cc, setCc] = useState("");
+  const [bcc, setBcc] = useState("");
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +74,14 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
         const res = await fetch("/api/comms/email/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: contact.email, subject: "Follow up", body: draft.trim(), contact_id: contact.id }),
+          body: JSON.stringify({
+            to: contact.email,
+            subject: subject.trim() || "Follow up",
+            cc: cc.trim() || undefined,
+            bcc: bcc.trim() || undefined,
+            body: draft.trim(),
+            contact_id: contact.id,
+          }),
         });
         if (res.ok) {
           setMessages((prev) => [...prev, {
@@ -90,6 +101,10 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
             occurred_at: new Date().toISOString(),
           }]);
           setDraft("");
+          setSubject("");
+          setCc("");
+          setBcc("");
+          setShowCcBcc(false);
         }
       }
     } catch {
@@ -183,23 +198,75 @@ export function ContactMessaging({ contact }: ContactMessagingProps) {
             ✉️ Email
           </button>
         </div>
+
         {sendAs === "sms" && !contact.phone && (
           <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 8 }}>No phone number on file</p>
         )}
         {sendAs === "email" && !contact.email && (
           <p className="text-[12px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 8 }}>No email on file</p>
         )}
+
+        {/* Email-specific fields */}
+        {sendAs === "email" && (
+          <div className="flex flex-col gap-1.5" style={{ marginBottom: 8 }}>
+            {/* To (read-only) */}
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)]" style={{ padding: "5px 10px" }}>
+              <span className="text-[11px] font-medium text-[var(--color-text-tertiary)] shrink-0">To</span>
+              <span className="text-[12px] text-[var(--color-text-primary)] truncate">{contact.email ?? "—"}</span>
+              <button
+                onClick={() => setShowCcBcc((p) => !p)}
+                className="ml-auto text-[10px] font-medium text-[var(--color-accent)] hover:underline cursor-pointer shrink-0"
+              >
+                {showCcBcc ? "Hide" : "CC/BCC"}
+              </button>
+            </div>
+
+            {/* Subject */}
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Subject"
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+              style={{ padding: "5px 10px" }}
+            />
+
+            {/* CC / BCC */}
+            {showCcBcc && (
+              <>
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)]" style={{ padding: "5px 10px" }}>
+                  <span className="text-[11px] font-medium text-[var(--color-text-tertiary)] shrink-0">CC</span>
+                  <input
+                    value={cc}
+                    onChange={(e) => setCc(e.target.value)}
+                    placeholder="cc@example.com"
+                    className="flex-1 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] bg-transparent border-none outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)]" style={{ padding: "5px 10px" }}>
+                  <span className="text-[11px] font-medium text-[var(--color-text-tertiary)] shrink-0">BCC</span>
+                  <input
+                    value={bcc}
+                    onChange={(e) => setBcc(e.target.value)}
+                    placeholder="bcc@example.com"
+                    className="flex-1 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] bg-transparent border-none outline-none"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={sendAs === "sms" ? "Type SMS..." : "Type email..."}
-            rows={2}
+            placeholder={sendAs === "sms" ? "Type SMS..." : "Compose email..."}
+            rows={sendAs === "email" ? 4 : 2}
             disabled={(sendAs === "sms" && !contact.phone) || (sendAs === "email" && !contact.email)}
             className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 resize-none transition-colors disabled:opacity-40"
             style={{ padding: "8px 12px" }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey && sendAs === "sms") {
                 e.preventDefault();
                 sendMessage();
               }
