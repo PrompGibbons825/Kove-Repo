@@ -8,6 +8,8 @@ type Mode = "ask" | "plan" | "agent";
 interface AgentSidebarProps {
   user: User;
   org: Organization;
+  width: number;
+  onWidthChange: (w: number) => void;
   onClose: () => void;
 }
 
@@ -23,8 +25,9 @@ const MODE_META: Record<Mode, { label: string; desc: string; color: string }> = 
   agent: { label: "Agent", desc: "Autonomous task execution",           color: "#10b981" },
 };
 
-export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
-  const [mode, setMode] = useState<Mode>("ask");
+export function AgentSidebar({ user, org, width, onWidthChange, onClose }: AgentSidebarProps) {
+  const [mode, setMode] = useState<Mode>("agent");
+  const [modeOpen, setModeOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -34,7 +37,6 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [width, setWidth] = useState(380);
   const [visible, setVisible] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -59,7 +61,7 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
       const delta = startX - ev.clientX;
-      setWidth(Math.max(320, Math.min(700, startW + delta)));
+      onWidthChange(Math.max(320, Math.min(700, startW + delta)));
     };
     const onUp = () => {
       resizingRef.current = false;
@@ -68,7 +70,7 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, [width]);
+  }, [width, onWidthChange]);
 
   function handleClose() {
     setVisible(false);
@@ -150,31 +152,7 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
         </button>
       </div>
 
-      {/* Mode switcher */}
-      <div className="border-b border-[var(--color-border)]" style={{ padding: "8px 20px" }}>
-        <div className="flex w-full rounded-lg bg-[var(--color-background)] p-1 gap-1">
-          {(["ask", "plan", "agent"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className="flex-1 text-center rounded-md text-[12px] font-medium transition-all duration-150 cursor-pointer"
-              style={{
-                padding: "6px 0",
-                background: mode === m ? "var(--color-surface)" : "transparent",
-                color: mode === m ? MODE_META[m].color : "var(--color-text-tertiary)",
-                boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              {MODE_META[m].label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Mode description */}
-      <div style={{ padding: "8px 20px 0" }}>
-        <p className="text-[11px] text-[var(--color-text-tertiary)]">{MODE_META[mode].desc}</p>
-      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto" style={{ padding: "12px 20px 16px" }}>
@@ -221,7 +199,7 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
       {/* Input */}
       <form onSubmit={handleSubmit} className="border-t border-[var(--color-border)]" style={{ padding: "12px 20px 16px" }}>
         <div
-          className="flex items-end gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] focus-within:border-[var(--color-accent)]/40 transition-all duration-150"
+          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] focus-within:border-[var(--color-accent)]/40 transition-all duration-150"
           style={{ padding: "10px 12px" }}
         >
           <textarea
@@ -231,19 +209,53 @@ export function AgentSidebar({ user, org, onClose }: AgentSidebarProps) {
             onKeyDown={handleKeyDown}
             placeholder="Ask about your leads, tasks, or pipeline..."
             rows={1}
-            className="flex-1 resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none leading-relaxed"
+            className="w-full resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none leading-relaxed"
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="flex shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white disabled:opacity-20 transition-all duration-150 hover:bg-[var(--color-accent-hover)] cursor-pointer"
-            style={{ width: 30, height: 30 }}
-            aria-label="Send message"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m5 12 7-7 7 7" /><path d="M12 19V5" />
-            </svg>
-          </button>
+          {/* Bottom bar: mode dropdown + send */}
+          <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setModeOpen((v) => !v)}
+                className="flex items-center gap-1 text-[12px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              >
+                {MODE_META[mode].label}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {modeOpen && (
+                <div
+                  className="absolute bottom-full left-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg overflow-hidden"
+                  style={{ marginBottom: 4, minWidth: 150 }}
+                >
+                  {(["ask", "plan", "agent"] as Mode[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setMode(m); setModeOpen(false); }}
+                      className="flex w-full items-center gap-2 text-left text-[12px] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+                      style={{ padding: "8px 12px", color: mode === m ? MODE_META[m].color : "var(--color-text-secondary)" }}
+                    >
+                      <span className="font-medium">{MODE_META[m].label}</span>
+                      <span className="text-[11px] text-[var(--color-text-tertiary)]">{MODE_META[m].desc}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              className="flex shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white disabled:opacity-20 transition-all duration-150 hover:bg-[var(--color-accent-hover)] cursor-pointer"
+              style={{ width: 30, height: 30 }}
+              aria-label="Send message"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m5 12 7-7 7 7" /><path d="M12 19V5" />
+              </svg>
+            </button>
+          </div>
         </div>
         <p className="text-center text-[10px] text-[var(--color-text-tertiary)]" style={{ marginTop: 8 }}>
           kove AI can make mistakes. Verify important information.

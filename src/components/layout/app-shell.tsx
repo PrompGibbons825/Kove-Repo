@@ -13,12 +13,13 @@ interface AppShellProps {
 
 export function AppShell({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
+  const [agentWidth, setAgentWidth] = useState(380);
 
   return (
     <div className="min-h-screen flex w-full bg-[var(--color-background)]">
       <Sidebar user={user} org={org} />
 
-      <main className="flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out" style={{ marginLeft: 68 }}>
+      <main className="flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out" style={{ marginLeft: 68, marginRight: agentOpen ? agentWidth : 0 }}>
         {/* Top-right agent trigger — hidden when sidebar open */}
         {!agentOpen && (
           <button
@@ -44,6 +45,8 @@ export function AppShell({ user, org, children }: AppShellProps) {
         <AgentSidebar
           user={user}
           org={org}
+          width={agentWidth}
+          onWidthChange={setAgentWidth}
           onClose={() => setAgentOpen(false)}
         />
       )}
