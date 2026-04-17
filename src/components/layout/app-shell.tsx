@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { AgentSidebar } from "./agent-sidebar";
 import { ContactPanelProvider, useContactPanel } from "@/components/contacts/contact-panel-context";
@@ -24,10 +24,14 @@ export function AppShell({ user, org, children }: AppShellProps) {
 function AppShellInner({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
   const [agentWidth, setAgentWidth] = useState(380);
-  const { contact, viewMode, width: contactWidth } = useContactPanel();
+  const { contact, viewMode, width: contactWidth, setRightOffset } = useContactPanel();
 
-  const contactSidebarOpen = contact && viewMode === "sidebar";
-  const contactFullscreen = contact && viewMode === "fullscreen";
+  const contactSidebarOpen = !!(contact && viewMode === "sidebar");
+  const contactFullscreen = !!(contact && viewMode === "fullscreen");
+
+  // Sync right offset so contact panel knows where to position itself
+  const agentOffset = agentOpen ? agentWidth : 0;
+  useEffect(() => { setRightOffset(agentOffset); }, [agentOffset, setRightOffset]);
 
   // Right margin = agent sidebar width + contact sidebar width (when both open as sidebars)
   const rightMargin =
@@ -64,12 +68,8 @@ function AppShellInner({ user, org, children }: AppShellProps) {
         </div>
       </main>
 
-      {/* Contact sidebar — sits to the left of agent sidebar when both open */}
-      {contactSidebarOpen && (
-        <div style={{ position: "fixed", top: 0, right: agentOpen ? agentWidth : 0, height: "100vh", zIndex: 40 }}>
-          <ContactDetail />
-        </div>
-      )}
+      {/* Contact sidebar — uses rightOffset from context */}
+      {contactSidebarOpen && <ContactDetail />}
 
       {/* Agent sidebar — always rightmost */}
       {agentOpen && (

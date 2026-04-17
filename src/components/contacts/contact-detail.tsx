@@ -15,7 +15,7 @@ const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
 ];
 
 export function ContactDetail() {
-  const { contact, viewMode, width, closeContact, setViewMode, setWidth } = useContactPanel();
+  const { contact, viewMode, width, rightOffset, closeContact, setViewMode, setWidth, updateContact } = useContactPanel();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [status, setStatus] = useState<ContactStatus>("new");
@@ -36,8 +36,9 @@ export function ContactDetail() {
   useEffect(() => {
     if (!contact) return;
     setLoadingActivities(true);
-    fetch(`/api/contacts/${contact.id}`)
-      .then(() => setActivities([]))
+    fetch(`/api/activities?contact_id=${contact.id}`)
+      .then((r) => r.json())
+      .then((data) => setActivities(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setLoadingActivities(false));
   }, [contact?.id]);
@@ -69,13 +70,28 @@ export function ContactDetail() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
+    updateContact({ status: newStatus });
   }
 
   async function handleAddNote() {
-    if (!note.trim()) return;
+    if (!note.trim() || !contact) return;
     setSavingNote(true);
-    setNote("");
-    setSavingNote(false);
+    try {
+      const res = await fetch("/api/activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contact_id: contact.id, type: "note", content: note.trim() }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setActivities((prev) => [created, ...prev]);
+        setNote("");
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSavingNote(false);
+    }
   }
 
   function handleClose() {
@@ -172,7 +188,7 @@ export function ContactDetail() {
       className="fixed top-0 z-40 flex h-screen flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
       style={{
         width: visible ? width : 0,
-        right: 0,
+        right: rightOffset,
         opacity: visible ? 1 : 0,
         transform: visible ? "translateX(0)" : "translateX(100%)",
         transition: "width 250ms cubic-bezier(0.16,1,0.3,1), opacity 200ms ease, transform 250ms cubic-bezier(0.16,1,0.3,1)",
