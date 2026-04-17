@@ -400,7 +400,11 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto" style={{ padding: "16px 20px" }}>
-        <div className="grid grid-cols-2 gap-2" style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 20 }}>
+          <SectionLabel>Status</SectionLabel>
+          <StatusStepper status={status} onChange={handleStatusChange} />
+        </div>
+        <div className="flex flex-col gap-2" style={{ marginBottom: 20 }}>
           <EditableField label="Phone" value={contact.phone ?? ""} onSave={(v) => handleFieldSave("phone", v)} />
           <EditableField label="Email" value={contact.email ?? ""} onSave={(v) => handleFieldSave("email", v)} />
           <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
@@ -413,10 +417,6 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           setShowPicker={setShowMemberPicker}
           updateContact={updateContact}
         />
-        <div style={{ marginBottom: 20 }}>
-          <SectionLabel>Status</SectionLabel>
-          <StatusStepper status={status} onChange={handleStatusChange} />
-        </div>
         <AISummary summary={contact.ai_summary} />
         {contact.handoff_notes && (
           <div style={{ marginBottom: 20 }}>
@@ -545,28 +545,25 @@ function StatusStepper({ status, onChange }: { status: ContactStatus; onChange: 
       <button
         onClick={() => { if (idx > 0) onChange(STATUS_OPTIONS[idx - 1].value); }}
         disabled={idx <= 0}
-        className="flex items-center justify-center rounded-lg border border-[var(--color-border)] disabled:opacity-20 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-        style={{ width: 30, height: 30 }}
+        className="flex items-center justify-center rounded-lg border border-[var(--color-border)] disabled:opacity-20 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer shrink-0"
+        style={{ width: 32, height: 36 }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
       </button>
       <span
-        className="rounded-full text-[13px] font-semibold text-white text-center"
-        style={{ padding: "5px 20px", background: "var(--color-accent)", minWidth: 100 }}
+        className="flex-1 rounded-full text-[13px] font-semibold text-white text-center"
+        style={{ padding: "7px 0", background: "var(--color-accent)" }}
       >
         {label}
       </span>
       <button
         onClick={() => { if (idx < STATUS_OPTIONS.length - 1) onChange(STATUS_OPTIONS[idx + 1].value); }}
         disabled={idx >= STATUS_OPTIONS.length - 1}
-        className="flex items-center justify-center rounded-lg border border-[var(--color-border)] disabled:opacity-20 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
-        style={{ width: 30, height: 30 }}
+        className="flex items-center justify-center rounded-lg border border-[var(--color-border)] disabled:opacity-20 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer shrink-0"
+        style={{ width: 32, height: 36 }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
       </button>
-      <span className="text-[11px] text-[var(--color-text-tertiary)]" style={{ marginLeft: 4 }}>
-        {idx + 1} / {STATUS_OPTIONS.length}
-      </span>
     </div>
   );
 }
@@ -637,6 +634,7 @@ function TimelineEntry({
   const [draft, setDraft] = useState(activity.content ?? "");
   const [deleting, setDeleting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [hovered, setHovered] = useState(false);
   const isNote = activity.type === "note";
 
   useEffect(() => { setDraft(activity.content ?? ""); }, [activity.content]);
@@ -658,7 +656,7 @@ function TimelineEntry({
   const attribution = activity.user_name ?? (activity.direction === "inbound" ? "Contact" : null);
 
   return (
-    <div className="flex gap-2.5 group" style={{ fontSize: 13 }}>
+    <div className="flex gap-2.5" style={{ fontSize: 13 }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <div className="flex items-start justify-center rounded-full shrink-0" style={{ width: 26, height: 26, marginTop: 2, background: "var(--color-surface-hover)" }}>
         <span style={{ fontSize: 11, lineHeight: "26px" }}>{timelineIcon(activity.type)}</span>
       </div>
@@ -709,7 +707,7 @@ function TimelineEntry({
         </p>
       </div>
       {isNote && !editing && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <div className="flex gap-1 shrink-0 transition-opacity" style={{ opacity: hovered ? 1 : 0 }}>
           <button onClick={() => setEditing(true)} title="Edit note"
             className="flex items-center justify-center rounded text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
             style={{ width: 22, height: 22 }}>
