@@ -70,7 +70,7 @@ export function Sidebar({ user, org }: SidebarProps) {
       className={`fixed inset-y-0 left-0 z-50 flex flex-col py-[10px] bg-[var(--color-sidebar-bg)] border-r border-[var(--color-sidebar-border)] select-none transition-[width] duration-300 ease-in-out overflow-hidden ${expanded ? "w-[240px]" : "w-[68px]"}`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 pt-6 pb-4" style={{ paddingLeft: '14px' }}>
+      <div className="flex items-center gap-3 pt-2 pb-3" style={{ paddingLeft: '14px' }}>
         <div className="flex h-10 w-10 min-w-[40px] min-h-[40px] shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
           <span className="text-[16px] font-bold text-white leading-none">K</span>
         </div>
@@ -92,16 +92,13 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-              className={`group relative flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 ${
+              className={`group flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 ${
                 isActive
-                  ? "bg-[var(--color-accent)]/15 text-[var(--color-sidebar-text-active)]"
+                  ? "text-[var(--color-sidebar-text-active)]"
                   : "text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)]"
               }`}
               style={{ paddingLeft: '10px' }}
             >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
-              )}
               <span className={`w-[44px] h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 rounded-lg transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
                 <Icon name={item.icon} />
               </span>
