@@ -125,11 +125,13 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
   }, [width, onWidthChange]);
 
   function handleClose() {
+    pruneEmptyChat(activeChatId);
     setVisible(false);
     setTimeout(onClose, 250);
   }
 
   function startNewChat() {
+    pruneEmptyChat(activeChatId);
     const welcomeMsg: Message = {
       id: "welcome",
       role: "assistant",
@@ -153,7 +155,22 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
     setView("chat");
   }
 
+  // Remove a chat if the user never sent a message
+  function pruneEmptyChat(id: string | null) {
+    if (!id) return;
+    setChats((prev) => {
+      const chat = prev.find((c) => c.id === id);
+      if (!chat) return prev;
+      const hasUserMessage = chat.messages.some((m) => m.role === "user");
+      if (hasUserMessage) return prev;
+      const next = prev.filter((c) => c.id !== id);
+      saveChats(next);
+      return next;
+    });
+  }
+
   function goBack() {
+    pruneEmptyChat(activeChatId);
     setView("list");
     setActiveChatId(null);
   }

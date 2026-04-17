@@ -40,10 +40,16 @@ export async function POST(request: Request) {
 
     const permissions = getEffectivePermissions(koveUser as User);
 
+    // Fetch workflows so agent knows about them
+    const { data: workflows } = await supabase
+      .from("workflows")
+      .select("id, name, description, status")
+      .eq("org_id", koveUser.org_id);
+
     // Always fetch recent contacts to give Claude real data
     const contactQuery = supabase
       .from("contacts")
-      .select("id, name, email, phone, source, status, pipeline_stage, ai_summary, last_contacted_at, created_at")
+      .select("id, name, email, phone, source, status, pipeline_stage, workflow_id, ai_summary, last_contacted_at, created_at")
       .eq("org_id", koveUser.org_id)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -56,6 +62,7 @@ export async function POST(request: Request) {
 
     // Try vector search to find the most relevant subset — falls back to recency order
     let relevantContacts: string[] = [];
+    const workflowMap = Object.fromEntries((workflows ?? []).map((w: { id: string; name: string }) => [w.id, w.name]));
     try {
       const queryEmbedding = await generateEmbedding(message);
       const { data: matchedContacts } = await supabase.rpc("match_contacts", {
@@ -76,10 +83,12 @@ export async function POST(request: Request) {
 
     // If vector search returned nothing, use all contacts as context
     if (relevantContacts.length === 0 && allContacts && allContacts.length > 0) {
+      const workflowMap = Object.fromEntries((workflows ?? []).map((w) => [w.id, w.name]));
       relevantContacts = allContacts.map(
         (c) =>
           `- ${c.name} (${c.status})` +
           (c.pipeline_stage ? ` | Stage: ${c.pipeline_stage}` : "") +
+          (c.workflow_id && workflowMap[c.workflow_id] ? ` | Workflow: ${workflowMap[c.workflow_id]}` : "") +
           (c.source ? ` | Source: ${c.source}` : "") +
           (c.email ? ` | ${c.email}` : "") +
           (c.phone ? ` | ${c.phone}` : "") +
@@ -92,7 +101,9 @@ export async function POST(request: Request) {
       org as Organization,
       permissions,
       pageContext ?? { page: "unknown" },
-      relevantContacts
+      relevantContacts,
+      undefined,
+      workflows ?? []
     );
 
     // Call Anthropic Claude

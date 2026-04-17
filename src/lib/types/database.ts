@@ -167,6 +167,7 @@ export interface Contact {
   source: string | null;
   status: ContactStatus;
   pipeline_stage: string | null;
+  workflow_id: string | null;
   last_contacted_at: string | null;
   ai_summary: string | null;
   handoff_notes: string | null;

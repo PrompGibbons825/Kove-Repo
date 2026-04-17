@@ -26,7 +26,8 @@ export function assembleSystemPrompt(
   permissions: PermissionSet,
   pageContext: PageContext,
   relevantContacts?: string[],
-  relevantActivities?: string[]
+  relevantActivities?: string[],
+  workflows?: Array<{ id: string; name: string; description: string | null; status: string }>
 ): string {
   const layers: string[] = [];
 
@@ -40,7 +41,7 @@ export function assembleSystemPrompt(
   layers.push(buildIndividualContext(user));
 
   // Layer 4 — Current page context + vector-retrieved data
-  layers.push(buildPageContext(pageContext, relevantContacts, relevantActivities));
+  layers.push(buildPageContext(pageContext, relevantContacts, relevantActivities, workflows));
 
   return layers.join("\n\n---\n\n");
 }
@@ -107,7 +108,8 @@ function buildIndividualContext(user: User): string {
 function buildPageContext(
   pageContext: PageContext,
   relevantContacts?: string[],
-  relevantActivities?: string[]
+  relevantActivities?: string[],
+  workflows?: Array<{ id: string; name: string; description: string | null; status: string }>
 ): string {
   const sections: string[] = [`## Current Context\nUser is on: ${pageContext.page}`];
 
@@ -125,6 +127,11 @@ function buildPageContext(
 
   if (relevantActivities && relevantActivities.length > 0) {
     sections.push(`## Relevant Activities (via vector search)\n${relevantActivities.join("\n")}`);
+  }
+
+  if (workflows && workflows.length > 0) {
+    const wfList = workflows.map((w) => `- ${w.name} [${w.status}]${w.description ? `: ${w.description}` : ""} (id: ${w.id})`).join("\n");
+    sections.push(`## Available Workflows\n${wfList}`);
   }
 
   return sections.join("\n\n");
