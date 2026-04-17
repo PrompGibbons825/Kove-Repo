@@ -19,7 +19,7 @@ export function AppShell({ user, org, children }: AppShellProps) {
       <Sidebar user={user} org={org} />
 
       <main className="relative flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-8 py-10">
+        <div className="mx-auto max-w-5xl px-12 py-12">
           {children}
         </div>
 

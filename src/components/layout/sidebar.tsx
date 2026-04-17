@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import type { User, Organization } from "@/lib/types/database";
 import { hasPermission } from "@/lib/permissions";
 
@@ -16,13 +16,13 @@ const NAV_ITEMS = [
   { href: "/", label: "Today", icon: "home" },
   { href: "/contacts", label: "Contacts", icon: "users" },
   { href: "/pipeline", label: "Pipeline", icon: "kanban" },
-  { href: "/inbox", label: "Inbox", icon: "inbox", badge: 0 },
+  { href: "/inbox", label: "Inbox", icon: "inbox" },
   { href: "/insights", label: "Insights", icon: "chart", permission: "view_team_analytics" as const },
   { href: "/commissions", label: "Commissions", icon: "dollar" },
   { href: "/workflows", label: "Workflows", icon: "zap", permission: "create_workflows" as const },
 ];
 
-function Icon({ name, size = 18 }: { name: string; size?: number }) {
+function Icon({ name, size = 22 }: { name: string; size?: number }) {
   const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const icons: Record<string, ReactElement> = {
     home: <svg {...props}><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
@@ -44,6 +44,7 @@ export function Sidebar({ user, org }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [expanded, setExpanded] = useState(false);
 
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (!item.permission) return true;
@@ -63,44 +64,51 @@ export function Sidebar({ user, org }: SidebarProps) {
   }
 
   return (
-    <aside className="flex h-full w-[240px] flex-col bg-[var(--color-sidebar-bg)] select-none">
-      {/* Logo + Org */}
-      <div className="px-5 pt-6 pb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] shadow-md shadow-[var(--color-accent)]/25">
-            <span className="text-sm font-bold text-white leading-none">K</span>
-          </div>
-          <div>
-            <p className="text-[13px] font-semibold text-white leading-tight">kove</p>
-            <p className="text-[11px] text-[var(--color-sidebar-text)] leading-tight truncate max-w-[140px]">{org.name}</p>
-          </div>
+    <aside
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      className={`flex h-full flex-col bg-[var(--color-sidebar-bg)] select-none transition-all duration-300 ease-in-out overflow-hidden ${
+        expanded ? "w-[260px]" : "w-[72px]"
+      }`}
+    >
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-[22px] pt-7 pb-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/25">
+          <span className="text-[15px] font-bold text-white leading-none">K</span>
+        </div>
+        <div className={`overflow-hidden transition-all duration-300 ${expanded ? "w-auto opacity-100" : "w-0 opacity-0"}`}>
+          <p className="text-[15px] font-bold text-white leading-tight whitespace-nowrap">kove</p>
+          <p className="text-[12px] text-[var(--color-sidebar-text)] leading-tight truncate max-w-[160px] whitespace-nowrap">{org.name}</p>
         </div>
       </div>
 
+      {/* Divider */}
+      <div className="mx-4 border-t border-[var(--color-sidebar-border)]" />
+
       {/* Navigation */}
-      <nav className="flex-1 px-3 pt-4 space-y-0.5">
-        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-sidebar-text)]">
-          Menu
-        </p>
+      <nav className="flex-1 px-3 pt-5 space-y-1">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150 ${
+              title={!expanded ? item.label : undefined}
+              className={`group relative flex items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] font-medium transition-all duration-150 ${
                 isActive
                   ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
                   : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)]"
               }`}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-[var(--color-accent)]" />
               )}
-              <span className={`transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
+              <span className={`shrink-0 transition-colors ${isActive ? "text-[var(--color-accent)]" : "group-hover:text-[var(--color-sidebar-text-active)]"}`}>
                 <Icon name={item.icon} />
               </span>
-              {item.label}
+              <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
@@ -111,40 +119,45 @@ export function Sidebar({ user, org }: SidebarProps) {
         {(user.is_owner || hasPermission(user, "manage_users")) && (
           <Link
             href="/settings"
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150"
+            title={!expanded ? "Settings" : undefined}
+            className="flex items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150"
           >
-            <Icon name="settings" size={16} />
-            Settings
+            <span className="shrink-0"><Icon name="settings" size={22} /></span>
+            <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>Settings</span>
           </Link>
         )}
 
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150"
+          title={!expanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
+          className="flex w-full items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-sidebar-text-active)] transition-all duration-150"
         >
-          <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
-          {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          <span className="shrink-0"><Icon name={theme === "dark" ? "sun" : "moon"} size={22} /></span>
+          <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </span>
         </button>
 
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
+          title={!expanded ? "Log Out" : undefined}
+          className="flex w-full items-center gap-3 rounded-xl px-[14px] py-3 text-[14px] text-[var(--color-sidebar-text)] hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
         >
-          <Icon name="logout" size={16} />
-          Log Out
+          <span className="shrink-0"><Icon name="logout" size={22} /></span>
+          <span className={`whitespace-nowrap transition-all duration-300 ${expanded ? "opacity-100" : "w-0 overflow-hidden opacity-0"}`}>Log Out</span>
         </button>
 
-        {/* User card */}
-        <div className="mt-2 rounded-lg bg-white/[0.04] px-3 py-2.5">
+        {/* User avatar */}
+        <div className="mt-2 rounded-xl bg-white/[0.04] px-[14px] py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[11px] font-bold text-white shadow-inner">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-[12px] font-bold text-white shadow-inner">
               {initials}
             </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="truncate text-[13px] font-medium text-white/90">
+            <div className={`flex-1 overflow-hidden transition-all duration-300 ${expanded ? "w-auto opacity-100" : "w-0 opacity-0"}`}>
+              <p className="truncate text-[14px] font-medium text-white/90 whitespace-nowrap">
                 {user.full_name}
               </p>
-              <p className="truncate text-[11px] text-white/40">
+              <p className="truncate text-[12px] text-white/40 whitespace-nowrap">
                 {user.is_owner ? "Owner" : "Member"}
               </p>
             </div>
