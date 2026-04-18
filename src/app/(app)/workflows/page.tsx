@@ -2115,8 +2115,8 @@ function LandingPageEditor({
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ flex: 1, fontSize: 10, color: "var(--color-text-tertiary)", display: "flex", alignItems: "center", gap: 4 }}>
               {saveStatus === "saving" && <><Loader2 className="w-3 h-3 animate-spin" />Saving…</>}
-              {saveStatus === "saved" && <><span style={{ width: 6, height: 6, borderRadius: 999, background: "#10b981", display: "inline-block" }} />Saved</>}
-              {saveStatus === "unsaved" && <><span style={{ width: 6, height: 6, borderRadius: 999, background: "#f59e0b", display: "inline-block" }} />Unsaved</>}
+              {saveStatus === "saved" && <>Saved</>}
+              {saveStatus === "unsaved" && <>Unsaved</>}
               {!slug.trim() && <span style={{ color: "var(--color-danger)" }}>— add a slug to save</span>}
             </span>
             <button onClick={handlePublish} disabled={!html} style={btnStyle(true)}>
