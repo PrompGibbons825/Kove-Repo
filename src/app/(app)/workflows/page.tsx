@@ -1805,7 +1805,12 @@ function WorkflowBuilder({
                   {def?.icon ?? <Zap className="w-4 h-4" />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.2 }}>{selectedNode.label}</p>
+                  <input
+                    type="text"
+                    value={selectedNode.label}
+                    onChange={(e) => onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label: e.target.value } : n), updatedAt: Date.now() })}
+                    style={{ width: "100%", fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", background: "none", border: "none", outline: "none", padding: 0, lineHeight: 1.2 }}
+                  />
                   <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>{def?.desc}</p>
                 </div>
                 <button
@@ -1854,17 +1859,6 @@ function WorkflowBuilder({
                     </div>
                   ))
                 )}
-
-                {/* Node label rename */}
-                <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Node Label</label>
-                  <input
-                    type="text"
-                    value={selectedNode.label}
-                    onChange={(e) => onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label: e.target.value } : n), updatedAt: Date.now() })}
-                    style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
-                  />
-                </div>
               </div>
 
               {/* Panel footer */}
@@ -1920,6 +1914,8 @@ function LandingPageEditor({
   const [loadingPage, setLoadingPage] = useState(true);
   const [showHtml, setShowHtml] = useState(false);
   const [htmlDraft, setHtmlDraft] = useState("");
+  const [advanced, setAdvanced] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const htmlRef = useRef<HTMLTextAreaElement>(null);
 
   // Load existing landing page for this workflow
@@ -1949,13 +1945,14 @@ function LandingPageEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowId]);
 
-  useEffect(() => { lpCtx.setSlug(slug); }, [slug, lpCtx]);
-  useEffect(() => { lpCtx.setBrandAssets(brandAssets); }, [brandAssets, lpCtx]);
+  useEffect(() => { lpCtx.setSlug(slug); setDirty(true); }, [slug, lpCtx]);
+  useEffect(() => { lpCtx.setBrandAssets(brandAssets); setDirty(true); }, [brandAssets, lpCtx]);
   useEffect(() => { lpCtx.setPageId(pageId); }, [pageId, lpCtx]);
 
   // Keep htmlDraft synced when AI sidebar updates HTML
   useEffect(() => {
     setHtmlDraft(lpCtx.state.html);
+    setDirty(true);
   }, [lpCtx.state.html]);
 
   const html = lpCtx.state.html;
@@ -1989,6 +1986,7 @@ function LandingPageEditor({
       if (error?.code === "23505") { setSlugError("Slug taken."); setSaving(false); return; }
       if (newPage) { setPageIdLocal(newPage.id); lpCtx.setPageId(newPage.id); }
     }
+    setDirty(false);
     setSaving(false);
   }
 
@@ -2035,221 +2033,187 @@ function LandingPageEditor({
 
   if (loadingPage) {
     return (
-      <div style={{ width: 520, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 660, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--color-text-tertiary)" }} />
       </div>
     );
   }
 
-  return (
-    <div style={{ width: 520, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-      {/* Top toolbar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", flexShrink: 0, minHeight: 56 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onClose} style={{ padding: 8, borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}>
-            <X className="w-4 h-4" />
-          </button>
-          <div style={{ width: 1, height: 20, background: "var(--color-border)" }} />
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Globe className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.2 }}>Landing Page</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>site.trykove.app/lp/</span>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => { setSlugLocal(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
-                placeholder="your-slug"
-                style={{ padding: "2px 6px", fontSize: 11, fontWeight: 600, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-primary)", width: 120, outline: "none" }}
-              />
-              {slugError && <span style={{ fontSize: 11, color: "var(--color-danger)" }}>{slugError}</span>}
-            </div>
-          </div>
-          <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 999, fontWeight: 600, marginLeft: 8, background: pageStatus === "live" ? "rgba(16,185,129,0.1)" : "var(--color-surface-hover)", color: pageStatus === "live" ? "#10b981" : "var(--color-text-tertiary)" }}>
-            {pageStatus === "live" ? "Live" : "Draft"}
-          </span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={handleSave} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 10, cursor: "pointer", opacity: saving ? 0.5 : 1 }}>
-            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Save
-          </button>
-          <button onClick={handlePublish} disabled={!html} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 20px", fontSize: 12, fontWeight: 700, color: "white", background: pageStatus === "live" ? "var(--color-danger)" : "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 10, cursor: "pointer", opacity: html ? 1 : 0.4 }}>
-            {pageStatus === "live" ? "Unpublish" : "Go Live"}
-          </button>
-        </div>
-      </div>
+  const btnStyle = (primary: boolean): React.CSSProperties => ({
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+    flex: 1, padding: "0 14px", height: 34, fontSize: 12, fontWeight: 700,
+    borderRadius: 10, cursor: "pointer", whiteSpace: "nowrap" as const,
+    ...(primary
+      ? { color: "white", background: pageStatus === "live" ? "#ef4444" : "linear-gradient(135deg,#10b981,#059669)", border: "none", opacity: html ? 1 : 0.4 }
+      : { color: "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", position: "relative" as const }
+    ),
+  });
 
-      {/* Preview */}
-      <div style={{ height: 220, flexShrink: 0, background: "var(--color-background)", borderBottom: "1px solid var(--color-border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+  return (
+    <div style={{ width: 660, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "row", minHeight: 0, overflow: "hidden" }}>
+
+      {/* LEFT: live preview */}
+      <div style={{ flex: 1, minWidth: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {html ? (
-          <iframe
-            srcDoc={html}
-            style={{ flex: 1, width: "100%", border: "none", background: "white", pointerEvents: "none" }}
-            sandbox="allow-scripts"
-            title="Landing page preview"
-          />
+          <iframe srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white", pointerEvents: "none" }} sandbox="allow-scripts" title="Landing page preview" />
         ) : (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
-            <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)", marginBottom: 8 }} strokeWidth={1.5} />
-            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4, textAlign: "center" }}>No page yet</p>
-            <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "center", lineHeight: 1.4 }}>Use the AI sidebar to generate your landing page HTML.</p>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, gap: 8 }}>
+            <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)" }} strokeWidth={1.5} />
+            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-tertiary)", textAlign: "center" }}>No page yet</p>
+            <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "center", lineHeight: 1.4, maxWidth: 180 }}>Use the AI sidebar to generate your landing page.</p>
           </div>
         )}
       </div>
 
-      {/* Scrollable settings */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-          <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* RIGHT: settings column */}
+      <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
 
-            {/* Node fields: Page Title, Headline, CTA, Label, Delete */}
-            {lpNode && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[{key:"pageTitle",label:"Page Title",ph:"e.g. Get Started Today"},{key:"headline",label:"Headline",ph:"Main headline text"},{key:"ctaText",label:"CTA Button Text",ph:"e.g. Sign Up Free"}].map(f => (
-                  <div key={f.key}>
-                    <label style={{ display:"block", fontSize:11, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:5 }}>{f.label}</label>
-                    <input type="text" value={((lpNode.config ?? {}) as Record<string,string>)[f.key] ?? ""} onChange={e => onUpdateNode(f.key, e.target.value)} placeholder={f.ph} style={{ width:"100%", padding:"9px 12px", fontSize:13, background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:10, color:"var(--color-text-primary)", outline:"none", boxSizing:"border-box" }} />
+        {/* Toolbar */}
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+          {/* Row 1: close + icon + label */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={onClose} style={{ padding: 6, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)", flexShrink: 0 }}>
+              <X className="w-4 h-4" />
+            </button>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Globe className="w-3.5 h-3.5 text-white" />
+            </div>
+            <input
+              type="text"
+              value={lpNode?.label ?? "Landing Page"}
+              onChange={(e) => onRenameNode(e.target.value)}
+              style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)", background: "none", border: "none", outline: "none", padding: 0 }}
+            />
+            <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, fontWeight: 600, flexShrink: 0, background: pageStatus === "live" ? "rgba(16,185,129,0.12)" : "var(--color-surface-hover)", color: pageStatus === "live" ? "#10b981" : "var(--color-text-tertiary)" }}>
+              {pageStatus === "live" ? "Live" : "Draft"}
+            </span>
+          </div>
+          {/* Row 2: slug */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 2 }}>
+            <span style={{ fontSize: 10, color: "var(--color-text-tertiary)", whiteSpace: "nowrap" }}>trykove.app/lp/</span>
+            <input
+              type="text"
+              value={slug}
+              onChange={(e) => { setSlugLocal(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
+              placeholder="your-slug"
+              style={{ flex: 1, minWidth: 0, padding: "3px 7px", fontSize: 11, fontWeight: 600, background: "var(--color-background)", border: "1px solid " + (slugError ? "var(--color-danger)" : "var(--color-border)"), borderRadius: 6, color: "var(--color-text-primary)", outline: "none" }}
+            />
+          </div>
+          {slugError && <span style={{ fontSize: 10, color: "var(--color-danger)", paddingLeft: 2 }}>{slugError}</span>}
+          {/* Row 3: action buttons */}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={handleSave} disabled={saving} style={{ ...btnStyle(false), opacity: saving ? 0.5 : 1 }}>
+              {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+              Save
+              {dirty && !saving && <span style={{ position: "absolute", top: 5, right: 5, width: 6, height: 6, borderRadius: 999, background: "#f59e0b" }} />}
+            </button>
+            <button onClick={handlePublish} disabled={!html} style={btnStyle(true)}>
+              {pageStatus === "live" ? "Unpublish" : "Go Live"}
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Advanced mode toggle */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Advanced Mode</span>
+            <button
+              onClick={() => setAdvanced(!advanced)}
+              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", fontSize: 11, fontWeight: 600, borderRadius: 8, cursor: "pointer", border: "1px solid " + (advanced ? "rgba(99,102,241,0.3)" : "var(--color-border)"), background: advanced ? "rgba(99,102,241,0.1)" : "var(--color-surface-hover)", color: advanced ? "var(--color-accent)" : "var(--color-text-tertiary)" }}
+            >
+              <Code2 className="w-3 h-3" />
+              {advanced ? "On" : "Off"}
+            </button>
+          </div>
+
+          {/* Simple fields — hidden in advanced mode */}
+          {!advanced && lpNode && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {([{key:"pageTitle",label:"Page Title",ph:"e.g. Get Started Today"},{key:"headline",label:"Headline",ph:"Main headline text"},{key:"ctaText",label:"CTA Button Text",ph:"e.g. Sign Up Free"}] as {key:string;label:string;ph:string}[]).map(f => (
+                <div key={f.key}>
+                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>{f.label}</label>
+                  <input type="text" value={((lpNode.config ?? {}) as Record<string,string>)[f.key] ?? ""} onChange={e => onUpdateNode(f.key, e.target.value)} placeholder={f.ph} style={{ width:"100%", padding:"8px 10px", fontSize:12, background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:8, color:"var(--color-text-primary)", outline:"none", boxSizing:"border-box" }} />
+                </div>
+              ))}
+              <div style={{ borderBottom: "1px solid var(--color-border)" }} />
+            </div>
+          )}
+
+          {/* Advanced code editor */}
+          {advanced && (
+            <div>
+              <label style={{ display:"block", fontSize:10, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>HTML + JavaScript</label>
+              <div style={{ position: "relative" }}>
+                <textarea
+                  ref={htmlRef}
+                  value={htmlDraft}
+                  onChange={(e) => { setHtmlDraft(e.target.value); setDirty(true); }}
+                  onBlur={applyHtmlEdit}
+                  spellCheck={false}
+                  style={{ width:"100%", minHeight:220, padding:10, fontSize:11, fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace", background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:8, color:"var(--color-text-primary)", outline:"none", resize:"vertical", boxSizing:"border-box", lineHeight:1.5 }}
+                />
+                {htmlDraft !== html && (
+                  <button onClick={applyHtmlEdit} style={{ position:"absolute", bottom:6, right:6, padding:"4px 10px", fontSize:10, fontWeight:700, color:"white", background:"var(--color-accent)", border:"none", borderRadius:6, cursor:"pointer" }}>Apply</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Brand Assets */}
+          <div>
+            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>Brand Assets</label>
+            {brandAssets.length > 0 && (
+              <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:8 }}>
+                {brandAssets.map((a, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:8 }}>
+                    {a.type === "logo" ? <img src={a.url} alt={a.name} style={{ width:22, height:22, borderRadius:4, objectFit:"cover", flexShrink:0 }} /> : <Code2 style={{ width:16, height:16, color:"var(--color-text-tertiary)", flexShrink:0 }} />}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ fontSize:11, fontWeight:600, color:"var(--color-text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.name}</p>
+                      <button onClick={() => navigator.clipboard.writeText(a.url)} style={{ fontSize:9, color:"var(--color-accent)", background:"none", border:"none", padding:0, cursor:"pointer" }}>Copy URL</button>
+                    </div>
+                    <button onClick={() => setBrandAssetsLocal(brandAssets.filter((_,j)=>j!==i))} style={{ padding:3, borderRadius:4, border:"none", background:"none", cursor:"pointer", color:"var(--color-text-tertiary)" }}><X className="w-3 h-3" /></button>
                   </div>
                 ))}
-                <div>
-                  <label style={{ display:"block", fontSize:11, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:5 }}>Node Label</label>
-                  <input type="text" value={lpNode.label} onChange={e => onRenameNode(e.target.value)} style={{ width:"100%", padding:"9px 12px", fontSize:13, background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:10, color:"var(--color-text-primary)", outline:"none", boxSizing:"border-box" }} />
-                </div>
-                <div style={{ borderBottom:"1px solid var(--color-border)", paddingBottom:8 }} />
               </div>
             )}
-
-            {/* HTML Toggle */}
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>HTML Source</label>
-                <button
-                  onClick={() => setShowHtml(!showHtml)}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", fontSize: 11, fontWeight: 600, color: showHtml ? "var(--color-accent)" : "var(--color-text-tertiary)", background: showHtml ? "rgba(99,102,241,0.08)" : "var(--color-surface-hover)", border: "1px solid " + (showHtml ? "rgba(99,102,241,0.2)" : "var(--color-border)"), borderRadius: 8, cursor: "pointer" }}
-                >
-                  <Code2 className="w-3 h-3" />
-                  {showHtml ? "Hide" : "Show"}
-                </button>
-              </div>
-
-              {showHtml && (
-                <div style={{ position: "relative" }}>
-                  <textarea
-                    ref={htmlRef}
-                    value={htmlDraft}
-                    onChange={(e) => setHtmlDraft(e.target.value)}
-                    onBlur={applyHtmlEdit}
-                    spellCheck={false}
-                    style={{ width: "100%", minHeight: 200, maxHeight: 400, padding: 12, fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.5 }}
-                  />
-                  {htmlDraft !== html && (
-                    <button
-                      onClick={applyHtmlEdit}
-                      style={{ position: "absolute", bottom: 8, right: 8, padding: "6px 14px", fontSize: 11, fontWeight: 700, color: "white", background: "var(--color-accent)", border: "none", borderRadius: 8, cursor: "pointer" }}
-                    >
-                      Apply
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Brand Assets */}
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Brand Assets</label>
-              <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 10, lineHeight: 1.4 }}>Upload logos, images, and files. The AI assistant can use these to brand your page.</p>
-
-              {brandAssets.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-                  {brandAssets.map((a, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 10 }}>
-                      {a.type === "logo" ? (
-                        <img src={a.url} alt={a.name} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "var(--color-surface-hover)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <Code2 className="w-3.5 h-3.5" style={{ color: "var(--color-text-tertiary)" }} />
-                        </div>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</p>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(a.url); }}
-                          style={{ fontSize: 10, color: "var(--color-accent)", background: "none", border: "none", padding: 0, cursor: "pointer" }}
-                        >
-                          Copy URL
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => setBrandAssetsLocal(brandAssets.filter((_, j) => j !== i))}
-                        style={{ padding: 4, borderRadius: 6, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "14px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-background)", border: "2px dashed var(--color-border)", borderRadius: 12, cursor: "pointer" }}>
-                <Upload className="w-4 h-4" />
-                {uploading ? "Uploading…" : "Upload Asset"}
-                <input type="file" accept="image/*,.svg,.html,.css,.js" className="hidden" onChange={handleUploadAsset} style={{ display: "none" }} />
-              </label>
-            </div>
-
-            {/* Embed / Share */}
-            {pageId && slug && (
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Share & Embed</label>
-
-                {/* Direct link */}
-                <div style={{ marginBottom: 10 }}>
-                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Direct Link</p>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <div style={{ flex: 1, padding: "8px 10px", fontSize: 11, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 8, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {liveUrl}
-                    </div>
-                    <button onClick={copyUrl} style={{ padding: "8px 12px", fontSize: 11, fontWeight: 600, color: copied ? "#10b981" : "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 8, cursor: "pointer", flexShrink: 0 }}>
-                      {copied ? <Check className="w-3.5 h-3.5" /> : "Copy"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Embed code */}
-                <div>
-                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Embed Code — paste into your website</p>
-                  <div style={{ position: "relative" }}>
-                    <pre style={{ padding: "10px 12px", fontSize: 10, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 8, color: "var(--color-text-secondary)", overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5, margin: 0 }}>
-                      {embedCode}
-                    </pre>
-                    <button onClick={copyEmbed} style={{ position: "absolute", top: 6, right: 6, padding: "4px 10px", fontSize: 10, fontWeight: 700, color: copiedEmbed ? "#10b981" : "var(--color-accent)", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6, cursor: "pointer" }}>
-                      {copiedEmbed ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Branded HTML inject tip */}
-            <div style={{ padding: 14, background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.12)", borderRadius: 12 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>💡 Custom HTML Inserts</p>
-              <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
-                Upload your branded HTML snippets as assets, then ask the AI assistant to &quot;inject my branded header&quot; or &quot;use my uploaded logo.&quot; You can also edit the raw HTML directly above.
-              </p>
-            </div>
-
-            {lpNode && (
-              <button
-                onClick={onDeleteNode}
-                style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"12px 16px", fontSize:13, fontWeight:600, color:"var(--color-danger)", background:"rgba(239,68,68,0.08)", border:"1px solid transparent", borderRadius:12, cursor:"pointer" }}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete Node
-              </button>
-            )}
+            <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", padding:"10px 12px", fontSize:11, fontWeight:600, color:"var(--color-text-secondary)", background:"var(--color-background)", border:"2px dashed var(--color-border)", borderRadius:8, cursor:"pointer" }}>
+              <Upload className="w-3.5 h-3.5" />
+              {uploading ? "Uploading…" : "Upload Asset"}
+              <input type="file" accept="image/*,.svg,.html,.css,.js" onChange={handleUploadAsset} style={{ display:"none" }} />
+            </label>
           </div>
+
+          {/* Embed / Share */}
+          {pageId && slug && (
+            <div>
+              <label style={{ display:"block", fontSize:10, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>Share & Embed</label>
+              <div style={{ marginBottom:8 }}>
+                <p style={{ fontSize:10, color:"var(--color-text-tertiary)", marginBottom:3 }}>Direct Link</p>
+                <div style={{ display:"flex", gap:5 }}>
+                  <div style={{ flex:1, padding:"6px 8px", fontSize:10, fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace", background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:6, color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{liveUrl}</div>
+                  <button onClick={copyUrl} style={{ padding:"6px 10px", fontSize:10, fontWeight:600, color: copied?"#10b981":"var(--color-text-secondary)", background:"var(--color-surface-hover)", border:"1px solid var(--color-border)", borderRadius:6, cursor:"pointer", flexShrink:0 }}>{copied ? <Check className="w-3 h-3" /> : "Copy"}</button>
+                </div>
+              </div>
+              <div>
+                <p style={{ fontSize:10, color:"var(--color-text-tertiary)", marginBottom:3 }}>Embed Code</p>
+                <div style={{ position:"relative" }}>
+                  <pre style={{ padding:"8px 10px", fontSize:9, fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace", background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:6, color:"var(--color-text-secondary)", overflow:"auto", whiteSpace:"pre-wrap", wordBreak:"break-all", lineHeight:1.5, margin:0 }}>{embedCode}</pre>
+                  <button onClick={copyEmbed} style={{ position:"absolute", top:4, right:4, padding:"3px 8px", fontSize:9, fontWeight:700, color:copiedEmbed?"#10b981":"var(--color-accent)", background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:4, cursor:"pointer" }}>{copiedEmbed?"Copied!":"Copy"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Node */}
+          {lpNode && (
+            <button onClick={onDeleteNode} style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", padding:"10px 14px", fontSize:12, fontWeight:600, color:"var(--color-danger)", background:"rgba(239,68,68,0.08)", border:"1px solid transparent", borderRadius:10, cursor:"pointer" }}>
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Node
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
