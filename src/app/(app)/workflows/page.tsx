@@ -207,11 +207,7 @@ interface ConfigField {
 }
 
 const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
-  "landing-page": [
-    { key: "pageTitle", label: "Page Title", type: "text", placeholder: "e.g. Get Started Today" },
-    { key: "headline", label: "Headline", type: "text", placeholder: "Main headline text" },
-    { key: "ctaText", label: "CTA Button Text", type: "text", placeholder: "e.g. Sign Up Free" },
-  ],
+  "landing-page": [],
   "form-submit": [
     { key: "formId", label: "Form ID", type: "text", placeholder: "Form identifier" },
     { key: "fields", label: "Required Fields", type: "textarea", placeholder: "name, email, phone (comma-separated)" },
@@ -1715,7 +1711,7 @@ function WorkflowBuilder({
 
                   {/* Card */}
                   <div
-                    onClick={(e) => { e.stopPropagation(); if (!dragging) setSelectedNodeId(node.id); }}
+                    onClick={(e) => { e.stopPropagation(); if (!dragging) { setSelectedNodeId(node.id); if (isLp) setShowLpPanel(true); } }}
                     className={`flex items-center gap-3 px-4 py-3.5 bg-[var(--color-surface)] border rounded-2xl shadow-md transition-all ${
                       selectedNodeId === node.id
                         ? "border-[var(--color-accent)] shadow-[0_0_0_3px_rgba(99,102,241,0.18)] ring-1 ring-[var(--color-accent)]/30"
@@ -1733,15 +1729,7 @@ function WorkflowBuilder({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate leading-tight">{node.label}</p>
-                      {isLp && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setShowLpPanel(true); }}
-                          className="text-[11px] text-[var(--color-accent)] hover:underline mt-0.5 block"
-                        >
-                          Edit page →
-                        </button>
-                      )}
-                      {!isLp && def?.desc && (
+                      {def?.desc && (
                         <p className="text-[11px] text-[var(--color-text-tertiary)] truncate mt-0.5">{def.desc}</p>
                       )}
                     </div>
@@ -1783,12 +1771,22 @@ function WorkflowBuilder({
         {showLpPanel && (
           <LandingPageEditor
             workflowId={workflow.id}
-            onClose={() => setShowLpPanel(false)}
+            onClose={() => { setShowLpPanel(false); setSelectedNodeId(null); }}
+            lpNode={selectedNode?.type === "landing-page" ? selectedNode : null}
+            onUpdateNode={(key, val) => {
+              if (!selectedNode) return;
+              onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, config: { ...(n.config ?? {}), [key]: val } } : n), updatedAt: Date.now() });
+            }}
+            onRenameNode={(label) => {
+              if (!selectedNode) return;
+              onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label } : n), updatedAt: Date.now() });
+            }}
+            onDeleteNode={() => { if (selectedNode) { removeNode(selectedNode.id); setSelectedNodeId(null); setShowLpPanel(false); } }}
           />
         )}
 
         {/* ── Node config panel ── */}
-        {selectedNode && (() => {
+        {selectedNode && !showLpPanel && (() => {
           const def = getNodeDef(selectedNode.type);
           const rawFields = NODE_CONFIG_FIELDS[selectedNode.type] ?? [];
           // Inject live org sources into the new-contact source dropdown
@@ -1894,9 +1892,17 @@ function WorkflowBuilder({
 function LandingPageEditor({
   workflowId,
   onClose,
+  lpNode,
+  onUpdateNode,
+  onRenameNode,
+  onDeleteNode,
 }: {
   workflowId: string;
   onClose: () => void;
+  lpNode: WorkflowNode | null;
+  onUpdateNode: (key: string, val: string) => void;
+  onRenameNode: (label: string) => void;
+  onDeleteNode: () => void;
 }) {
   const supabase = createClient();
   const lpCtx = useLandingPageBuilder();
@@ -2041,7 +2047,7 @@ function LandingPageEditor({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", flexShrink: 0, minHeight: 56 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={onClose} style={{ padding: 8, borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}>
-            <ArrowLeft className="w-4 h-4" />
+            <X className="w-4 h-4" />
           </button>
           <div style={{ width: 1, height: 20, background: "var(--color-border)" }} />
           <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2097,6 +2103,23 @@ function LandingPageEditor({
       {/* Scrollable settings */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Node fields: Page Title, Headline, CTA, Label, Delete */}
+            {lpNode && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[{key:"pageTitle",label:"Page Title",ph:"e.g. Get Started Today"},{key:"headline",label:"Headline",ph:"Main headline text"},{key:"ctaText",label:"CTA Button Text",ph:"e.g. Sign Up Free"}].map(f => (
+                  <div key={f.key}>
+                    <label style={{ display:"block", fontSize:11, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:5 }}>{f.label}</label>
+                    <input type="text" value={((lpNode.config ?? {}) as Record<string,string>)[f.key] ?? ""} onChange={e => onUpdateNode(f.key, e.target.value)} placeholder={f.ph} style={{ width:"100%", padding:"9px 12px", fontSize:13, background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:10, color:"var(--color-text-primary)", outline:"none", boxSizing:"border-box" }} />
+                  </div>
+                ))}
+                <div>
+                  <label style={{ display:"block", fontSize:11, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:5 }}>Node Label</label>
+                  <input type="text" value={lpNode.label} onChange={e => onRenameNode(e.target.value)} style={{ width:"100%", padding:"9px 12px", fontSize:13, background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:10, color:"var(--color-text-primary)", outline:"none", boxSizing:"border-box" }} />
+                </div>
+                <div style={{ borderBottom:"1px solid var(--color-border)", paddingBottom:8 }} />
+              </div>
+            )}
 
             {/* HTML Toggle */}
             <div>
@@ -2216,6 +2239,16 @@ function LandingPageEditor({
                 Upload your branded HTML snippets as assets, then ask the AI assistant to &quot;inject my branded header&quot; or &quot;use my uploaded logo.&quot; You can also edit the raw HTML directly above.
               </p>
             </div>
+
+            {lpNode && (
+              <button
+                onClick={onDeleteNode}
+                style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", padding:"12px 16px", fontSize:13, fontWeight:600, color:"var(--color-danger)", background:"rgba(239,68,68,0.08)", border:"1px solid transparent", borderRadius:12, cursor:"pointer" }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Node
+              </button>
+            )}
           </div>
       </div>
     </div>
