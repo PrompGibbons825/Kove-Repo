@@ -188,6 +188,104 @@ const TRIGGERS = NODE_CATALOG.filter((n) => n.category === "trigger");
 const ACTIONS = NODE_CATALOG.filter((n) => n.category === "action");
 const LOGIC = NODE_CATALOG.filter((n) => n.category === "logic");
 
+/* ─── Node config field definitions ─── */
+
+interface ConfigField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "number";
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+}
+
+const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
+  "landing-page": [
+    { key: "pageTitle", label: "Page Title", type: "text", placeholder: "e.g. Get Started Today" },
+    { key: "headline", label: "Headline", type: "text", placeholder: "Main headline text" },
+    { key: "ctaText", label: "CTA Button Text", type: "text", placeholder: "e.g. Sign Up Free" },
+  ],
+  "form-submit": [
+    { key: "formId", label: "Form ID", type: "text", placeholder: "Form identifier" },
+    { key: "fields", label: "Required Fields", type: "textarea", placeholder: "name, email, phone (comma-separated)" },
+  ],
+  "new-contact": [
+    { key: "source", label: "Source Filter", type: "select", options: [
+      { value: "", label: "Any source" },
+      { value: "website", label: "Website" },
+      { value: "import", label: "CSV Import" },
+      { value: "manual", label: "Manual" },
+      { value: "api", label: "API" },
+    ]},
+    { key: "tags", label: "Required Tags", type: "text", placeholder: "e.g. lead, vip (comma-separated)" },
+  ],
+  "inbound-call": [
+    { key: "phoneNumber", label: "Phone Number", type: "text", placeholder: "+1 (555) 000-0000" },
+    { key: "greeting", label: "Greeting Message", type: "textarea", placeholder: "What the AI should say when answering" },
+  ],
+  "schedule": [
+    { key: "frequency", label: "Frequency", type: "select", options: [
+      { value: "hourly", label: "Every hour" },
+      { value: "daily", label: "Daily" },
+      { value: "weekly", label: "Weekly" },
+      { value: "monthly", label: "Monthly" },
+    ]},
+    { key: "time", label: "Time (24h)", type: "text", placeholder: "09:00" },
+    { key: "timezone", label: "Timezone", type: "text", placeholder: "America/New_York" },
+  ],
+  "send-email": [
+    { key: "to", label: "To", type: "text", placeholder: "{{contact.email}} or specific address" },
+    { key: "subject", label: "Subject", type: "text", placeholder: "Email subject line" },
+    { key: "body", label: "Body", type: "textarea", placeholder: "Write your email content..." },
+  ],
+  "send-sms": [
+    { key: "to", label: "To", type: "text", placeholder: "{{contact.phone}} or specific number" },
+    { key: "message", label: "Message", type: "textarea", placeholder: "SMS message content (160 chars)" },
+  ],
+  "assign-task": [
+    { key: "title", label: "Task Title", type: "text", placeholder: "Follow up with {{contact.name}}" },
+    { key: "assignee", label: "Assign To", type: "select", options: [
+      { value: "", label: "Unassigned" },
+      { value: "owner", label: "Contact Owner" },
+      { value: "round-robin", label: "Round Robin" },
+    ]},
+    { key: "dueIn", label: "Due In (hours)", type: "number", placeholder: "24" },
+    { key: "notes", label: "Notes", type: "textarea", placeholder: "Additional task details..." },
+  ],
+  "notify-team": [
+    { key: "channel", label: "Channel", type: "select", options: [
+      { value: "in-app", label: "In-App" },
+      { value: "email", label: "Email" },
+      { value: "slack", label: "Slack" },
+    ]},
+    { key: "message", label: "Message", type: "textarea", placeholder: "Notification message..." },
+  ],
+  "delay": [
+    { key: "duration", label: "Duration", type: "number", placeholder: "1" },
+    { key: "unit", label: "Unit", type: "select", options: [
+      { value: "minutes", label: "Minutes" },
+      { value: "hours", label: "Hours" },
+      { value: "days", label: "Days" },
+    ]},
+  ],
+  "condition": [
+    { key: "field", label: "Field", type: "text", placeholder: "e.g. contact.email, contact.tags" },
+    { key: "operator", label: "Operator", type: "select", options: [
+      { value: "equals", label: "Equals" },
+      { value: "not_equals", label: "Does not equal" },
+      { value: "contains", label: "Contains" },
+      { value: "not_contains", label: "Does not contain" },
+      { value: "exists", label: "Exists" },
+      { value: "gt", label: "Greater than" },
+      { value: "lt", label: "Less than" },
+    ]},
+    { key: "value", label: "Value", type: "text", placeholder: "Comparison value" },
+  ],
+  "branch": [
+    { key: "paths", label: "Number of Paths", type: "number", placeholder: "2" },
+    { key: "description", label: "Description", type: "textarea", placeholder: "Describe what each path does..." },
+  ],
+};
+
 /* ─── Storage helpers ─── */
 
 const WF_KEY = "kove_workflows";
@@ -1110,6 +1208,7 @@ function WorkflowBuilder({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [editingName, setEditingName] = useState(false);
   const [wfName, setWfName] = useState(workflow.name);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const wfCtx = useWorkflowBuilder();
 
@@ -1202,6 +1301,18 @@ function WorkflowBuilder({
       updatedAt: Date.now(),
     });
   }
+
+  function updateNodeConfig(id: string, key: string, value: unknown) {
+    onChange({
+      ...workflow,
+      nodes: nodes.map((n) =>
+        n.id === id ? { ...n, config: { ...n.config, [key]: value } } : n
+      ),
+      updatedAt: Date.now(),
+    });
+  }
+
+  const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null;
 
   function handleCanvasDrop(e: DragEvent) {
     e.preventDefault();
@@ -1585,8 +1696,11 @@ function WorkflowBuilder({
 
                   {/* Card */}
                   <div
+                    onClick={(e) => { e.stopPropagation(); if (!dragging) setSelectedNodeId(node.id); }}
                     className={`flex items-center gap-3 px-4 py-3.5 bg-[var(--color-surface)] border rounded-2xl shadow-md transition-all ${
-                      isConnectingFrom
+                      selectedNodeId === node.id
+                        ? "border-[var(--color-accent)] shadow-[0_0_0_3px_rgba(99,102,241,0.18)] ring-1 ring-[var(--color-accent)]/30"
+                        : isConnectingFrom
                         ? "border-[var(--color-accent)] shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                         : "border-[var(--color-border)] hover:border-[var(--color-border)] hover:shadow-lg"
                     }`}
@@ -1636,15 +1750,104 @@ function WorkflowBuilder({
             );
           })}
 
-          {/* Cancel connection on canvas click */}
-          {connecting && (
+          {/* Cancel connection / deselect on canvas click */}
+          {(connecting || selectedNodeId) && (
             <div
               className="absolute inset-0 z-5"
               style={{ pointerEvents: "all" }}
-              onClick={() => setConnecting(null)}
+              onClick={() => { setConnecting(null); setSelectedNodeId(null); }}
             />
           )}
         </div>
+
+        {/* ── Node config panel ── */}
+        {selectedNode && (() => {
+          const def = getNodeDef(selectedNode.type);
+          const fields = NODE_CONFIG_FIELDS[selectedNode.type] ?? [];
+          const cfg = (selectedNode.config ?? {}) as Record<string, string>;
+          return (
+            <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+              {/* Panel header */}
+              <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: def?.color ?? "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", color: "white", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}>
+                  {def?.icon ?? <Zap className="w-4 h-4" />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.2 }}>{selectedNode.label}</p>
+                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>{def?.desc}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedNodeId(null)}
+                  style={{ padding: 6, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Panel body — scrollable */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+                {fields.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "24px 0" }}>No configuration needed for this node.</p>
+                ) : (
+                  fields.map((field) => (
+                    <div key={field.key}>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{field.label}</label>
+                      {field.type === "select" ? (
+                        <select
+                          value={(cfg[field.key] as string) ?? ""}
+                          onChange={(e) => updateNodeConfig(selectedNode.id, field.key, e.target.value)}
+                          style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", cursor: "pointer", appearance: "none" }}
+                        >
+                          {field.options?.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : field.type === "textarea" ? (
+                        <textarea
+                          value={(cfg[field.key] as string) ?? ""}
+                          onChange={(e) => updateNodeConfig(selectedNode.id, field.key, e.target.value)}
+                          placeholder={field.placeholder}
+                          rows={3}
+                          style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+                        />
+                      ) : (
+                        <input
+                          type={field.type === "number" ? "number" : "text"}
+                          value={(cfg[field.key] as string) ?? ""}
+                          onChange={(e) => updateNodeConfig(selectedNode.id, field.key, field.type === "number" ? e.target.value : e.target.value)}
+                          placeholder={field.placeholder}
+                          style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
+
+                {/* Node label rename */}
+                <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Node Label</label>
+                  <input
+                    type="text"
+                    value={selectedNode.label}
+                    onChange={(e) => onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label: e.target.value } : n), updatedAt: Date.now() })}
+                    style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+
+              {/* Panel footer */}
+              <div style={{ padding: 14, borderTop: "1px solid var(--color-border)", flexShrink: 0 }}>
+                <button
+                  onClick={() => { removeNode(selectedNode.id); setSelectedNodeId(null); }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 16px", fontSize: 13, fontWeight: 600, color: "var(--color-danger)", background: "var(--color-danger-soft, rgba(239,68,68,0.08))", border: "1px solid transparent", borderRadius: 12, cursor: "pointer" }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Node
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
