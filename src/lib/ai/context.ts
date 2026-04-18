@@ -169,6 +169,7 @@ When the user asks you to build or modify a workflow, respond with:
 Command shapes:
   { "action": "add_node", "type": "<node-type>", "label": "<display label>", "x": <number>, "y": <number> }
   { "action": "add_edge", "from": "<node-id-prefix>", "to": "<node-id-prefix>" }
+  { "action": "set_lp_slug", "slug": "<url-slug>" }  — sets the landing page URL slug (lowercase, hyphens only)
 
 Use the 8-char node id prefixes shown in the canvas state when referencing existing nodes.
 Place nodes in a logical left-to-right or top-to-bottom flow, spacing ~220px apart horizontally, 120px vertically.

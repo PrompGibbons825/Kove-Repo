@@ -1975,6 +1975,15 @@ function LandingPageEditor({
   useEffect(() => { lpCtx.setBrandAssets(brandAssets); }, [brandAssets, lpCtx]);
   useEffect(() => { lpCtx.setPageId(pageId); }, [pageId, lpCtx]);
 
+  // Reverse sync: if agent sets slug via lpCtx, pull it into local state
+  useEffect(() => {
+    if (lpCtx.state.slug && lpCtx.state.slug !== slug) {
+      setSlugLocal(lpCtx.state.slug);
+      setSlugError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lpCtx.state.slug]);
+
   // Keep htmlDraft synced when AI sidebar updates HTML
   useEffect(() => {
     setHtmlDraft(lpCtx.state.html);
@@ -2044,11 +2053,16 @@ function LandingPageEditor({
     if (!koveUser) { setUploading(false); return; }
     const path = `${koveUser.org_id}/brand/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("brand-assets").upload(path, file);
-    if (!error) {
+    if (error) {
+      console.error("Brand asset upload failed:", error);
+      alert(`Upload failed: ${error.message}`);
+    } else {
       const { data: { publicUrl } } = supabase.storage.from("brand-assets").getPublicUrl(path);
       const newAsset = { type: file.type.startsWith("image/") ? "logo" : "file", url: publicUrl, name: file.name };
       setBrandAssetsLocal([...brandAssets, newAsset]);
     }
+    // Reset the input so the same file can be re-uploaded
+    e.target.value = "";
     setUploading(false);
   }
 

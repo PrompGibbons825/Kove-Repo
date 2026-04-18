@@ -351,6 +351,8 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
                 });
               } else if (cmd.action === "add_edge" && cmd.from && cmd.to) {
                 wfBuilder.addEdge(cmd.from, cmd.to);
+              } else if (cmd.action === "set_lp_slug" && cmd.slug) {
+                lpBuilder.setSlug(String(cmd.slug).toLowerCase().replace(/[^a-z0-9-]/g, ""));
               }
             }
           } catch { /* ignore malformed JSON */ }
