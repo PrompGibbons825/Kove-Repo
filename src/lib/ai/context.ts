@@ -103,6 +103,11 @@ function buildBusinessContext(org: Organization, permissions: PermissionSet): st
     if (ctx.strategic_insights) sections.push(`Strategic Insights: ${JSON.stringify(ctx.strategic_insights)}`);
   }
 
+  // Brand assets — always visible (used in emails, SMS, landing pages, etc.)
+  if (org.brand_assets?.length > 0) {
+    sections.push(`Brand Assets: ${org.brand_assets.map(a => `${a.name} (${a.type}): ${a.url}`).join(", ")}`);
+  }
+
   return sections.join("\n");
 }
 

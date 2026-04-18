@@ -1982,20 +1982,33 @@ function LandingPageEditor({
       const agentHtml = lpCtx.state.html;
       const agentSlug = lpCtx.state.slug;
 
+      // Fall back to org-level brand assets if the LP has none
+      let resolvedAssets = data?.brand_assets ?? [];
+      if (resolvedAssets.length === 0) {
+        try {
+          const orgRes = await fetch("/api/settings/org");
+          if (orgRes.ok) {
+            const orgData = await orgRes.json();
+            resolvedAssets = orgData.brand_assets ?? [];
+          }
+        } catch {/* non-critical */}
+      }
+
       if (data) {
         setPageIdLocal(data.id);
         setSlugLocal(agentSlug || data.slug);
-        setBrandAssetsLocal(data.brand_assets ?? []);
+        setBrandAssetsLocal(resolvedAssets);
         setPageStatus(data.status);
         const resolvedHtml = agentHtml || data.html_content || "";
-        lpCtx.open(data.id, agentSlug || data.slug, resolvedHtml, data.brand_assets ?? []);
+        lpCtx.open(data.id, agentSlug || data.slug, resolvedHtml, resolvedAssets);
         setHtmlDraft(resolvedHtml);
         // Link LP to node config
         onUpdateNode("landing_page_id", data.id);
       } else {
-        lpCtx.open("", agentSlug, agentHtml, []);
+        lpCtx.open("", agentSlug, agentHtml, resolvedAssets);
         setHtmlDraft(agentHtml || "");
         if (agentSlug) setSlugLocal(agentSlug);
+        setBrandAssetsLocal(resolvedAssets);
       }
       setLoadingPage(false);
     }
@@ -2117,7 +2130,14 @@ function LandingPageEditor({
     } else {
       const { data: { publicUrl } } = supabase.storage.from("brand-assets").getPublicUrl(path);
       const newAsset = { type: file.type.startsWith("image/") ? "logo" : "file", url: publicUrl, name: file.name };
-      setBrandAssetsLocal([...brandAssets, newAsset]);
+      const updatedAssets = [...brandAssets, newAsset];
+      setBrandAssetsLocal(updatedAssets);
+      // Sync brand assets to the org so they're available to all nodes/workflows
+      fetch("/api/settings/org", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brand_assets: updatedAssets }),
+      }).catch(console.error);
     }
     // Reset the input so the same file can be re-uploaded
     e.target.value = "";

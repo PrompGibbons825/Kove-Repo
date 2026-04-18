@@ -139,6 +139,7 @@ export interface Organization {
   telnyx_connection_id: string | null;
   telnyx_messaging_profile_id: string | null;
   smtp_config: SmtpConfig | null;
+  brand_assets: Array<{ type: string; url: string; name: string }>;
   created_at: string;
 }
 

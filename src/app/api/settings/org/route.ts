@@ -22,6 +22,7 @@ export async function GET() {
     custom_field_schema: org.custom_field_schema ?? [],
     telnyx_phone: org.telnyx_phone ?? null,
     smtp_config: org.smtp_config ?? {},
+    brand_assets: org.brand_assets ?? [],
     tcr_brand_id: org.tcr_brand_id ?? null,
     tcr_brand_status: org.tcr_brand_status ?? null,
     tcr_campaign_id: org.tcr_campaign_id ?? null,
@@ -50,6 +51,7 @@ export async function PATCH(request: Request) {
   if (body.pipeline_options !== undefined) update.pipeline_options = body.pipeline_options;
   if (body.custom_field_schema !== undefined) update.custom_field_schema = body.custom_field_schema;
   if (body.smtp_config !== undefined) update.smtp_config = body.smtp_config;
+  if (body.brand_assets !== undefined) update.brand_assets = body.brand_assets;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
