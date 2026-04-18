@@ -380,75 +380,23 @@ function WorkflowList({
 }) {
   if (workflows.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto" style={{ padding: "32px 40px" }}>
-        {/* Header — matches Contacts page */}
-        <h1 className="text-[24px] font-semibold text-[var(--color-text-primary)]">Workflows</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-          Automate your sales process — connect triggers to actions and let Kove handle the rest.
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center mb-5">
+          <Zap className="w-5 h-5 text-white" strokeWidth={2} />
+        </div>
+        <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Workflows</h1>
+        <p className="text-[14px] text-[var(--color-text-secondary)] mt-2">Automate your sales process</p>
+        <button
+          onClick={onNew}
+          className="inline-flex items-center gap-2 mt-6 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-all"
+          style={{ padding: "10px 20px", backgroundColor: "var(--color-accent)" }}
+        >
+          <Plus className="w-4 h-4" />
+          New workflow
+        </button>
+        <p className="text-[12px] text-[var(--color-text-tertiary)] mt-4">
+          Tip: ask <span className="font-medium text-[var(--color-accent)]">Kove AI</span> in the sidebar to build one for you!
         </p>
-
-        {/* Actions row */}
-        <div className="flex items-center gap-3 mt-6">
-          <button
-            onClick={onNew}
-            className="inline-flex items-center gap-2 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-all"
-            style={{ padding: "9px 18px", backgroundColor: "var(--color-accent)" }}
-          >
-            <Plus className="w-4 h-4" />
-            New workflow
-          </button>
-          <span className="flex items-center gap-2 text-[13px] text-[var(--color-text-tertiary)]">
-            <Sparkles className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-            or ask the AI sidebar to build one
-          </span>
-        </div>
-
-        {/* Templates */}
-        <div className="mt-10">
-          <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-4">Start from a template</p>
-          <div className="grid grid-cols-2 gap-5">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.name}
-                onClick={onNew}
-                className="group text-left bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-md)] transition-all"
-                style={{ padding: "20px 24px" }}
-              >
-                <div className="flex items-start justify-between">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
-                    style={{ backgroundColor: t.color }}
-                  >
-                    <Zap className="w-4.5 h-4.5" strokeWidth={2} />
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] opacity-0 group-hover:opacity-100 group-hover:text-[var(--color-accent)] transition-all mt-1" />
-                </div>
-                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mt-4">{t.name}</p>
-                <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 leading-relaxed">{t.desc}</p>
-                <MiniFlow nodes={t.nodes} color={t.color} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* How it works */}
-        <div className="mt-10 grid grid-cols-3 gap-5">
-          {[
-            { icon: <Zap className="w-4 h-4" />, title: "Pick a trigger", desc: "A form submission, inbound call, new contact, or schedule." },
-            { icon: <GitBranch className="w-4 h-4" />, title: "Add logic", desc: "Branches, delays, and conditional paths." },
-            { icon: <Play className="w-4 h-4" />, title: "Run actions", desc: "Send emails, SMS, create tasks, and notify your team." },
-          ].map((s) => (
-            <div key={s.title} className="flex items-start gap-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]" style={{ padding: "16px 20px" }}>
-              <div className="w-9 h-9 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 text-[var(--color-accent)]">
-                {s.icon}
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{s.title}</p>
-                <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 leading-relaxed">{s.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     );
   }
