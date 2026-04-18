@@ -310,7 +310,6 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
       const name = interpolate(cfg.name ?? "") || "Unknown";
       const email = interpolate(cfg.email ?? "") || null;
       const phone = interpolate(cfg.phone ?? "") || null;
-      const company = interpolate(cfg.company ?? "") || null;
       const source = interpolate(cfg.source ?? "") || null;
       const pipelineStage = interpolate(cfg.pipeline_stage ?? "") || null;
       const status = (cfg.status || null) as string | null;
@@ -337,7 +336,6 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
         phone,
       };
       if (status) payload.status = status;
-      if (company) payload.company = company;
       if (source) payload.source = source;
       if (pipelineStage) payload.pipeline_stage = pipelineStage;
 

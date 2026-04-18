@@ -281,7 +281,6 @@ const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
     { key: "name", label: "Name", type: "text", placeholder: "{{payload.name}} or static value" },
     { key: "email", label: "Email", type: "text", placeholder: "{{payload.email}}" },
     { key: "phone", label: "Phone", type: "text", placeholder: "{{payload.phone}}" },
-    { key: "company", label: "Company", type: "text", placeholder: "{{payload.company}}" },
     // source and pipeline_stage options are injected dynamically from org settings at render time
     { key: "source", label: "Source", type: "select", options: [] },
     { key: "pipeline_stage", label: "Pipeline Stage", type: "select", options: [] },
