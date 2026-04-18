@@ -40,6 +40,7 @@ import {
   AlertCircle,
   TrendingUp,
   LayoutGrid,
+  Copy,
 } from "lucide-react";
 
 /* ─────────────────────── Types ─────────────────────── */
@@ -2155,9 +2156,6 @@ function LandingPageEditor({
         <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
           {/* Row 1: close + icon + label */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={onClose} style={{ padding: 6, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)", flexShrink: 0 }}>
-              <X className="w-4 h-4" />
-            </button>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Globe className="w-3.5 h-3.5 text-white" />
             </div>
@@ -2181,6 +2179,15 @@ function LandingPageEditor({
               placeholder="your-slug"
               style={{ flex: 1, minWidth: 0, padding: "3px 7px", fontSize: 11, fontWeight: 600, background: "var(--color-background)", border: "1px solid " + (slugError ? "var(--color-danger)" : "var(--color-border)"), borderRadius: 6, color: "var(--color-text-primary)", outline: "none" }}
             />
+            {slug.trim() && (
+              <button
+                onClick={() => { navigator.clipboard.writeText(`https://site.trykove.app/lp/${slug}`); }}
+                title="Copy URL"
+                style={{ padding: 4, borderRadius: 6, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)", flexShrink: 0 }}
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           {slugError && <span style={{ fontSize: 10, color: "var(--color-danger)", paddingLeft: 2 }}>{slugError}</span>}
           {/* Row 3: status + Go Live button */}
