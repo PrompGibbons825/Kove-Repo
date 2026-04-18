@@ -1,6 +1,29 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+/*
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  GLOBAL UI/UX CONSISTENCY REMINDER                              ║
+  ║                                                                  ║
+  ║  When building ANY new UI component:                             ║
+  ║                                                                  ║
+  ║  1. PADDING: All cards, bubbles, inputs, and action containers   ║
+  ║     must use consistent padding. Inline elements must NEVER      ║
+  ║     wrap without a min-w-0 + flex-shrink-0 guard on siblings.   ║
+  ║                                                                  ║
+  ║  2. FLEX ROWS: Always set explicit widths (maxWidth + padding    ║
+  ║     container) and use min-w-0 on flex children that should      ║
+  ║     shrink. Never let a flex row overflow its parent.            ║
+  ║                                                                  ║
+  ║  3. SPACING: Sections inside panels need padding-bottom to       ║
+  ║     breathe above the next fixed element (e.g. input bar).       ║
+  ║                                                                  ║
+  ║  4. ALIGNMENT: All related elements (bubbles, action cards)      ║
+  ║     must share the same left/right edge. Action cards below a    ║
+  ║     message bubble must align to the bubble's content edge.      ║
+  ╚══════════════════════════════════════════════════════════════════╝
+*/
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

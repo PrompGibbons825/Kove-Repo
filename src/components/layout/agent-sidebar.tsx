@@ -503,7 +503,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       {/* ── CHAT VIEW ── */}
       {view === "chat" && activeChat && (
         <>
-          <div className="flex-1 overflow-y-auto" style={{ padding: "12px 16px 16px" }}>
+          <div className="flex-1 overflow-y-auto" style={{ padding: "12px 16px 20px" }}>
             <div className="space-y-4">
               {activeChat.messages.map((msg) => (
                 <div key={msg.id} className="flex flex-col">
@@ -545,7 +545,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
                     </div>
                   </div>
                   {msg.actions && msg.actions.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-3 ml-8">
+                    <div className="flex flex-col gap-2 mt-3 ml-8" style={{ marginRight: 0 }}>
                       {msg.actions.map((action) => (
                         <button
                           key={action.value}

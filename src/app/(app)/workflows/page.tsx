@@ -593,7 +593,9 @@ function WorkflowList({
     return (
       <div className="flex flex-col items-center justify-center gap-10" style={{ minHeight: "calc(100vh - 80px)" }}>
         {/* Animated Bolt */}
-        <LiquidBolt />
+        <div style={{ marginLeft: 10 }}>
+          <LiquidBolt />
+        </div>
 
         {/* Title + subtitle */}
         <div className="text-center">
@@ -605,7 +607,7 @@ function WorkflowList({
         {namingMode ? (
           <form
             onSubmit={(e) => { e.preventDefault(); if (wfName.trim()) onCreateDirect(wfName.trim()); }}
-            className="flex items-center gap-3"
+            style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", maxWidth: 560, padding: "0 20px" }}
           >
             <input
               ref={nameInputRef}
@@ -613,13 +615,12 @@ function WorkflowList({
               value={wfName}
               onChange={(e) => setWfName(e.target.value)}
               placeholder="Name your workflow..."
-              className="px-4 py-3 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 transition-all"
-              style={{ width: 300 }}
+              className="flex-1 min-w-0 px-4 py-3 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 transition-all"
             />
             <button
               type="submit"
               disabled={!wfName.trim()}
-              className="px-5 py-3 rounded-xl text-[14px] font-semibold text-white transition-all disabled:opacity-50 cursor-pointer"
+              className="flex-shrink-0 px-5 py-3 rounded-xl text-[14px] font-semibold text-white transition-all disabled:opacity-50 cursor-pointer"
               style={{ background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)" }}
             >
               Open builder →
