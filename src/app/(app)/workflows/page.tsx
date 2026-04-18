@@ -2019,12 +2019,13 @@ function LandingPageEditor({
   // Autosave — debounced 1.5s after any change
   useEffect(() => {
     if (loadingPage) return;
+    if (!latestSlug.current.trim()) return; // no slug yet, nothing to save
     setSaveStatus("unsaved");
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => { void performSave(); }, 1500);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [html, slug, brandAssets]);
+  }, [html, slug, brandAssets, loadingPage]);
 
   async function performSave() {
     const curSlug = latestSlug.current;
@@ -2032,7 +2033,9 @@ function LandingPageEditor({
     const curAssets = latestBrandAssets.current;
     const curPageId = latestPageId.current;
 
-    if (!curSlug.trim()) return; // need a slug before we can save
+    console.log("[LP save] slug:", curSlug, "pageId:", curPageId, "htmlLen:", curHtml.length);
+
+    if (!curSlug.trim()) { console.log("[LP save] skipped — no slug"); return; }
     setSaving(true);
     setSaveStatus("saving");
     setSlugError("");
@@ -2077,6 +2080,7 @@ function LandingPageEditor({
       console.error("LP save exception:", err);
     }
     setSaving(false);
+    console.log("[LP save] result:", saveOk ? "saved" : "failed");
     setSaveStatus(saveOk ? "saved" : "unsaved");
   }
 
