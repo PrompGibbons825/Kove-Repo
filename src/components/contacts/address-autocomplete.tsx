@@ -16,26 +16,20 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-
 async function fetchSuggestions(q: string): Promise<Suggestion[]> {
   if (q.trim().length < 3) return [];
 
-  // ── Google Places Autocomplete (preferred — full house-number support) ──
-  if (GMAPS_KEY) {
-    try {
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&types=address&key=${GMAPS_KEY}`
-      );
-      const data = await res.json();
-      if (data.status === "OK") {
-        return (data.predictions ?? []).map((p: Record<string, unknown>) => ({
-          id: String(p.place_id),
-          label: String((p as Record<string, unknown>).description ?? ""),
-        }));
-      }
-    } catch { /* fall through */ }
-  }
+  // ── Google Places via server-side proxy (full house-number support) ──
+  try {
+    const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (Array.isArray(data.predictions) && data.predictions.length > 0) {
+      return data.predictions.map((p: Record<string, unknown>) => ({
+        id: String(p.place_id ?? Math.random()),
+        label: String(p.description ?? ""),
+      }));
+    }
+  } catch { /* fall through to Photon */ }
 
   // ── Photon/Komoot fallback (no key required) ──
   try {
