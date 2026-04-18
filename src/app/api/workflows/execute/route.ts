@@ -71,6 +71,7 @@ export async function POST(request: Request) {
         orgId,
         contact,
         org: org ?? {},
+        metadata: metadata ?? {},
       })
     )
   );

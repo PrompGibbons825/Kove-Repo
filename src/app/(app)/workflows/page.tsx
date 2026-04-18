@@ -166,6 +166,14 @@ const NODE_CATALOG: NodeDef[] = [
     color: "#ec4899",
     desc: "Send a notification to your team",
   },
+  {
+    type: "create-contact",
+    label: "Create Contact",
+    category: "action",
+    icon: <UserPlus className="w-4 h-4" />,
+    color: "#8b5cf6",
+    desc: "Create or update a contact record",
+  },
   // Logic
   {
     type: "delay",
@@ -268,6 +276,24 @@ const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
       { value: "slack", label: "Slack" },
     ]},
     { key: "message", label: "Message", type: "textarea", placeholder: "Notification message..." },
+  ],
+  "create-contact": [
+    { key: "name", label: "Name", type: "text", placeholder: "{{payload.name}} or static value" },
+    { key: "email", label: "Email", type: "text", placeholder: "{{payload.email}}" },
+    { key: "phone", label: "Phone", type: "text", placeholder: "{{payload.phone}}" },
+    { key: "company", label: "Company", type: "text", placeholder: "{{payload.company}}" },
+    { key: "source", label: "Source", type: "text", placeholder: "e.g. webhook, facebook-ad, trade-show" },
+    { key: "tags", label: "Tags", type: "text", placeholder: "lead, vip (comma-separated)" },
+    { key: "status", label: "Status", type: "select", options: [
+      { value: "new", label: "New" },
+      { value: "contacted", label: "Contacted" },
+      { value: "qualified", label: "Qualified" },
+      { value: "customer", label: "Customer" },
+    ]},
+    { key: "on_conflict", label: "If Contact Exists", type: "select", options: [
+      { value: "update", label: "Update existing" },
+      { value: "skip", label: "Skip (do nothing)" },
+    ]},
   ],
   "delay": [
     { key: "duration", label: "Duration", type: "number", placeholder: "1" },

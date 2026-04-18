@@ -31,6 +31,8 @@ interface ExecContext {
   orgId: string;
   contact: Record<string, unknown>;
   org: Record<string, unknown>;
+  /** Raw payload from the triggering event (e.g. webhook body, form data) */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -165,11 +167,12 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
   const cfg = node.config ?? {};
   const supabase = createServiceClient();
 
-  // Interpolate template variables like {{contact.email}}
+  // Interpolate template variables like {{contact.email}}, {{payload.field}}
   function interpolate(template: string): string {
     return template.replace(/\{\{(\w+)\.(\w+)\}\}/g, (_, obj, key) => {
       if (obj === "contact") return String((ctx.contact as Record<string, unknown>)?.[key] ?? "");
       if (obj === "org") return String((ctx.org as Record<string, unknown>)?.[key] ?? "");
+      if (obj === "payload") return String((ctx.metadata as Record<string, unknown>)?.[key] ?? "");
       return "";
     });
   }
@@ -301,6 +304,60 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
         occurred_at: new Date().toISOString(),
       });
       return `notified via ${cfg.channel ?? "in-app"}`;
+    }
+
+    case "create-contact": {
+      const name = interpolate(cfg.name ?? "") || "Unknown";
+      const email = interpolate(cfg.email ?? "") || null;
+      const phone = interpolate(cfg.phone ?? "") || null;
+      const company = interpolate(cfg.company ?? "") || null;
+      const source = interpolate(cfg.source ?? "") || null;
+      const status = cfg.status || "new";
+      const onConflict = cfg.on_conflict || "update";
+
+      if (!email && !phone) return "skipped: no email or phone to identify contact";
+
+      // Check if contact already exists
+      const query = supabase.from("contacts").select("id").eq("org_id", ctx.orgId);
+      if (email) query.eq("email", email);
+      else query.eq("phone", phone!);
+      const { data: existing } = await query.maybeSingle();
+
+      if (existing && onConflict === "skip") {
+        // Update context contact so downstream nodes can use it
+        ctx.contact = { ...ctx.contact, ...existing };
+        return `skipped: contact ${existing.id} already exists`;
+      }
+
+      const payload: Record<string, unknown> = {
+        org_id: ctx.orgId,
+        name,
+        email,
+        phone,
+        status,
+      };
+      if (company) payload.company = company;
+      if (source) payload.source = source;
+
+      // Add tags if specified
+      const tagsRaw = interpolate(cfg.tags ?? "");
+      if (tagsRaw) payload.tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
+
+      let contactId: string;
+      if (existing) {
+        // Update
+        const { data: updated } = await supabase.from("contacts").update(payload).eq("id", existing.id).select("*").single();
+        ctx.contact = updated ?? ctx.contact;
+        contactId = existing.id;
+      } else {
+        // Insert
+        const { data: created, error } = await supabase.from("contacts").insert(payload).select("*").single();
+        if (error) throw new Error(`Contact insert failed: ${error.message}`);
+        ctx.contact = created ?? ctx.contact;
+        contactId = created?.id;
+      }
+
+      return `${existing ? "updated" : "created"} contact ${contactId}`;
     }
 
     // ─── Logic ───

@@ -160,6 +160,7 @@ ACTIONS (do something):
 - send-sms | "Send SMS" — send a text message
 - assign-task | "Create Task" — create a follow-up task
 - notify-team | "Notify Team" — alert the team
+- create-contact | "Create Contact" — create or upsert a contact record (config: name, email, phone, company, source, tags, status, on_conflict="update"|"skip"). Supports {{payload.field}} to map webhook/form data fields.
 
 LOGIC (control flow):
 - delay | "Delay" — wait N minutes/hours/days
