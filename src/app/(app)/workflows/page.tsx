@@ -668,60 +668,101 @@ function WorkflowList({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
-      <div className="flex items-center justify-between px-8 pt-7 pb-5 border-b border-[var(--color-border)]">
-        <div>
-          <h1 className="text-[20px] font-bold text-[var(--color-text-primary)]">Workflows</h1>
-          <p className="text-[13px] text-[var(--color-text-tertiary)] mt-0.5">
-            {workflows.filter((w) => w.status === "active").length} active · {workflows.length} total
-          </p>
-        </div>
+    <div className="flex flex-col items-center justify-center gap-10" style={{ minHeight: "calc(100vh - 80px)" }}>
+      {/* Bolt */}
+      <div style={{ marginLeft: 10 }}>
+        <LiquidBolt />
+      </div>
+
+      {/* Title + subtitle */}
+      <div className="text-center">
+        <h1 className="text-[24px] font-medium text-[var(--color-text-primary)]">Workflows</h1>
+        <p className="text-[14px] text-[var(--color-text-secondary)] mt-2">build · ship · automate</p>
+      </div>
+
+      {/* Add new button */}
+      {namingMode ? (
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (wfName.trim()) onCreateDirect(wfName.trim()); }}
+          style={{ display: "flex", alignItems: "center", gap: 16, width: 560 }}
+        >
+          <input
+            ref={nameInputRef}
+            type="text"
+            value={wfName}
+            onChange={(e) => setWfName(e.target.value)}
+            placeholder="Name your workflow..."
+            style={{ flex: 1, minWidth: 0, padding: "14px 20px", fontSize: 15, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 14, color: "var(--color-text-primary)", outline: "none", transition: "border-color 0.15s" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--color-accent)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
+          />
+          <button
+            type="submit"
+            disabled={!wfName.trim()}
+            style={{ flexShrink: 0, padding: "14px 28px", borderRadius: 14, fontSize: 14, fontWeight: 600, color: "white", background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)", cursor: "pointer", opacity: wfName.trim() ? 1 : 0.5, border: "none", whiteSpace: "nowrap" }}
+          >
+            Open builder &rarr;
+          </button>
+        </form>
+      ) : (
         <button
-          onClick={onNew}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-[13px] font-medium rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors shadow-sm"
+          onClick={() => setNamingMode(true)}
+          className="flex items-center gap-2 text-[14px] font-semibold text-white rounded-full hover:scale-105 active:scale-100 transition-all cursor-pointer"
+          style={{
+            padding: "13px 32px",
+            background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)",
+            boxShadow: "0 4px 24px rgba(168,130,255,0.35)",
+          }}
         >
           <Plus className="w-4 h-4" />
           New workflow
         </button>
-      </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto px-8 py-5 space-y-2">
-        {workflows.map((wf) => (
-          <div
-            key={wf.id}
-            onClick={() => onOpen(wf.id)}
-            className="group flex items-center gap-4 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl cursor-pointer hover:border-[var(--color-accent)]/30 hover:shadow-[var(--shadow-sm)] transition-all"
-          >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Zap className="w-4 h-4 text-white" strokeWidth={2} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">{wf.name}</p>
-              <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
-                {wf.nodes.length} steps · Updated {new Date(wf.updatedAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                wf.status === "active"
-                  ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
-                  : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  wf.status === "active" ? "bg-[var(--color-success)]" : "bg-[var(--color-text-tertiary)]"
-                }`} />
-                {wf.status === "active" ? "Active" : "Draft"}
-              </span>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(wf.id); }}
-                className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-              <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors" />
-            </div>
-          </div>
-        ))}
+      {/* Workflow cards */}
+      <div style={{ width: 560 }}>
+        <p className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-widest" style={{ marginBottom: 14 }}>
+          {workflows.length} workflow{workflows.length !== 1 ? "s" : ""}
+        </p>
+        <div className="flex flex-col gap-3">
+          {workflows.map((wf) => (
+            <button
+              key={wf.id}
+              onClick={() => onOpen(wf.id)}
+              className="group flex items-center gap-4 text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 cursor-pointer"
+              style={{ padding: "16px 20px" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.3)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border)"; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Zap className="w-4 h-4 text-white" strokeWidth={2} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] truncate">{wf.name}</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
+                  {wf.nodes.length} steps · Updated {new Date(wf.updatedAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                  wf.status === "active"
+                    ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                    : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${wf.status === "active" ? "bg-[var(--color-success)]" : "bg-[var(--color-text-tertiary)]"}`} />
+                  {wf.status === "active" ? "Active" : "Draft"}
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(wf.id); }}
+                  className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors" />
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
