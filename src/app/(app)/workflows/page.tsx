@@ -1106,6 +1106,8 @@ function WorkflowBuilder({
   const [connecting, setConnecting] = useState<string | null>(null);
   const [showTip, setShowTip] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const [nodeSearch, setNodeSearch] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [editingName, setEditingName] = useState(false);
   const [wfName, setWfName] = useState(workflow.name);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -1334,51 +1336,89 @@ function WorkflowBuilder({
       <div className="flex-1 flex overflow-hidden">
         {/* Node palette */}
         {paletteOpen && (
-          <div className="w-[220px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col">
-            <div className="flex-1 overflow-y-auto px-3 py-5 space-y-7">
+          <div style={{ width: 240, flexShrink: 0, borderRight: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+
+            {/* Search bar */}
+            <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--color-border)", flexShrink: 0 }}>
+              <div style={{ position: "relative" }}>
+                <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--color-text-tertiary)", pointerEvents: "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search nodes..."
+                  value={nodeSearch}
+                  onChange={(e) => setNodeSearch(e.target.value)}
+                  style={{ width: "100%", padding: "9px 10px 9px 30px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            </div>
+
+            {/* Scrollable node list */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
               {[
                 { title: "Triggers", items: TRIGGERS },
                 { title: "Actions", items: ACTIONS },
                 { title: "Logic", items: LOGIC },
-              ].map((group) => (
-                <div key={group.title}>
-                  <p className="text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-3 px-2">
-                    {group.title}
-                  </p>
-                  <div className="flex flex-col" style={{ gap: 6 }}>
-                    {group.items.map((def) => (
-                      <div
-                        key={def.type}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("node-type", def.type);
-                          e.dataTransfer.effectAllowed = "copy";
-                        }}
-                        className="flex items-center rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
-                        style={{ gap: 12, padding: "12px 12px" }}
+              ].map((group) => {
+                const filtered = group.items.filter((d) =>
+                  !nodeSearch || d.label.toLowerCase().includes(nodeSearch.toLowerCase()) || d.desc.toLowerCase().includes(nodeSearch.toLowerCase())
+                );
+                if (filtered.length === 0) return null;
+                const collapsed = collapsedGroups[group.title];
+                return (
+                  <div key={group.title}>
+                    {/* Collapsible group header */}
+                    <button
+                      onClick={() => setCollapsedGroups((prev) => ({ ...prev, [group.title]: !prev[group.title] }))}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "6px 8px", background: "none", border: "none", cursor: "pointer", borderRadius: 8, marginBottom: 4 }}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{group.title}</span>
+                      <svg
+                        style={{ width: 14, height: 14, color: "var(--color-text-tertiary)", transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s ease", flexShrink: 0 }}
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
                       >
-                        <div
-                          className="rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-sm"
-                          style={{ backgroundColor: def.color, width: 34, height: 34, borderRadius: 10 }}
-                        >
-                          {def.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.2 }}>{def.label}</p>
-                          <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.3, marginTop: 2 }} className="truncate">{def.desc}</p>
-                        </div>
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+
+                    {/* Items */}
+                    {!collapsed && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {filtered.map((def) => (
+                          <div
+                            key={def.type}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("node-type", def.type);
+                              e.dataTransfer.effectAllowed = "copy";
+                            }}
+                            className="flex items-center rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
+                            style={{ gap: 12, padding: "11px 10px" }}
+                          >
+                            <div
+                              style={{ backgroundColor: def.color, width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}
+                            >
+                              {def.icon}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.2 }}>{def.label}</p>
+                              <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.3, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{def.desc}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Bottom actions */}
-            <div style={{ padding: 16, borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Bottom actions — locked outside scroll */}
+            <div style={{ padding: 14, borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 10, flexShrink: 0, background: "var(--color-surface)" }}>
               <button
                 onClick={() => setPaletteOpen(false)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "16px 20px", fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 16, cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "15px 20px", fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 16, cursor: "pointer", boxSizing: "border-box" }}
               >
                 <GripVertical className="w-4 h-4" />
                 Hide Nodes
@@ -1386,7 +1426,7 @@ function WorkflowBuilder({
               <button
                 onClick={() => onChange({ ...workflow, status: workflow.status === "active" ? "draft" : "active", updatedAt: Date.now() })}
                 style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "16px 20px", fontSize: 14, fontWeight: 700, color: "white", borderRadius: 16, cursor: "pointer", border: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "15px 20px", fontSize: 14, fontWeight: 700, color: "white", borderRadius: 16, cursor: "pointer", border: "none", boxSizing: "border-box",
                   background: workflow.status === "active" ? "var(--color-danger)" : "linear-gradient(135deg, #a78bfa, #e879f9)",
                   boxShadow: workflow.status !== "active" ? "0 4px 20px rgba(168,130,255,0.35)" : "none",
                 }}
