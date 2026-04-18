@@ -679,33 +679,11 @@ function WorkflowList({
   // Workflow colors palette
   const WF_COLORS = ["#a78bfa", "#38bdf8", "#34d399", "#fb923c", "#f472b6", "#facc15"];
 
-  // Generate 14 days of mock execution data
-  const chartDays = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(Date.now() - (13 - i) * 86400000);
-    return {
-      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      dayOfWeek: d.getDay(),
-      values: workflows.map((_, wIdx) => {
-        const base = wIdx % 2 === 0 ? 12 : 8;
-        const wave = Math.round(Math.sin((i + wIdx * 3) * 0.8) * 5 + base);
-        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-        return Math.max(0, isWeekend ? Math.round(wave * 0.4) : wave);
-      }),
-    };
-  });
-
-  const maxVal = Math.max(...chartDays.flatMap((d) => d.values), 1);
-  const totalExecutions = chartDays.flatMap((d) => d.values).reduce((a, b) => a + b, 0);
   const activeCount = workflows.filter((w) => w.status === "active").length;
-
-  // Mock errors
-  const mockErrors = workflows.slice(0, 2).map((wf, i) => ({
-    id: i,
-    workflow: wf.name,
-    msg: i === 0 ? "Step 3 timed out (>30s)" : "Webhook returned 422",
-    time: i === 0 ? "2h ago" : "5h ago",
-    color: WF_COLORS[i % WF_COLORS.length],
-  }));
+  // Execution data will come from real DB once workflows are live — show 0 until then
+  const totalExecutions = 0;
+  const chartDays: { label: string; values: number[] }[] = [];
+  const mockErrors: { id: number; workflow: string; msg: string; time: string; color: string }[] = [];
 
   return (
     <div
@@ -874,9 +852,9 @@ function WorkflowList({
           {/* Stat cards */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "Total executions", value: totalExecutions.toLocaleString(), icon: <Activity className="w-4 h-4" />, color: "#a78bfa" },
-              { label: "Active workflows", value: `${activeCount} / ${workflows.length}`, icon: <Zap className="w-4 h-4" />, color: "#34d399" },
-              { label: "Errors (7d)", value: `${mockErrors.length}`, icon: <AlertCircle className="w-4 h-4" />, color: mockErrors.length > 0 ? "#fb923c" : "#34d399" },
+              { label: "Total executions", value: totalExecutions > 0 ? totalExecutions.toLocaleString() : "—", icon: <Activity className="w-4 h-4" />, color: "#a78bfa" },
+              { label: "Active workflows", value: `${activeCount} / ${workflows.length}`, icon: <Zap className="w-4 h-4" />, color: activeCount > 0 ? "#34d399" : "var(--color-text-tertiary)" },
+              { label: "Errors (7d)", value: totalExecutions > 0 ? `${mockErrors.length}` : "—", icon: <AlertCircle className="w-4 h-4" />, color: mockErrors.length > 0 ? "#fb923c" : "var(--color-text-tertiary)" },
             ].map((s) => (
               <div key={s.label} className="flex flex-col gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "18px 20px" }}>
                 <div className="flex items-center gap-2" style={{ color: s.color }}>
@@ -893,104 +871,81 @@ function WorkflowList({
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Daily executions</p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">Last 14 days · one bar per workflow</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">Last 14 days · one bar per active workflow</p>
               </div>
-              {/* Legend */}
-              <div className="flex items-center gap-3 flex-wrap justify-end" style={{ maxWidth: 280 }}>
-                {workflows.map((wf, idx) => (
-                  <div key={wf.id} className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
-                    <span className="text-[11px] text-[var(--color-text-tertiary)] truncate" style={{ maxWidth: 80 }}>{wf.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* SVG bar chart */}
-            <div style={{ overflowX: "auto" }}>
-              <svg width={Math.max(632, chartDays.length * 46)} height={180} style={{ display: "block" }}>
-                {/* Y-axis grid lines */}
-                {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
-                  const y = 10 + (1 - frac) * 130;
-                  return (
-                    <g key={frac}>
-                      <line x1={28} x2={Math.max(632, chartDays.length * 46) - 4} y1={y} y2={y} stroke="var(--color-border)" strokeWidth={1} />
-                      <text x={24} y={y + 4} textAnchor="end" fontSize={9} fill="var(--color-text-tertiary)">{Math.round(frac * maxVal)}</text>
-                    </g>
-                  );
-                })}
-
-                {/* Bars */}
-                {chartDays.map((day, dIdx) => {
-                  const groupW = 42;
-                  const barW = workflows.length > 0 ? Math.min(14, Math.floor((groupW - 6) / workflows.length)) : 10;
-                  const groupX = 32 + dIdx * 46;
-                  return (
-                    <g key={day.label}>
-                      {day.values.map((val, wIdx) => {
-                        const barH = Math.max(2, (val / maxVal) * 130);
-                        const x = groupX + wIdx * (barW + 2);
-                        const y = 10 + 130 - barH;
-                        return (
-                          <rect
-                            key={wIdx}
-                            x={x}
-                            y={y}
-                            width={barW}
-                            height={barH}
-                            rx={3}
-                            fill={WF_COLORS[wIdx % WF_COLORS.length]}
-                            opacity={0.85}
-                          />
-                        );
-                      })}
-                      {/* X label */}
-                      <text
-                        x={groupX + ((workflows.length * (barW + 2)) / 2)}
-                        y={158}
-                        textAnchor="middle"
-                        fontSize={9}
-                        fill="var(--color-text-tertiary)"
-                        style={{ userSelect: "none" }}
-                      >
-                        {day.label}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-          </div>
-
-          {/* Per-workflow execution summary */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
-            <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">Workflow summary</p>
-            <div className="flex flex-col gap-3">
-              {workflows.map((wf, idx) => {
-                const total = chartDays.reduce((sum, d) => sum + (d.values[idx] ?? 0), 0);
-                const pct = totalExecutions > 0 ? (total / totalExecutions) * 100 : 0;
-                return (
-                  <div key={wf.id} className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
-                    <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" style={{ width: 160 }}>{wf.name}</p>
-                    {/* Progress bar */}
-                    <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-hover)]">
-                      <div
-                        className="h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%`, background: WF_COLORS[idx % WF_COLORS.length] }}
-                      />
+              {activeCount > 0 && (
+                <div className="flex items-center gap-3 flex-wrap justify-end" style={{ maxWidth: 280 }}>
+                  {workflows.filter(w => w.status === "active").map((wf, idx) => (
+                    <div key={wf.id} className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
+                      <span className="text-[11px] text-[var(--color-text-tertiary)] truncate" style={{ maxWidth: 80 }}>{wf.name}</span>
                     </div>
-                    <span className="text-[12px] text-[var(--color-text-tertiary)] flex-shrink-0" style={{ width: 60, textAlign: "right" }}>{total} runs</span>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                      wf.status === "active" ? "bg-[var(--color-success-soft)] text-[var(--color-success)]" : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
-                    }`}>{wf.status === "active" ? "Active" : "Draft"}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {activeCount === 0 || chartDays.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10">
+                <BarChart2 className="w-8 h-8 text-[var(--color-text-tertiary)] opacity-30" />
+                <p className="text-[13px] text-[var(--color-text-tertiary)]">
+                  {activeCount === 0 ? "No active workflows — activate one to see execution data" : "No executions recorded yet"}
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <svg width={Math.max(632, chartDays.length * 46)} height={180} style={{ display: "block" }}>
+                  {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                    const maxVal = Math.max(...chartDays.flatMap((d) => d.values), 1);
+                    const y = 10 + (1 - frac) * 130;
+                    return (
+                      <g key={frac}>
+                        <line x1={28} x2={Math.max(632, chartDays.length * 46) - 4} y1={y} y2={y} stroke="var(--color-border)" strokeWidth={1} />
+                        <text x={24} y={y + 4} textAnchor="end" fontSize={9} fill="var(--color-text-tertiary)">{Math.round(frac * maxVal)}</text>
+                      </g>
+                    );
+                  })}
+                  {chartDays.map((day, dIdx) => {
+                    const maxVal = Math.max(...chartDays.flatMap((d) => d.values), 1);
+                    const barW = 10;
+                    const groupX = 32 + dIdx * 46;
+                    return (
+                      <g key={day.label}>
+                        {day.values.map((val, wIdx) => {
+                          const barH = Math.max(2, (val / maxVal) * 130);
+                          const x = groupX + wIdx * (barW + 2);
+                          const y = 10 + 130 - barH;
+                          return <rect key={wIdx} x={x} y={y} width={barW} height={barH} rx={3} fill={WF_COLORS[wIdx % WF_COLORS.length]} opacity={0.85} />;
+                        })}
+                        <text x={groupX + (day.values.length * (barW + 2)) / 2} y={158} textAnchor="middle" fontSize={9} fill="var(--color-text-tertiary)" style={{ userSelect: "none" }}>{day.label}</text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+            )}
+          </div>
+
+          {/* Per-workflow status */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
+            <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">Workflow status</p>
+            <div className="flex flex-col gap-3">
+              {workflows.map((wf, idx) => (
+                <div key={wf.id} className="flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
+                  <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" style={{ width: 160 }}>{wf.name}</p>
+                  <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-hover)]">
+                    {/* bar will fill when real data exists */}
                   </div>
-                );
-              })}
+                  <span className="text-[12px] text-[var(--color-text-tertiary)] flex-shrink-0" style={{ width: 60, textAlign: "right" }}>no data</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                    wf.status === "active" ? "bg-[var(--color-success-soft)] text-[var(--color-success)]" : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
+                  }`}>{wf.status === "active" ? "Active" : "Draft"}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Errors */}
+          {/* Errors — only when real data exists */}
           {mockErrors.length > 0 && (
             <div className="rounded-2xl border border-[#fb923c33] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
               <div className="flex items-center gap-2 mb-4">
@@ -1012,12 +967,13 @@ function WorkflowList({
             </div>
           )}
 
-          {/* Trend insight */}
+          {/* Status callout */}
           <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "16px 20px" }}>
             <TrendingUp className="w-4 h-4 flex-shrink-0" style={{ color: "#a78bfa" }} />
             <p className="text-[13px] text-[var(--color-text-secondary)]">
-              Workflows ran <span className="font-semibold text-[var(--color-text-primary)]">{totalExecutions}</span> times over the last 14 days.{" "}
-              {activeCount > 0 ? `${activeCount} workflow${activeCount > 1 ? "s are" : " is"} currently active.` : "No active workflows yet."}
+              {activeCount === 0
+                ? <><span className="font-semibold text-[var(--color-text-primary)]">No active workflows yet.</span> Activate a workflow to start seeing live execution data, errors, and trends here.</>
+                : <>{activeCount} workflow{activeCount > 1 ? "s are" : " is"} active. Execution data will appear here once runs complete.</>}
             </p>
           </div>
 
