@@ -1345,7 +1345,7 @@ function WorkflowBuilder({
                   <p className="text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-3 px-2">
                     {group.title}
                   </p>
-                  <div className="space-y-1.5">
+                  <div className="flex flex-col" style={{ gap: 6 }}>
                     {group.items.map((def) => (
                       <div
                         key={def.type}
@@ -1354,17 +1354,18 @@ function WorkflowBuilder({
                           e.dataTransfer.setData("node-type", def.type);
                           e.dataTransfer.effectAllowed = "copy";
                         }}
-                        className="flex items-center gap-3 px-3 py-3 rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
+                        className="flex items-center rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
+                        style={{ gap: 12, padding: "12px 12px" }}
                       >
                         <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-sm"
-                          style={{ backgroundColor: def.color }}
+                          className="rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-sm"
+                          style={{ backgroundColor: def.color, width: 34, height: 34, borderRadius: 10 }}
                         >
                           {def.icon}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-tight">{def.label}</p>
-                          <p className="text-[10px] text-[var(--color-text-tertiary)] leading-tight mt-0.5 truncate">{def.desc}</p>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", lineHeight: 1.2 }}>{def.label}</p>
+                          <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.3, marginTop: 2 }} className="truncate">{def.desc}</p>
                         </div>
                       </div>
                     ))}
@@ -1374,22 +1375,21 @@ function WorkflowBuilder({
             </div>
 
             {/* Bottom actions */}
-            <div className="p-4 border-t border-[var(--color-border)] flex flex-col gap-3">
+            <div style={{ padding: 16, borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 10 }}>
               <button
                 onClick={() => setPaletteOpen(false)}
-                className="flex items-center justify-center gap-2 w-full px-4 py-3.5 text-[13px] font-semibold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-2xl hover:bg-[var(--color-surface-hover)] transition-colors"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "16px 20px", fontSize: 14, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 16, cursor: "pointer" }}
               >
                 <GripVertical className="w-4 h-4" />
                 Hide Nodes
               </button>
               <button
                 onClick={() => onChange({ ...workflow, status: workflow.status === "active" ? "draft" : "active", updatedAt: Date.now() })}
-                className={`flex items-center justify-center gap-2 w-full px-4 py-3.5 text-[13px] font-semibold rounded-2xl transition-colors ${
-                  workflow.status === "active"
-                    ? "bg-[var(--color-danger)] text-white hover:opacity-90"
-                    : "text-white hover:opacity-90"
-                }`}
-                style={workflow.status !== "active" ? { background: "linear-gradient(135deg, #a78bfa, #e879f9)", boxShadow: "0 4px 16px rgba(168,130,255,0.3)" } : {}}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "16px 20px", fontSize: 14, fontWeight: 700, color: "white", borderRadius: 16, cursor: "pointer", border: "none",
+                  background: workflow.status === "active" ? "var(--color-danger)" : "linear-gradient(135deg, #a78bfa, #e879f9)",
+                  boxShadow: workflow.status !== "active" ? "0 4px 20px rgba(168,130,255,0.35)" : "none",
+                }}
               >
                 <Play className="w-4 h-4" />
                 {workflow.status === "active" ? "Deactivate" : "Activate"}
