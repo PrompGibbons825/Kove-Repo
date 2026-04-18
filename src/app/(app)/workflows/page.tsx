@@ -408,121 +408,113 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  // Two overlapping triangles: upper triangle points down-right, lower triangle points up-left
-  // Upper: top-center → mid-left → mid-right  (pointing down)
-  // Lower: mid-left → mid-right → bottom-center (pointing down)
-  // Offset so they connect at a diagonal seam
-  const boltClip = "polygon(50% 0%, 15% 48%, 55% 40%, 85% 52%, 50% 100%, 45% 60%)";
+  const bolt = "M50 8 L75 55 L55 55 L65 108 L30 50 L45 50 Z";
+  const boltInner = "M50 14 L71 53 L54 53 L63 102 L34 52 L47 52 Z";
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto cursor-pointer"
-      style={{ width: 240, height: 280, perspective: 600 }}
+      style={{ width: 280, height: 280, perspective: 600 }}
     >
-      {/* Far ambient glow */}
+      {/* Ambient glow behind everything */}
       <div
         className="absolute rounded-full transition-opacity duration-1000"
         style={{
-          inset: "-80%",
-          filter: "blur(100px)",
-          opacity: mouse.active ? 0.5 : 0.3,
-          background: "radial-gradient(circle, rgba(139,92,246,0.5) 0%, rgba(99,102,241,0.25) 30%, rgba(232,121,249,0.12) 55%, transparent 75%)",
+          inset: "-60%",
+          filter: "blur(90px)",
+          opacity: mouse.active ? 0.55 : 0.3,
+          background: "radial-gradient(circle, rgba(0,229,255,0.3) 0%, rgba(139,92,246,0.25) 30%, rgba(255,119,255,0.15) 55%, transparent 75%)",
         }}
       />
-      {/* Mid glow ring */}
+      {/* Mid glow */}
       <div
         className="absolute rounded-full transition-opacity duration-700"
         style={{
-          inset: "-45%",
+          inset: "-30%",
           filter: "blur(50px)",
-          opacity: mouse.active ? 0.65 : 0.4,
-          background: "radial-gradient(circle, rgba(168,130,255,0.6) 0%, rgba(192,132,252,0.3) 35%, rgba(120,200,255,0.15) 55%, transparent 70%)",
-        }}
-      />
-      {/* Close hot glow */}
-      <div
-        className="absolute rounded-full transition-opacity duration-500"
-        style={{
-          inset: "-15%",
-          filter: "blur(25px)",
-          opacity: mouse.active ? 0.7 : 0.45,
-          background: "radial-gradient(circle, rgba(232,121,249,0.4) 0%, rgba(139,92,246,0.25) 50%, transparent 75%)",
+          opacity: mouse.active ? 0.6 : 0.35,
+          background: "radial-gradient(circle, rgba(0,229,255,0.4) 0%, rgba(168,130,255,0.3) 40%, transparent 70%)",
           animation: "orbPulse 4s ease-in-out infinite",
         }}
       />
-      {/* Bolt body — clipped liquid shape */}
-      <div
-        className="absolute overflow-hidden"
+
+      {/* The SVG bolt */}
+      <svg
+        viewBox="0 0 100 120"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute inset-0 w-full h-full"
         style={{
-          inset: "5% 10%",
-          clipPath: boltClip,
+          overflow: "visible",
+          filter: "drop-shadow(0 0 12px rgba(0,229,255,0.4)) drop-shadow(0 0 30px rgba(255,119,255,0.2))",
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
           transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
           animation: "orbFloat 6s ease-in-out infinite",
         }}
       >
-        {/* Spinning gradient base */}
-        <div
-          className="absolute inset-[-20%]"
-          style={{
-            background: "conic-gradient(from 0deg, #c084fc, #818cf8, #67e8f9, #a78bfa, #f0abfc, #c084fc)",
-            filter: "blur(18px)",
-            animation: "orbSpin 8s linear infinite",
-          }}
+        <defs>
+          {/* Electric glow filter with turbulence distortion */}
+          <filter id="electric-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="3" result="noise">
+              <animate attributeName="seed" from="0" to="100" dur="4s" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" result="distorted" />
+            <feGaussianBlur in="distorted" stdDeviation="6" result="blueBlur" />
+            <feColorMatrix in="blueBlur" type="matrix" values="0 0 0 0 0  0 1 0 0 0.8  0 0 1 0 1  0 0 0 1 0" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="pinkBlur" />
+            <feColorMatrix in="pinkBlur" type="matrix" values="1 0 0 0 1  0 0 0 0 0  0 0 1 0 1  0 0 0 1.5 0" />
+            <feMerge>
+              <feMergeNode in="blueBlur" />
+              <feMergeNode in="pinkBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          {/* Gradient: pink top → cyan bottom */}
+          <linearGradient id="wfBoltGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ff77ff" />
+            <stop offset="50%" stopColor="#c084fc" />
+            <stop offset="100%" stopColor="#00e5ff" />
+          </linearGradient>
+
+          {/* Lighter gradient for inner core */}
+          <linearGradient id="wfBoltCore" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffd6ff" />
+            <stop offset="100%" stopColor="#b3f5ff" />
+          </linearGradient>
+        </defs>
+
+        {/* Aura layer — distorted electric glow */}
+        <path
+          d={bolt}
+          fill="url(#wfBoltGrad)"
+          filter="url(#electric-glow)"
+          opacity="0.7"
+          style={{ animation: "boltFlicker 3s infinite alternate ease-in-out" }}
         />
-        {/* Counter-rotating inner */}
-        <div
-          className="absolute inset-[-10%]"
-          style={{
-            background: "conic-gradient(from 180deg, #e879f9, #6366f1, #22d3ee, #a855f7, #e879f9)",
-            filter: "blur(14px)",
-            opacity: 0.8,
-            animation: "orbSpin 12s linear infinite reverse",
-          }}
+
+        {/* Main bolt body */}
+        <path
+          d={bolt}
+          fill="url(#wfBoltGrad)"
+          style={{ animation: "boltFlicker 3s infinite alternate ease-in-out" }}
         />
-        {/* Caustic ripple */}
-        <div
-          className="absolute inset-[-5%]"
-          style={{
-            background: "conic-gradient(from 90deg, transparent 0%, rgba(255,255,255,0.08) 10%, transparent 20%, rgba(255,255,255,0.05) 35%, transparent 45%, rgba(255,255,255,0.1) 55%, transparent 65%, rgba(255,255,255,0.06) 80%, transparent 90%)",
-            animation: "orbSpin 6s linear infinite",
-            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
-          }}
+
+        {/* White-hot inner core */}
+        <path
+          d={boltInner}
+          fill="url(#wfBoltCore)"
+          opacity="0.75"
         />
-        {/* Specular highlight — follows mouse */}
-        <div
-          className="absolute"
-          style={{
-            width: "60%", height: "40%", top: "5%", left: "15%",
-            background: "radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.1) 40%, transparent 70%)",
-            filter: "blur(8px)",
-            transform: "translate(calc(var(--mx,0) * 12px), calc(var(--my,0) * 6px))",
-            transition: "transform 0.3s ease-out",
-          }}
+
+        {/* Bright white center for depth */}
+        <path
+          d={boltInner}
+          fill="white"
+          opacity="0.3"
+          style={{ animation: "boltFlicker 2s infinite alternate ease-in-out", animationDelay: "-0.5s" }}
         />
-        {/* Glass refraction */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 35% 25%, rgba(255,255,255,0.3) 0%, transparent 50%)" }} />
-        {/* Pulsing inner glow */}
-        <div className="absolute" style={{ inset: "15%", background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 60%)", animation: "orbPulse 3s ease-in-out infinite" }} />
-        {/* Translucent shell depth */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 38% 28%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.04) 55%, transparent 70%)" }} />
-        {/* Wisps sweeping ACROSS the bolt surface — clipped by the bolt shape */}
-        <div className="absolute inset-[-30%] overflow-hidden" style={{ animation: "orbSpin 18s linear infinite" }}>
-          <div className="absolute" style={{ width: "80%", height: "20%", top: "15%", left: "-10%", background: "radial-gradient(ellipse, rgba(255,255,255,0.2) 0%, transparent 65%)", filter: "blur(12px)" }} />
-          <div className="absolute" style={{ width: "70%", height: "25%", top: "50%", right: "-15%", background: "radial-gradient(ellipse, rgba(255,255,255,0.15) 0%, transparent 65%)", filter: "blur(14px)" }} />
-          <div className="absolute" style={{ width: "60%", height: "18%", top: "75%", left: "5%", background: "radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 60%)", filter: "blur(10px)" }} />
-        </div>
-        <div className="absolute inset-[-30%] overflow-hidden" style={{ animation: "orbSpin 26s linear infinite reverse" }}>
-          <div className="absolute" style={{ width: "75%", height: "22%", top: "10%", right: "0%", background: "radial-gradient(ellipse, rgba(192,132,252,0.15) 0%, transparent 65%)", filter: "blur(14px)" }} />
-          <div className="absolute" style={{ width: "65%", height: "20%", bottom: "20%", left: "-10%", background: "radial-gradient(ellipse, rgba(168,130,255,0.18) 0%, transparent 60%)", filter: "blur(12px)" }} />
-        </div>
-        {/* Faster small wisps for sparkle */}
-        <div className="absolute inset-[-20%] overflow-hidden" style={{ animation: "orbSpin 10s linear infinite" }}>
-          <div className="absolute" style={{ width: "40%", height: "12%", top: "30%", left: "10%", background: "radial-gradient(ellipse, rgba(255,255,255,0.25) 0%, transparent 60%)", filter: "blur(6px)" }} />
-          <div className="absolute" style={{ width: "35%", height: "10%", top: "60%", right: "5%", background: "radial-gradient(ellipse, rgba(103,232,249,0.2) 0%, transparent 60%)", filter: "blur(8px)" }} />
-        </div>
-      </div>
+      </svg>
     </div>
   );
 }

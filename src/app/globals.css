@@ -170,3 +170,9 @@ body {
   0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
   50% { transform: translateY(-6px) scale(1.2); opacity: 0.9; }
 }
+
+@keyframes boltFlicker {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+  95% { opacity: 0.8; }
+}
