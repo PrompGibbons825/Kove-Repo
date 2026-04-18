@@ -299,21 +299,30 @@ const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
   ],
 };
 
-/* ─── Storage helpers ─── */
+/* ─── API helpers ─── */
 
-const WF_KEY = "kove_workflows";
-
-function loadWorkflows(): Workflow[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(WF_KEY) || "[]");
-  } catch {
-    return [];
-  }
+function dbToWorkflow(row: Record<string, unknown>): Workflow {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    nodes: (row.nodes as WorkflowNode[]) ?? [],
+    edges: (row.edges as WorkflowEdge[]) ?? [],
+    status: (row.status as "draft" | "active") ?? "draft",
+    createdAt: new Date(row.created_at as string).getTime(),
+    updatedAt: new Date((row.updated_at ?? row.created_at) as string).getTime(),
+  };
 }
-function saveWorkflows(wfs: Workflow[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(WF_KEY, JSON.stringify(wfs));
+
+async function apiFetch(path: string, opts?: RequestInit) {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? res.statusText);
+  }
+  return res.json();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -326,51 +335,45 @@ export default function WorkflowsPage() {
   const [activeWfId, setActiveWfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Load from Supabase via API
   useEffect(() => {
-    setWorkflows(loadWorkflows());
-    setLoading(false);
+    apiFetch("/api/workflows")
+      .then((d) => setWorkflows((d.workflows ?? []).map(dbToWorkflow)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
-
-  function persist(wfs: Workflow[]) {
-    setWorkflows(wfs);
-    saveWorkflows(wfs);
-  }
 
   function openBuilder(id: string) {
     setActiveWfId(id);
     setView("builder");
   }
 
-  function createWorkflow(name: string) {
-    const wf: Workflow = {
-      id: crypto.randomUUID(),
-      name,
-      nodes: [],
-      edges: [],
-      status: "draft",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    persist([wf, ...workflows]);
+  async function createWorkflow(name: string) {
+    const data = await apiFetch("/api/workflows", {
+      method: "POST",
+      body: JSON.stringify({ name, nodes: [], edges: [], status: "draft" }),
+    });
+    const wf = dbToWorkflow(data.workflow);
+    setWorkflows((prev) => [wf, ...prev]);
     openBuilder(wf.id);
   }
 
-  function deleteWorkflow(id: string) {
-    persist(workflows.filter((w) => w.id !== id));
+  async function deleteWorkflow(id: string) {
+    setWorkflows((prev) => prev.filter((w) => w.id !== id));
+    await apiFetch("/api/workflows", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
   }
 
-  function createFromTemplate(name: string) {
+  async function createFromTemplate(name: string) {
     const tpl = TEMPLATE_WORKFLOWS[name];
-    const wf: Workflow = {
-      id: crypto.randomUUID(),
-      name,
-      nodes: tpl?.nodes ?? [],
-      edges: tpl?.edges ?? [],
-      status: "draft",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    persist([wf, ...workflows]);
+    const data = await apiFetch("/api/workflows", {
+      method: "POST",
+      body: JSON.stringify({ name, nodes: tpl?.nodes ?? [], edges: tpl?.edges ?? [], status: "draft" }),
+    });
+    const wf = dbToWorkflow(data.workflow);
+    setWorkflows((prev) => [wf, ...prev]);
     openBuilder(wf.id);
   }
 
@@ -379,26 +382,31 @@ export default function WorkflowsPage() {
     function handler(e: Event) {
       const name = (e as CustomEvent).detail?.name as string | undefined;
       if (!name) return;
-      const tpl = TEMPLATE_WORKFLOWS[name];
-      const wf: Workflow = {
-        id: crypto.randomUUID(),
-        name,
-        nodes: tpl?.nodes ?? [],
-        edges: tpl?.edges ?? [],
-        status: "draft",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      setWorkflows((prev) => { const next = [wf, ...prev]; saveWorkflows(next); return next; });
-      setActiveWfId(wf.id);
-      setView("builder");
+      createFromTemplate(name);
     }
     window.addEventListener("workflow-use-template", handler);
     return () => window.removeEventListener("workflow-use-template", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function updateWorkflow(updated: Workflow) {
-    persist(workflows.map((w) => (w.id === updated.id ? updated : w)));
+  async function updateWorkflow(updated: Workflow) {
+    // Optimistic update
+    setWorkflows((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    await apiFetch("/api/workflows", {
+      method: "PATCH",
+      body: JSON.stringify({
+        id: updated.id,
+        name: updated.name,
+        nodes: updated.nodes,
+        edges: updated.edges,
+        status: updated.status,
+      }),
+    }).catch(() => {
+      // If save fails, reload from server to restore true state
+      apiFetch("/api/workflows")
+        .then((d) => setWorkflows((d.workflows ?? []).map(dbToWorkflow)))
+        .catch(() => {});
+    });
   }
 
   const activeWf = workflows.find((w) => w.id === activeWfId) ?? null;
