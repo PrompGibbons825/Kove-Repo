@@ -27,12 +27,13 @@ export function assembleSystemPrompt(
   pageContext: PageContext,
   relevantContacts?: string[],
   relevantActivities?: string[],
-  workflows?: Array<{ id: string; name: string; description: string | null; status: string }>
+  workflows?: Array<{ id: string; name: string; description: string | null; status: string }>,
+  tasks?: Array<{ id: string; type: string; title: string | null; status: string; due_at: string | null; contact_id: string | null; assigned_to: string | null; notes: string | null }>
 ): string {
   const layers: string[] = [];
 
   // Layer 1 — Base identity
-  layers.push(buildBasePrompt(user, org));
+  layers.push(buildBasePrompt(user, org, permissions));
 
   // Layer 2 — Business context (scoped to permissions)
   layers.push(buildBusinessContext(org, permissions));
@@ -41,22 +42,38 @@ export function assembleSystemPrompt(
   layers.push(buildIndividualContext(user));
 
   // Layer 4 — Current page context + vector-retrieved data
-  layers.push(buildPageContext(pageContext, relevantContacts, relevantActivities, workflows));
+  layers.push(buildPageContext(pageContext, relevantContacts, relevantActivities, workflows, tasks));
 
   return layers.join("\n\n---\n\n");
 }
 
-function buildBasePrompt(user: User, org: Organization): string {
+function buildBasePrompt(user: User, org: Organization, permissions: PermissionSet): string {
+  const canDo: string[] = [];
+  if (permissions.edit_contacts) canDo.push("edit contacts");
+  if (permissions.create_contacts) canDo.push("create contacts");
+  if (permissions.delete_contacts) canDo.push("delete contacts");
+  if (permissions.assign_contacts) canDo.push("assign contacts");
+  if (permissions.create_workflows) canDo.push("create/modify workflows");
+  if (permissions.view_all_contacts) canDo.push("view all contacts (not just assigned)");
+  if (permissions.view_all_activities) canDo.push("view all activities");
+  if (permissions.view_team_analytics) canDo.push("view team analytics");
+  if (permissions.manage_users) canDo.push("manage team members");
+  if (permissions.configure_commissions) canDo.push("configure commission rules");
+  if (permissions.access_billing) canDo.push("access billing");
+
   return `You are the kove AI agent — a sales operating assistant for ${org.name}.
 You are speaking with ${user.full_name} (${user.is_owner ? "Owner" : "Team Member"}).
 Organization vertical: ${org.vertical}.
+
+This user's permissions allow them to: ${canDo.length > 0 ? canDo.join(", ") : "view their own contacts and activities only"}.
 
 Behavior rules:
 - Be direct. No filler. These are busy salespeople.
 - When suggesting actions (create task, reassign lead, draft message), present them as confirmable actions.
 - Never reveal information the user does not have permission to see.
 - Never reference another user's private AI context.
-- If asked about data outside the user's permission scope, say "I don't have access to that information for your role."`;
+- If asked about data outside the user's permission scope, say "I don't have access to that information for your role."
+- You have full read access to all data listed in context below. You can discuss, analyze, and act on it.`;
 }
 
 function buildBusinessContext(org: Organization, permissions: PermissionSet): string {
@@ -109,7 +126,8 @@ function buildPageContext(
   pageContext: PageContext,
   relevantContacts?: string[],
   relevantActivities?: string[],
-  workflows?: Array<{ id: string; name: string; description: string | null; status: string }>
+  workflows?: Array<{ id: string; name: string; description: string | null; status: string }>,
+  tasks?: Array<{ id: string; type: string; title: string | null; status: string; due_at: string | null; contact_id: string | null; assigned_to: string | null; notes: string | null }>
 ): string {
   const sections: string[] = [`## Current Context\nUser is on: ${pageContext.page}`];
 
@@ -169,7 +187,7 @@ I'll build a lead-capture follow-up workflow.
 The nodes are placed on the canvas — connect them by clicking the output port on the right of each node to the input port on the left of the next.
 
 ## Landing Page HTML Generation
-When the landing page panel is open (see LANDING PAGE CONTEXT below), you can generate or edit the landing page HTML.
+When a LANDING PAGE CONTEXT section appears in this prompt, you have access to the landing page for this workflow and can generate or edit its HTML.
 To create or update the landing page, output a fenced \`\`\`html code block containing the FULL HTML page.
 
 RULES for landing page HTML:
@@ -206,6 +224,14 @@ If the LANDING PAGE CONTEXT section is NOT present, the user does not have the l
   if (workflows && workflows.length > 0) {
     const wfList = workflows.map((w) => `- ${w.name} [${w.status}]${w.description ? `: ${w.description}` : ""} (id: ${w.id})`).join("\n");
     sections.push(`## Available Workflows\n${wfList}`);
+  }
+
+  if (tasks && tasks.length > 0) {
+    const taskList = tasks.map((t) => {
+      const due = t.due_at ? new Date(t.due_at).toLocaleDateString() : "no due date";
+      return `- [${t.status}] ${t.title ?? t.type} (due: ${due})${t.notes ? ` | ${t.notes}` : ""}`;
+    }).join("\n");
+    sections.push(`## Tasks\n${taskList}`);
   }
 
   return sections.join("\n\n");

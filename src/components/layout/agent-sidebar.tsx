@@ -283,7 +283,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
           `Slug: ${lpBuilder.state.slug || "(none set)"}\n` +
           `Brand assets: ${lpBuilder.state.brandAssets.length > 0 ? lpBuilder.state.brandAssets.map(a => `${a.type}: ${a.name} (${a.url})`).join(", ") : "(none)"}\n` +
           `Current HTML: ${lpBuilder.state.html ? `${lpBuilder.state.html.length} chars of HTML exist` : "(no HTML yet — page not generated)"}\n` +
-          (lpBuilder.state.html ? `\nCurrent HTML (first 3000 chars):\n${lpBuilder.state.html.slice(0, 3000)}${lpBuilder.state.html.length > 3000 ? "\n... (truncated)" : ""}` : "")
+          (lpBuilder.state.html ? `\nCurrent HTML (full):\n${lpBuilder.state.html}` : "")
         : "";
 
       const wfPageContext = isWfMode
@@ -358,7 +358,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
         let htmlMatch;
         while ((htmlMatch = htmlRegex.exec(rawContent)) !== null) {
           const generatedHtml = htmlMatch[1].trim();
-          if (generatedHtml && isLpMode) {
+          if (generatedHtml && (isLpMode || hasLpNode)) {
             lpBuilder.setHtml(generatedHtml);
           }
         }

@@ -46,6 +46,18 @@ export async function POST(request: Request) {
       .select("id, name, description, status")
       .eq("org_id", koveUser.org_id);
 
+    // Fetch tasks (scoped to user unless they can view all)
+    const taskQuery = supabase
+      .from("tasks")
+      .select("id, type, title, status, due_at, contact_id, assigned_to, notes")
+      .eq("org_id", koveUser.org_id)
+      .order("due_at", { ascending: true })
+      .limit(30);
+    if (!permissions.view_all_contacts) {
+      taskQuery.eq("assigned_to", koveUser.id);
+    }
+    const { data: tasks } = await taskQuery;
+
     // Always fetch recent contacts to give Claude real data
     const contactQuery = supabase
       .from("contacts")
@@ -122,7 +134,8 @@ export async function POST(request: Request) {
       pageContext ?? { page: "unknown" },
       relevantContacts,
       relevantActivities,
-      workflows ?? []
+      workflows ?? [],
+      tasks ?? []
     );
 
     // Call Anthropic Claude
