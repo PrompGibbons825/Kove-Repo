@@ -282,13 +282,19 @@ const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
     { key: "email", label: "Email", type: "text", placeholder: "{{payload.email}}" },
     { key: "phone", label: "Phone", type: "text", placeholder: "{{payload.phone}}" },
     { key: "company", label: "Company", type: "text", placeholder: "{{payload.company}}" },
-    { key: "source", label: "Source", type: "text", placeholder: "e.g. webhook, facebook-ad, trade-show" },
+    // source and pipeline_stage options are injected dynamically from org settings at render time
+    { key: "source", label: "Source", type: "select", options: [] },
+    { key: "pipeline_stage", label: "Pipeline Stage", type: "select", options: [] },
     { key: "tags", label: "Tags", type: "text", placeholder: "lead, vip (comma-separated)" },
     { key: "status", label: "Status", type: "select", options: [
+      { value: "", label: "— none —" },
       { value: "new", label: "New" },
-      { value: "contacted", label: "Contacted" },
+      { value: "qualifying", label: "Qualifying" },
       { value: "qualified", label: "Qualified" },
-      { value: "customer", label: "Customer" },
+      { value: "closing", label: "Closing" },
+      { value: "won", label: "Won" },
+      { value: "lost", label: "Lost" },
+      { value: "renewal", label: "Renewal" },
     ]},
     { key: "on_conflict", label: "If Contact Exists", type: "select", options: [
       { value: "update", label: "Update existing" },
@@ -1233,6 +1239,7 @@ function WorkflowBuilder({
   const [showLpPanel, setShowLpPanel] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [orgSources, setOrgSources] = useState<string[]>([]);
+  const [orgPipelines, setOrgPipelines] = useState<string[]>([]);
   const [orgCustomFields, setOrgCustomFields] = useState<{ id: string; label: string; type: string }[]>([]);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -1245,6 +1252,7 @@ function WorkflowBuilder({
       .then((r) => r.json())
       .then((d) => {
         setOrgSources(d.source_options ?? []);
+        setOrgPipelines(d.pipeline_options ?? []);
         setOrgCustomFields(d.custom_field_schema ?? []);
       })
       .catch(() => {});
@@ -1881,11 +1889,14 @@ function WorkflowBuilder({
           // Inject live org sources into the new-contact source dropdown
           // Inject custom fields into create-contact node
           const fields = rawFields.map((f) => {
-            if (selectedNode.type === "new-contact" && f.key === "source" && orgSources.length > 0) {
+            if (selectedNode.type === "new-contact" && f.key === "source") {
               return { ...f, options: [{ value: "", label: "Any source" }, ...orgSources.map((s) => ({ value: s, label: s }))] };
             }
-            if (selectedNode.type === "create-contact" && f.key === "source" && orgSources.length > 0) {
+            if (selectedNode.type === "create-contact" && f.key === "source") {
               return { ...f, type: "select" as const, options: [{ value: "", label: "— none —" }, ...orgSources.map((s) => ({ value: s, label: s }))] };
+            }
+            if (selectedNode.type === "create-contact" && f.key === "pipeline_stage") {
+              return { ...f, type: "select" as const, options: [{ value: "", label: "— none —" }, ...orgPipelines.map((p) => ({ value: p, label: p }))] };
             }
             return f;
           });

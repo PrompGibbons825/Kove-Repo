@@ -312,7 +312,8 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
       const phone = interpolate(cfg.phone ?? "") || null;
       const company = interpolate(cfg.company ?? "") || null;
       const source = interpolate(cfg.source ?? "") || null;
-      const status = cfg.status || "new";
+      const pipelineStage = interpolate(cfg.pipeline_stage ?? "") || null;
+      const status = (cfg.status || null) as string | null;
       const onConflict = cfg.on_conflict || "update";
 
       if (!email && !phone) return "skipped: no email or phone to identify contact";
@@ -334,10 +335,11 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
         name,
         email,
         phone,
-        status,
       };
+      if (status) payload.status = status;
       if (company) payload.company = company;
       if (source) payload.source = source;
+      if (pipelineStage) payload.pipeline_stage = pipelineStage;
 
       // Add tags if specified
       const tagsRaw = interpolate(cfg.tags ?? "");
