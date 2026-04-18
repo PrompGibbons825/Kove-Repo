@@ -1210,6 +1210,7 @@ function WorkflowBuilder({
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
 
   // Load org sources so the New Contact trigger can filter by them
   useEffect(() => {
@@ -1218,6 +1219,21 @@ function WorkflowBuilder({
       .then((d) => setOrgSources(d.source_options ?? []))
       .catch(() => {});
   }, []);
+  // Non-passive wheel listener for pinch-to-zoom / Ctrl+scroll zoom
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        setZoom((prev) => Math.min(2.5, Math.max(0.25, prev * (e.deltaY < 0 ? 1.1 : 1 / 1.1))));
+      }
+    };
+    canvas.addEventListener("wheel", handler, { passive: false });
+    return () => canvas.removeEventListener("wheel", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [showTip, setShowTip] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [nodeSearch, setNodeSearch] = useState("");
@@ -1336,7 +1352,11 @@ function WorkflowBuilder({
     const def = NODE_CATALOG.find((n) => n.type === type);
     if (!def || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    addNode(def, e.clientX - rect.left - 100, e.clientY - rect.top - 28);
+    addNode(
+      def,
+      (e.clientX - rect.left) / zoom + canvasRef.current.scrollLeft - 100,
+      (e.clientY - rect.top) / zoom + canvasRef.current.scrollTop - 28,
+    );
   }
 
   function handleNodeMouseDown(id: string, e: RMouseEvent) {
@@ -1348,8 +1368,8 @@ function WorkflowBuilder({
     // Store offset as cursor position relative to canvas, minus the node's current canvas position
     setDragging(id);
     setDragOffset({
-      x: (e.clientX - rect.left + canvasRef.current.scrollLeft) - node.x,
-      y: (e.clientY - rect.top + canvasRef.current.scrollTop) - node.y,
+      x: (e.clientX - rect.left) / zoom + canvasRef.current.scrollLeft - node.x,
+      y: (e.clientY - rect.top) / zoom + canvasRef.current.scrollTop - node.y,
     });
   }
 
@@ -1358,8 +1378,8 @@ function WorkflowBuilder({
     const rect = canvasRef.current.getBoundingClientRect();
     moveNode(
       dragging,
-      (e.clientX - rect.left + canvasRef.current.scrollLeft) - dragOffset.x,
-      (e.clientY - rect.top + canvasRef.current.scrollTop) - dragOffset.y,
+      (e.clientX - rect.left) / zoom + canvasRef.current.scrollLeft - dragOffset.x,
+      (e.clientY - rect.top) / zoom + canvasRef.current.scrollTop - dragOffset.y,
     );
   }
 
@@ -1399,8 +1419,8 @@ function WorkflowBuilder({
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       setMousePos({
-        x: e.clientX - rect.left + canvasRef.current.scrollLeft,
-        y: e.clientY - rect.top + canvasRef.current.scrollTop,
+        x: (e.clientX - rect.left) / zoom + canvasRef.current.scrollLeft,
+        y: (e.clientY - rect.top) / zoom + canvasRef.current.scrollTop,
       });
     }
     handleCanvasMouseMove(e);
@@ -1584,8 +1604,6 @@ function WorkflowBuilder({
           ref={canvasRef}
           className="flex-1 relative overflow-auto"
           style={{
-            backgroundImage: "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
             backgroundColor: "var(--color-background)",
             cursor: connecting ? "crosshair" : "default",
           }}
@@ -1595,6 +1613,22 @@ function WorkflowBuilder({
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
         >
+          {/* Zoom controls */}
+          <div className="absolute bottom-4 right-4 z-40 flex items-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-sm overflow-hidden">
+            <button
+              onClick={() => setZoom((z) => Math.max(0.25, z / 1.2))}
+              className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            >−</button>
+            <button
+              onClick={() => setZoom(1)}
+              className="px-3 py-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors border-x border-[var(--color-border)] tabular-nums min-w-[52px] text-center"
+            >{Math.round(zoom * 100)}%</button>
+            <button
+              onClick={() => setZoom((z) => Math.min(2.5, z * 1.2))}
+              className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            >+</button>
+          </div>
+
           {/* AI tip */}
           {showTip && nodes.length === 0 && (
             <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-start gap-3 p-4 bg-[var(--color-surface)] border border-[var(--color-accent)]/20 rounded-xl shadow-lg max-w-sm z-20">
@@ -1623,6 +1657,8 @@ function WorkflowBuilder({
             </div>
           )}
 
+          {/* Scaled inner canvas — all node/edge content lives here */}
+          <div style={{ position: "relative", width: 4000, height: 3000, transformOrigin: "0 0", transform: `scale(${zoom})`, backgroundImage: "radial-gradient(circle, var(--color-border) 1px, transparent 1px)", backgroundSize: "28px 28px" }}>
           {/* SVG layer: edges + live connection line */}
           <svg
             className="absolute inset-0 pointer-events-none z-0"
@@ -1769,6 +1805,7 @@ function WorkflowBuilder({
               onClick={() => { setConnecting(null); setSelectedNodeId(null); }}
             />
           )}
+          </div>{/* end scaled inner canvas */}
         </div>
 
         {/* ── Landing page inline panel (always mounted when LP node exists so autosave works) ── */}
@@ -1796,8 +1833,19 @@ function WorkflowBuilder({
           );
         })()}
 
+        {/* ── Email editor panel ── */}
+        {selectedNode?.type === "send-email" && (
+          <EmailEditor
+            node={selectedNode}
+            onUpdateNode={(key, val) => updateNodeConfig(selectedNode.id, key, val)}
+            onRenameNode={(label) => onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label } : n), updatedAt: Date.now() })}
+            onDeleteNode={() => { removeNode(selectedNode.id); setSelectedNodeId(null); }}
+            onClose={() => setSelectedNodeId(null)}
+          />
+        )}
+
         {/* ── Node config panel ── */}
-        {selectedNode && !showLpPanel && (() => {
+        {selectedNode && !showLpPanel && selectedNode.type !== "send-email" && (() => {
           const def = getNodeDef(selectedNode.type);
           const rawFields = NODE_CONFIG_FIELDS[selectedNode.type] ?? [];
           // Inject live org sources into the new-contact source dropdown
@@ -1885,6 +1933,127 @@ function WorkflowBuilder({
             </div>
           );
         })()}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   Email Editor panel
+   ═══════════════════════════════════════════════════════ */
+
+function EmailEditor({
+  node,
+  onUpdateNode,
+  onRenameNode,
+  onDeleteNode,
+  onClose,
+}: {
+  node: WorkflowNode;
+  onUpdateNode: (key: string, val: string) => void;
+  onRenameNode: (label: string) => void;
+  onDeleteNode: () => void;
+  onClose: () => void;
+}) {
+  const cfg = (node.config ?? {}) as Record<string, string>;
+  const isHtml = cfg.is_html === "true";
+
+  return (
+    <div style={{ width: 340, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", color: "white", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}>
+          <Mail className="w-4 h-4" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <input
+            type="text"
+            value={node.label}
+            onChange={(e) => onRenameNode(e.target.value)}
+            style={{ width: "100%", fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", background: "none", border: "none", outline: "none", padding: 0, lineHeight: 1.2 }}
+          />
+          <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>Send an email to a contact</p>
+        </div>
+        <button onClick={onClose} style={{ padding: 6, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}>
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Body — scrollable */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* To */}
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>To</label>
+          <input
+            type="text"
+            value={cfg.to ?? ""}
+            onChange={(e) => onUpdateNode("to", e.target.value)}
+            placeholder="{{contact.email}} or specific address"
+            style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+
+        {/* Subject */}
+        <div>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Subject</label>
+          <input
+            type="text"
+            value={cfg.subject ?? ""}
+            onChange={(e) => onUpdateNode("subject", e.target.value)}
+            placeholder="Email subject line"
+            style={{ width: "100%", padding: "10px 12px", fontSize: 13, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+
+        {/* Body */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Body</label>
+            <button
+              onClick={() => onUpdateNode("is_html", isHtml ? "false" : "true")}
+              style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 8, border: "1px solid var(--color-border)", background: isHtml ? "var(--color-accent-soft, rgba(99,102,241,0.1))" : "var(--color-surface-hover)", color: isHtml ? "var(--color-accent)" : "var(--color-text-secondary)", cursor: "pointer" }}
+            >
+              {isHtml ? "HTML ✓" : "Plain Text"}
+            </button>
+          </div>
+          <textarea
+            value={isHtml ? (cfg.body_html ?? "") : (cfg.body ?? "")}
+            onChange={(e) => onUpdateNode(isHtml ? "body_html" : "body", e.target.value)}
+            placeholder={isHtml ? "<h1>Hello {{contact.name}}</h1>\n<p>Your message here…</p>" : "Write your email content…"}
+            rows={isHtml ? 10 : 6}
+            style={{ width: "100%", padding: "10px 12px", fontSize: 12, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", resize: "vertical", fontFamily: isHtml ? "ui-monospace, SFMono-Regular, Menlo, monospace" : "inherit", boxSizing: "border-box", lineHeight: 1.6 }}
+          />
+        </div>
+
+        {/* HTML Preview */}
+        {isHtml && cfg.body_html && (
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Preview</label>
+            <iframe
+              srcDoc={cfg.body_html}
+              sandbox="allow-same-origin"
+              style={{ width: "100%", height: 220, border: "1px solid var(--color-border)", borderRadius: 12, background: "#fff" }}
+            />
+          </div>
+        )}
+
+        {/* Variable hint */}
+        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", background: "var(--color-surface-hover)", padding: "10px 12px", borderRadius: 10, lineHeight: 1.7 }}>
+          <strong style={{ color: "var(--color-text-secondary)" }}>Available variables</strong><br />
+          {"{{contact.name}}  {{contact.email}}  {{contact.phone}}  {{contact.company}}"}.
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: 14, borderTop: "1px solid var(--color-border)", flexShrink: 0 }}>
+        <button
+          onClick={onDeleteNode}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px 16px", fontSize: 13, fontWeight: 600, color: "var(--color-danger)", background: "var(--color-danger-soft, rgba(239,68,68,0.08))", border: "1px solid transparent", borderRadius: 12, cursor: "pointer" }}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete Node
+        </button>
       </div>
     </div>
   );

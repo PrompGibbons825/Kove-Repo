@@ -156,7 +156,7 @@ TRIGGERS (start the workflow):
 - schedule | "Schedule" — fires on a recurring schedule
 
 ACTIONS (do something):
-- send-email | "Send Email" — send an email to the contact
+- send-email | "Send Email" — send an email to the contact (config: to, subject, body for plain text; set is_html="true" + body_html for HTML emails)
 - send-sms | "Send SMS" — send a text message
 - assign-task | "Create Task" — create a follow-up task
 - notify-team | "Notify Team" — alert the team
