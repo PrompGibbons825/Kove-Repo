@@ -35,6 +35,11 @@ import {
   Upload,
   Code2,
   Check,
+  BarChart2,
+  Activity,
+  AlertCircle,
+  TrendingUp,
+  LayoutGrid,
 } from "lucide-react";
 
 /* ─────────────────────── Types ─────────────────────── */
@@ -667,84 +672,172 @@ function WorkflowList({
     );
   }
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeTab, setActiveTab] = useState<"workflows" | "health">("workflows");
+
+  // Workflow colors palette
+  const WF_COLORS = ["#a78bfa", "#38bdf8", "#34d399", "#fb923c", "#f472b6", "#facc15"];
+
+  // Generate 14 days of mock execution data
+  const chartDays = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.now() - (13 - i) * 86400000);
+    return {
+      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      dayOfWeek: d.getDay(),
+      values: workflows.map((_, wIdx) => {
+        const base = wIdx % 2 === 0 ? 12 : 8;
+        const wave = Math.round(Math.sin((i + wIdx * 3) * 0.8) * 5 + base);
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        return Math.max(0, isWeekend ? Math.round(wave * 0.4) : wave);
+      }),
+    };
+  });
+
+  const maxVal = Math.max(...chartDays.flatMap((d) => d.values), 1);
+  const totalExecutions = chartDays.flatMap((d) => d.values).reduce((a, b) => a + b, 0);
+  const activeCount = workflows.filter((w) => w.status === "active").length;
+
+  // Mock errors
+  const mockErrors = workflows.slice(0, 2).map((wf, i) => ({
+    id: i,
+    workflow: wf.name,
+    msg: i === 0 ? "Step 3 timed out (>30s)" : "Webhook returned 422",
+    time: i === 0 ? "2h ago" : "5h ago",
+    color: WF_COLORS[i % WF_COLORS.length],
+  }));
+
   return (
-    <div className="flex flex-col items-center justify-center gap-10" style={{ minHeight: "calc(100vh - 80px)" }}>
-      {/* Bolt */}
-      <div style={{ marginLeft: 10 }}>
-        <LiquidBolt />
-      </div>
+    <div
+      ref={containerRef}
+      className="flex flex-col items-center overflow-y-auto"
+      style={{ height: "calc(100vh - 56px)", paddingBottom: 60 }}
+      onScroll={(e) => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 70)}
+    >
+      {/* ── Fade-away header ── */}
+      <div
+        className="flex flex-col items-center gap-8 pt-14 pb-6 w-full"
+        style={{
+          opacity: scrolled ? 0 : 1,
+          transform: scrolled ? "translateY(-18px) scale(0.97)" : "translateY(0) scale(1)",
+          transition: "opacity 0.18s ease, transform 0.18s ease",
+          pointerEvents: scrolled ? "none" : "auto",
+        }}
+      >
+        <div style={{ marginLeft: 10 }}>
+          <LiquidBolt />
+        </div>
+        <div className="text-center">
+          <h1 className="text-[24px] font-medium text-[var(--color-text-primary)]">Workflows</h1>
+          <p className="text-[14px] text-[var(--color-text-secondary)] mt-2">build · ship · automate</p>
+        </div>
 
-      {/* Title + subtitle */}
-      <div className="text-center">
-        <h1 className="text-[24px] font-medium text-[var(--color-text-primary)]">Workflows</h1>
-        <p className="text-[14px] text-[var(--color-text-secondary)] mt-2">build · ship · automate</p>
-      </div>
-
-      {/* Add new button */}
-      {namingMode ? (
-        <form
-          onSubmit={(e) => { e.preventDefault(); if (wfName.trim()) onCreateDirect(wfName.trim()); }}
-          style={{ display: "flex", alignItems: "center", gap: 16, width: 560 }}
-        >
-          <input
-            ref={nameInputRef}
-            type="text"
-            value={wfName}
-            onChange={(e) => setWfName(e.target.value)}
-            placeholder="Name your workflow..."
-            style={{ flex: 1, minWidth: 0, padding: "14px 20px", fontSize: 15, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 14, color: "var(--color-text-primary)", outline: "none", transition: "border-color 0.15s" }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--color-accent)")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
-          />
-          <button
-            type="submit"
-            disabled={!wfName.trim()}
-            style={{ flexShrink: 0, padding: "14px 28px", borderRadius: 14, fontSize: 14, fontWeight: 600, color: "white", background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)", cursor: "pointer", opacity: wfName.trim() ? 1 : 0.5, border: "none", whiteSpace: "nowrap" }}
+        {namingMode ? (
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (wfName.trim()) onCreateDirect(wfName.trim()); }}
+            style={{ display: "flex", alignItems: "center", gap: 16, width: 560 }}
           >
-            Open builder &rarr;
-          </button>
-        </form>
-      ) : (
-        <button
-          onClick={() => setNamingMode(true)}
-          className="flex items-center gap-2 text-[14px] font-semibold text-white rounded-full hover:scale-105 active:scale-100 transition-all cursor-pointer"
-          style={{
-            padding: "13px 32px",
-            background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)",
-            boxShadow: "0 4px 24px rgba(168,130,255,0.35)",
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          New workflow
-        </button>
-      )}
-
-      {/* Workflow cards */}
-      <div style={{ width: 560 }}>
-        <p className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-widest" style={{ marginBottom: 14 }}>
-          {workflows.length} workflow{workflows.length !== 1 ? "s" : ""}
-        </p>
-        <div className="flex flex-col gap-3">
-          {workflows.map((wf) => (
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={wfName}
+              onChange={(e) => setWfName(e.target.value)}
+              placeholder="Name your workflow..."
+              style={{ flex: 1, minWidth: 0, padding: "14px 20px", fontSize: 15, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 14, color: "var(--color-text-primary)", outline: "none", transition: "border-color 0.15s" }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--color-accent)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
+            />
             <button
-              key={wf.id}
-              onClick={() => onOpen(wf.id)}
-              className="group flex items-center gap-4 text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 cursor-pointer"
-              style={{ padding: "16px 20px" }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(99,102,241,0.3)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border)"; e.currentTarget.style.boxShadow = "none"; }}
+              type="submit"
+              disabled={!wfName.trim()}
+              style={{ flexShrink: 0, padding: "14px 28px", borderRadius: 14, fontSize: 14, fontWeight: 600, color: "white", background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)", cursor: "pointer", opacity: wfName.trim() ? 1 : 0.5, border: "none", whiteSpace: "nowrap" }}
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <Zap className="w-4 h-4 text-white" strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] truncate">{wf.name}</p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
-                  {wf.nodes.length} steps · Updated {new Date(wf.updatedAt).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+              Open builder &rarr;
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setNamingMode(true)}
+            className="flex items-center gap-2 text-[14px] font-semibold text-white rounded-full hover:scale-105 active:scale-100 transition-all cursor-pointer"
+            style={{ padding: "13px 32px", background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)" }}
+          >
+            <Plus className="w-4 h-4" />
+            New workflow
+          </button>
+        )}
+      </div>
+
+      {/* ── Sticky tab toggle ── */}
+      <div
+        className="flex items-center gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+        style={{
+          position: "sticky",
+          top: 12,
+          zIndex: 20,
+          padding: "5px",
+          marginBottom: 28,
+          boxShadow: scrolled ? "0 8px 32px rgba(0,0,0,0.14)" : "none",
+          transition: "box-shadow 0.2s ease",
+        }}
+      >
+        {(["workflows", "health"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="flex items-center gap-2 text-[13px] font-semibold rounded-xl transition-all cursor-pointer"
+            style={{
+              padding: "9px 20px",
+              background: activeTab === tab ? "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)" : "transparent",
+              color: activeTab === tab ? "#fff" : "var(--color-text-tertiary)",
+              boxShadow: activeTab === tab ? "0 2px 12px rgba(168,130,255,0.3)" : "none",
+            }}
+          >
+            {tab === "workflows" ? <LayoutGrid className="w-3.5 h-3.5" /> : <BarChart2 className="w-3.5 h-3.5" />}
+            {tab === "workflows" ? "Workflows" : "Health Monitor"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Workflows grid ── */}
+      {activeTab === "workflows" && (
+        <div style={{ width: 680 }}>
+          <p className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-widest" style={{ marginBottom: 14 }}>
+            {workflows.length} workflow{workflows.length !== 1 ? "s" : ""}
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            {workflows.map((wf, idx) => (
+              <button
+                key={wf.id}
+                onClick={() => onOpen(wf.id)}
+                className="group relative flex flex-col items-start text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 cursor-pointer"
+                style={{ padding: "20px 20px 16px" }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.12)"; e.currentTarget.style.borderColor = `${WF_COLORS[idx % WF_COLORS.length]}55`; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--color-border)"; }}
+              >
+                {/* Delete on hover */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(wf.id); }}
+                  className="absolute top-3 right-3 p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+
+                {/* Icon */}
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 shadow-sm"
+                  style={{ background: `linear-gradient(135deg, ${WF_COLORS[idx % WF_COLORS.length]}cc, ${WF_COLORS[(idx + 1) % WF_COLORS.length]}99)` }}
+                >
+                  <Zap className="w-4 h-4 text-white" strokeWidth={2} />
+                </div>
+
+                {/* Name */}
+                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] leading-tight mb-1 pr-5">{wf.name}</p>
+
+                {/* Meta */}
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mb-3">{wf.nodes.length} step{wf.nodes.length !== 1 ? "s" : ""}</p>
+
+                {/* Status badge */}
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold mt-auto ${
                   wf.status === "active"
                     ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
                     : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
@@ -752,18 +845,186 @@ function WorkflowList({
                   <span className={`w-1.5 h-1.5 rounded-full ${wf.status === "active" ? "bg-[var(--color-success)]" : "bg-[var(--color-text-tertiary)]"}`} />
                   {wf.status === "active" ? "Active" : "Draft"}
                 </span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(wf.id); }}
-                  className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-                <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors" />
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Health Monitor ── */}
+      {activeTab === "health" && (
+        <div style={{ width: 680 }} className="flex flex-col gap-5">
+
+          {/* AI customize hint */}
+          <div
+            className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] cursor-pointer"
+            style={{ padding: "14px 18px" }}
+            onClick={() => window.dispatchEvent(new CustomEvent("open-agent-sidebar", { detail: { context: "workflow-health" } }))}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(168,130,255,0.35)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border)"; }}
+          >
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #a78bfa, #e879f9)" }}>
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">Customize this dashboard</p>
+              <p className="text-[12px] text-[var(--color-text-tertiary)]">Ask the AI to add charts, metrics, or filters</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" />
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "Total executions", value: totalExecutions.toLocaleString(), icon: <Activity className="w-4 h-4" />, color: "#a78bfa" },
+              { label: "Active workflows", value: `${activeCount} / ${workflows.length}`, icon: <Zap className="w-4 h-4" />, color: "#34d399" },
+              { label: "Errors (7d)", value: `${mockErrors.length}`, icon: <AlertCircle className="w-4 h-4" />, color: mockErrors.length > 0 ? "#fb923c" : "#34d399" },
+            ].map((s) => (
+              <div key={s.label} className="flex flex-col gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "18px 20px" }}>
+                <div className="flex items-center gap-2" style={{ color: s.color }}>
+                  {s.icon}
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">{s.label}</span>
+                </div>
+                <p className="text-[28px] font-bold text-[var(--color-text-primary)] leading-none">{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Daily executions bar chart */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "22px 24px 18px" }}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Daily executions</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">Last 14 days · one bar per workflow</p>
+              </div>
+              {/* Legend */}
+              <div className="flex items-center gap-3 flex-wrap justify-end" style={{ maxWidth: 280 }}>
+                {workflows.map((wf, idx) => (
+                  <div key={wf.id} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
+                    <span className="text-[11px] text-[var(--color-text-tertiary)] truncate" style={{ maxWidth: 80 }}>{wf.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SVG bar chart */}
+            <div style={{ overflowX: "auto" }}>
+              <svg width={Math.max(632, chartDays.length * 46)} height={180} style={{ display: "block" }}>
+                {/* Y-axis grid lines */}
+                {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                  const y = 10 + (1 - frac) * 130;
+                  return (
+                    <g key={frac}>
+                      <line x1={28} x2={Math.max(632, chartDays.length * 46) - 4} y1={y} y2={y} stroke="var(--color-border)" strokeWidth={1} />
+                      <text x={24} y={y + 4} textAnchor="end" fontSize={9} fill="var(--color-text-tertiary)">{Math.round(frac * maxVal)}</text>
+                    </g>
+                  );
+                })}
+
+                {/* Bars */}
+                {chartDays.map((day, dIdx) => {
+                  const groupW = 42;
+                  const barW = workflows.length > 0 ? Math.min(14, Math.floor((groupW - 6) / workflows.length)) : 10;
+                  const groupX = 32 + dIdx * 46;
+                  return (
+                    <g key={day.label}>
+                      {day.values.map((val, wIdx) => {
+                        const barH = Math.max(2, (val / maxVal) * 130);
+                        const x = groupX + wIdx * (barW + 2);
+                        const y = 10 + 130 - barH;
+                        return (
+                          <rect
+                            key={wIdx}
+                            x={x}
+                            y={y}
+                            width={barW}
+                            height={barH}
+                            rx={3}
+                            fill={WF_COLORS[wIdx % WF_COLORS.length]}
+                            opacity={0.85}
+                          />
+                        );
+                      })}
+                      {/* X label */}
+                      <text
+                        x={groupX + ((workflows.length * (barW + 2)) / 2)}
+                        y={158}
+                        textAnchor="middle"
+                        fontSize={9}
+                        fill="var(--color-text-tertiary)"
+                        style={{ userSelect: "none" }}
+                      >
+                        {day.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+
+          {/* Per-workflow execution summary */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
+            <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">Workflow summary</p>
+            <div className="flex flex-col gap-3">
+              {workflows.map((wf, idx) => {
+                const total = chartDays.reduce((sum, d) => sum + (d.values[idx] ?? 0), 0);
+                const pct = totalExecutions > 0 ? (total / totalExecutions) * 100 : 0;
+                return (
+                  <div key={wf.id} className="flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
+                    <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" style={{ width: 160 }}>{wf.name}</p>
+                    {/* Progress bar */}
+                    <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-hover)]">
+                      <div
+                        className="h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, background: WF_COLORS[idx % WF_COLORS.length] }}
+                      />
+                    </div>
+                    <span className="text-[12px] text-[var(--color-text-tertiary)] flex-shrink-0" style={{ width: 60, textAlign: "right" }}>{total} runs</span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      wf.status === "active" ? "bg-[var(--color-success-soft)] text-[var(--color-success)]" : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
+                    }`}>{wf.status === "active" ? "Active" : "Draft"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Errors */}
+          {mockErrors.length > 0 && (
+            <div className="rounded-2xl border border-[#fb923c33] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle className="w-4 h-4 text-[#fb923c]" />
+                <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Recent errors</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {mockErrors.map((err) => (
+                  <div key={err.id} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-surface-hover)]">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: err.color }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-[var(--color-text-primary)]">{err.workflow}</p>
+                      <p className="text-[12px] text-[#fb923c]">{err.msg}</p>
+                    </div>
+                    <span className="text-[11px] text-[var(--color-text-tertiary)] flex-shrink-0">{err.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Trend insight */}
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "16px 20px" }}>
+            <TrendingUp className="w-4 h-4 flex-shrink-0" style={{ color: "#a78bfa" }} />
+            <p className="text-[13px] text-[var(--color-text-secondary)]">
+              Workflows ran <span className="font-semibold text-[var(--color-text-primary)]">{totalExecutions}</span> times over the last 14 days.{" "}
+              {activeCount > 0 ? `${activeCount} workflow${activeCount > 1 ? "s are" : " is"} currently active.` : "No active workflows yet."}
+            </p>
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
