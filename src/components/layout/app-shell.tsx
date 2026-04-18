@@ -29,10 +29,15 @@ export function AppShell({ user, org, children }: AppShellProps) {
 
 function AppShellInner({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
+  const [agentWelcomeContext, setAgentWelcomeContext] = useState<string | null>(null);
 
   // Allow any component to open the agent sidebar via custom event
   useEffect(() => {
-    const handler = () => setAgentOpen(true);
+    const handler = (e: Event) => {
+      setAgentOpen(true);
+      const ctx = (e as CustomEvent).detail?.context as string | undefined;
+      if (ctx) setAgentWelcomeContext(ctx);
+    };
     window.addEventListener("open-agent-sidebar", handler);
     return () => window.removeEventListener("open-agent-sidebar", handler);
   }, []);
@@ -154,6 +159,8 @@ function AppShellInner({ user, org, children }: AppShellProps) {
                   user={user} org={org}
                   width={columnWidth} onWidthChange={setColumnWidth}
                   onClose={() => setAgentOpen(false)}
+                  welcomeContext={agentWelcomeContext}
+                  onWelcomeHandled={() => setAgentWelcomeContext(null)}
                   contained
                 />
               </div>
@@ -165,6 +172,8 @@ function AppShellInner({ user, org, children }: AppShellProps) {
               user={user} org={org}
               width={columnWidth} onWidthChange={setColumnWidth}
               onClose={() => setAgentOpen(false)}
+              welcomeContext={agentWelcomeContext}
+              onWelcomeHandled={() => setAgentWelcomeContext(null)}
               contained
             />
           )}

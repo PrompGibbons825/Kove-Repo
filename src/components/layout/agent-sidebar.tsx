@@ -16,12 +16,15 @@ interface AgentSidebarProps {
   onWidthChange: (w: number) => void;
   onClose: () => void;
   contained?: boolean;
+  welcomeContext?: string | null;
+  onWelcomeHandled?: () => void;
 }
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  actions?: Array<{ label: string; value: string }>;
 }
 
 interface Chat {
@@ -77,7 +80,7 @@ function formatRelative(ts: number): string {
   return `${days}d ago`;
 }
 
-export function AgentSidebar({ user, org, width, onWidthChange, onClose, contained }: AgentSidebarProps) {
+export function AgentSidebar({ user, org, width, onWidthChange, onClose, contained, welcomeContext, onWelcomeHandled }: AgentSidebarProps) {
   const lpBuilder = useLandingPageBuilder();
   const wfBuilder = useWorkflowBuilder();
   const [view, setView] = useState<View>("list");
@@ -172,6 +175,62 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       return next;
     });
   }
+
+  function startWorkflowWelcomeChat() {
+    const welcomeMsg: Message = {
+      id: "wf-welcome",
+      role: "assistant",
+      content: `**Welcome to Workflows!** ⚡\n\nWorkflows let you automate repetitive tasks — from capturing leads to following up with clients, all on autopilot. Chain together **triggers** (new contact, inbound call, form submit) with **actions** (send email, SMS, create task, notify team).\n\nHere are the 4 most common workflows to get you started, or we can build a fully custom one together!`,
+      actions: [
+        { label: "⚡ Lead capture",  value: "template:Lead capture" },
+        { label: "📞 Missed call",   value: "template:Missed call" },
+        { label: "💌 Drip campaign", value: "template:Drip campaign" },
+        { label: "📅 Meeting prep",  value: "template:Meeting prep" },
+        { label: "✨ Build custom",  value: "custom" },
+      ],
+    };
+    const newChat: Chat = {
+      id: crypto.randomUUID(),
+      name: "Workflows setup",
+      messages: [welcomeMsg],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setChats((prev) => [newChat, ...prev]);
+    setActiveChatId(newChat.id);
+    setInput("");
+    setView("chat");
+  }
+
+  function handleActionClick(value: string, msgId: string) {
+    const isTemplate = value.startsWith("template:");
+    const name = isTemplate ? value.replace("template:", "") : null;
+    if (isTemplate && name) {
+      window.dispatchEvent(new CustomEvent("workflow-use-template", { detail: { name } }));
+    }
+    const responseContent = isTemplate && name
+      ? `Opening **${name}** for you! 🎉 The canvas is pre-built and ready — customize it however you like.`
+      : `Awesome! Just type your workflow name in the field on the left and hit enter to kick things off. 🚀`;
+    const confirmMsg: Message = { id: crypto.randomUUID(), role: "assistant", content: responseContent };
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === activeChatId
+          ? {
+              ...c,
+              updatedAt: Date.now(),
+              messages: [
+                ...c.messages.map((m) => m.id === msgId ? { ...m, actions: undefined } : m),
+                confirmMsg,
+              ],
+            }
+          : c
+      )
+    );
+  }
+
+  // Auto-create workflow welcome chat when prompted
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (welcomeContext === "workflow") { startWorkflowWelcomeChat(); onWelcomeHandled?.(); } }, [welcomeContext]);
 
   function goBack() {
     pruneEmptyChat(activeChatId);
@@ -447,42 +506,57 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
           <div className="flex-1 overflow-y-auto" style={{ padding: "12px 16px 16px" }}>
             <div className="space-y-4">
               {activeChat.messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  {msg.role === "assistant" && (
-                    <div className="mr-2 mt-0.5 flex shrink-0 items-center justify-center rounded-full" style={{ width: 22, height: 22, background: "var(--color-accent)" }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
+                <div key={msg.id} className="flex flex-col">
+                  <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {msg.role === "assistant" && (
+                      <div className="mr-2 mt-0.5 flex shrink-0 items-center justify-center rounded-full" style={{ width: 22, height: 22, background: "var(--color-accent)" }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div
+                      className="text-[13px] leading-relaxed"
+                      style={{
+                        maxWidth: "82%",
+                        padding: "9px 13px",
+                        borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                        background: msg.role === "user" ? "var(--color-accent)" : "var(--color-surface-hover)",
+                        color: msg.role === "user" ? "white" : "var(--color-text-primary)",
+                      }}
+                    >
+                      {msg.role === "assistant" ? (
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                            ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                            li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                            code: ({ children }) => <code className="rounded px-1 py-0.5 text-[12px]" style={{ background: "var(--color-border)" }}>{children}</code>,
+                            h1: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                            h2: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
+                            h3: ({ children }) => <p className="font-medium mb-1">{children}</p>,
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      ) : msg.content}
+                    </div>
+                  </div>
+                  {msg.actions && msg.actions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 ml-8">
+                      {msg.actions.map((action) => (
+                        <button
+                          key={action.value}
+                          onClick={() => handleActionClick(action.value, msg.id)}
+                          className="px-3 py-1.5 rounded-full text-[12px] font-medium border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-accent)]/8 transition-all cursor-pointer"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
                     </div>
                   )}
-                  <div
-                    className="text-[13px] leading-relaxed"
-                    style={{
-                      maxWidth: "82%",
-                      padding: "9px 13px",
-                      borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                      background: msg.role === "user" ? "var(--color-accent)" : "var(--color-surface-hover)",
-                      color: msg.role === "user" ? "white" : "var(--color-text-primary)",
-                    }}
-                  >
-                    {msg.role === "assistant" ? (
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
-                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
-                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                          code: ({ children }) => <code className="rounded px-1 py-0.5 text-[12px]" style={{ background: "var(--color-border)" }}>{children}</code>,
-                          h1: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
-                          h2: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
-                          h3: ({ children }) => <p className="font-medium mb-1">{children}</p>,
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    ) : msg.content}
-                  </div>
                 </div>
               ))}
               {loading && (

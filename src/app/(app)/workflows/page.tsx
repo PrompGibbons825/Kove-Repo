@@ -243,6 +243,44 @@ export default function WorkflowsPage() {
     persist(workflows.filter((w) => w.id !== id));
   }
 
+  function createFromTemplate(name: string) {
+    const tpl = TEMPLATE_WORKFLOWS[name];
+    const wf: Workflow = {
+      id: crypto.randomUUID(),
+      name,
+      nodes: tpl?.nodes ?? [],
+      edges: tpl?.edges ?? [],
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    persist([wf, ...workflows]);
+    openBuilder(wf.id);
+  }
+
+  // Listen for template selection dispatched from AI sidebar action buttons
+  useEffect(() => {
+    function handler(e: Event) {
+      const name = (e as CustomEvent).detail?.name as string | undefined;
+      if (!name) return;
+      const tpl = TEMPLATE_WORKFLOWS[name];
+      const wf: Workflow = {
+        id: crypto.randomUUID(),
+        name,
+        nodes: tpl?.nodes ?? [],
+        edges: tpl?.edges ?? [],
+        status: "draft",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setWorkflows((prev) => { const next = [wf, ...prev]; saveWorkflows(next); return next; });
+      setActiveWfId(wf.id);
+      setView("builder");
+    }
+    window.addEventListener("workflow-use-template", handler);
+    return () => window.removeEventListener("workflow-use-template", handler);
+  }, []);
+
   function updateWorkflow(updated: Workflow) {
     persist(workflows.map((w) => (w.id === updated.id ? updated : w)));
   }
@@ -293,6 +331,8 @@ export default function WorkflowsPage() {
     <WorkflowList
       workflows={workflows}
       onNew={() => setView("create")}
+      onCreateDirect={createWorkflow}
+      onUseTemplate={createFromTemplate}
       onOpen={openBuilder}
       onDelete={deleteWorkflow}
     />
@@ -345,6 +385,55 @@ const TEMPLATES = [
     ],
   },
 ];
+
+const TEMPLATE_WORKFLOWS: Record<string, { nodes: WorkflowNode[]; edges: WorkflowEdge[] }> = {
+  "Lead capture": {
+    nodes: [
+      { id: "lc-1", type: "landing-page", label: "Landing Page", x: 220, y: 100 },
+      { id: "lc-2", type: "send-email",   label: "Send Email",   x: 220, y: 260 },
+      { id: "lc-3", type: "assign-task",  label: "Create Task",  x: 220, y: 420 },
+    ],
+    edges: [
+      { id: "lc-e1", from: "lc-1", to: "lc-2" },
+      { id: "lc-e2", from: "lc-2", to: "lc-3" },
+    ],
+  },
+  "Missed call": {
+    nodes: [
+      { id: "mc-1", type: "inbound-call", label: "Inbound Call", x: 220, y: 100 },
+      { id: "mc-2", type: "send-sms",     label: "Send SMS",     x: 220, y: 260 },
+      { id: "mc-3", type: "notify-team",  label: "Notify Team",  x: 220, y: 420 },
+    ],
+    edges: [
+      { id: "mc-e1", from: "mc-1", to: "mc-2" },
+      { id: "mc-e2", from: "mc-2", to: "mc-3" },
+    ],
+  },
+  "Drip campaign": {
+    nodes: [
+      { id: "dc-1", type: "new-contact", label: "New Contact", x: 220, y: 100 },
+      { id: "dc-2", type: "send-email",  label: "Email #1",    x: 220, y: 260 },
+      { id: "dc-3", type: "delay",       label: "Wait 2 days", x: 220, y: 420 },
+      { id: "dc-4", type: "send-email",  label: "Email #2",    x: 220, y: 580 },
+    ],
+    edges: [
+      { id: "dc-e1", from: "dc-1", to: "dc-2" },
+      { id: "dc-e2", from: "dc-2", to: "dc-3" },
+      { id: "dc-e3", from: "dc-3", to: "dc-4" },
+    ],
+  },
+  "Meeting prep": {
+    nodes: [
+      { id: "mp-1", type: "schedule",   label: "Schedule",  x: 220, y: 100 },
+      { id: "mp-2", type: "condition",  label: "If / Else", x: 220, y: 260 },
+      { id: "mp-3", type: "send-sms",   label: "Send SMS",  x: 220, y: 420 },
+    ],
+    edges: [
+      { id: "mp-e1", from: "mp-1", to: "mp-2" },
+      { id: "mp-e2", from: "mp-2", to: "mp-3" },
+    ],
+  },
+};
 
 function MiniFlow({ nodes, color }: { nodes: { icon: React.ReactNode; label: string }[]; color: string }) {
   return (
@@ -408,23 +497,19 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  const BOLT_OUTER   = "M365 55 L415 55 L305 240 L342 240 L262 450 L415 255 L370 255 Z";
-  const BOLT_BLUE    = "M360 190 L288 350 L318 350 L258 450 L388 285 L350 285 L385 190 Z";
-  const BOLT_MID_GLW = "M367 62 L413 62 L308 242 L344 242 L264 448 L412 257 L368 257 Z";
-  const BOLT_MAIN    = "M368 68 L412 68 L310 244 L346 244 L266 445 L410 259 L368 259 Z";
-  const BOLT_CORE    = "M370 75 L410 75 L314 245 L348 245 L270 435 L406 262 L370 262 Z";
-  const BOLT_STREAK  = "M382 80 L325 246 L350 246 L295 410";
+  const size = 300;
+  const svgWidth = Math.round(size * (260 / 410));
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto cursor-pointer"
-      style={{ width: 250, height: 400, perspective: 600 }}
+      style={{ width: svgWidth, height: size, perspective: 600 }}
     >
       <svg
-        width={250}
-        height={400}
-        viewBox="200 40 280 450"
+        width={svgWidth}
+        height={size}
+        viewBox="220 50 260 410"
         xmlns="http://www.w3.org/2000/svg"
         className="absolute inset-0"
         style={{
@@ -434,54 +519,48 @@ function LiquidBolt() {
           animation: "orbFloat 6s ease-in-out infinite",
         }}
         role="img"
-        aria-label="Glowing lightning bolt"
+        aria-label="Lightning bolt"
       >
         <defs>
-          <filter id="lb-gp" x="-100%" y="-100%" width="300%" height="300%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b1" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="24" result="b2" />
-            <feMerge><feMergeNode in="b2" /><feMergeNode in="b1" /><feMergeNode in="SourceGraphic" /></feMerge>
+          <filter id="lb-glow-purple" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="22" result="blur2" />
+            <feMerge><feMergeNode in="blur2" /><feMergeNode in="blur1" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
-          <filter id="lb-gb" x="-100%" y="-100%" width="300%" height="300%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b1" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="b2" />
-            <feMerge><feMergeNode in="b2" /><feMergeNode in="b1" /><feMergeNode in="SourceGraphic" /></feMerge>
+          <filter id="lb-glow-blue" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur2" />
+            <feMerge><feMergeNode in="blur2" /><feMergeNode in="blur1" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
-          <filter id="lb-gc" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+          <filter id="lb-glow-core" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" />
           </filter>
-          <linearGradient id="lb-grad" x1="0.35" y1="0" x2="0.65" y2="1">
-            <stop offset="0%" stopColor="#d946ef" />
-            <stop offset="35%" stopColor="#818cf8" />
+          <linearGradient id="lb-grad" x1="0.3" y1="0" x2="0.7" y2="1">
+            <stop offset="0%" stopColor="#c084fc" />
+            <stop offset="40%" stopColor="#818cf8" />
             <stop offset="100%" stopColor="#38bdf8" />
           </linearGradient>
-          <linearGradient id="lb-grad-glow" x1="0.35" y1="0" x2="0.65" y2="1">
-            <stop offset="0%" stopColor="#f0abfc" stopOpacity={0.8} />
-            <stop offset="50%" stopColor="#6366f1" stopOpacity={0.65} />
-            <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.55} />
+          <linearGradient id="lb-grad-glow" x1="0.3" y1="0" x2="0.7" y2="1">
+            <stop offset="0%" stopColor="#e879f9" stopOpacity="0.7" />
+            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.5" />
           </linearGradient>
         </defs>
 
         <style>{`
-          @keyframes lb-pulse   { 0%,100%{opacity:.8}  50%{opacity:1} }
-          @keyframes lb-flicker { 0%,100%{opacity:1} 30%{opacity:.85} 60%{opacity:1} 80%{opacity:.75} }
-          .lb-outer { animation: lb-pulse 2.8s ease-in-out infinite; }
-          .lb-mid   { animation: lb-pulse 2.1s ease-in-out infinite 0.25s; }
-          .lb-core  { animation: lb-flicker 1.6s ease-in-out infinite; }
+          @keyframes lb-pulse   { 0%,100%{opacity:.85} 50%{opacity:1} }
+          @keyframes lb-flicker { 0%,100%{opacity:1} 25%{opacity:.9} 50%{opacity:1} 75%{opacity:.82} }
+          .lb-outer { animation: lb-pulse   2.5s ease-in-out infinite; }
+          .lb-mid   { animation: lb-pulse   2s   ease-in-out infinite 0.3s; }
+          .lb-core  { animation: lb-flicker 1.5s ease-in-out infinite; }
         `}</style>
 
-        {/* Far outer purple aura */}
-        <path className="lb-outer" d={BOLT_OUTER} fill="#d946ef" filter="url(#lb-gp)" opacity={0.45} />
-        {/* Blue lower aura */}
-        <path className="lb-outer" d={BOLT_BLUE} fill="#38bdf8" filter="url(#lb-gb)" opacity={0.4} />
-        {/* Mid glow gradient */}
-        <path className="lb-mid" d={BOLT_MID_GLW} fill="url(#lb-grad-glow)" filter="url(#lb-gp)" opacity={0.55} />
-        {/* Solid main bolt */}
-        <path className="lb-mid" d={BOLT_MAIN} fill="url(#lb-grad)" opacity={0.93} />
-        {/* White core bloom */}
-        <path className="lb-core" d={BOLT_CORE} fill="white" opacity={0.2} filter="url(#lb-gc)" />
-        {/* Edge highlight streak */}
-        <path className="lb-core" d={BOLT_STREAK} stroke="#e0f2fe" strokeWidth={1.5} fill="none" opacity={0.45} />
+        <path className="lb-outer" d="M360 60 L290 230 L330 230 L260 440 L410 240 L365 240 L430 60 Z" fill="#c084fc" filter="url(#lb-glow-purple)" opacity={0.5} />
+        <path className="lb-outer" d="M340 180 L280 340 L310 340 L255 440 L380 280 L345 280 L390 180 Z" fill="#38bdf8" filter="url(#lb-glow-blue)" opacity={0.45} />
+        <path className="lb-mid"   d="M358 75 L292 235 L328 235 L263 425 L405 245 L363 245 L425 75 Z" fill="url(#lb-grad-glow)" filter="url(#lb-glow-purple)" opacity={0.6} />
+        <path className="lb-mid"   d="M358 80 L294 235 L330 235 L265 420 L402 248 L362 248 L422 80 Z" fill="url(#lb-grad)" opacity={0.92} />
+        <path className="lb-core"  d="M358 90 L298 235 L332 235 L270 410 L398 250 L360 250 L418 90 Z" fill="white" opacity={0.25} filter="url(#lb-glow-core)" />
+        <path className="lb-core"  d="M375 95 L318 238 L342 238 L290 390" stroke="#e0f2fe" strokeWidth={1.5} fill="none" opacity={0.5} />
       </svg>
     </div>
   );
@@ -490,14 +569,26 @@ function LiquidBolt() {
 function WorkflowList({
   workflows,
   onNew,
+  onCreateDirect,
+  onUseTemplate,
   onOpen,
   onDelete,
 }: {
   workflows: Workflow[];
   onNew: () => void;
+  onCreateDirect: (name: string) => void;
+  onUseTemplate: (name: string) => void;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const [namingMode, setNamingMode] = useState(false);
+  const [wfName, setWfName] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (namingMode) setTimeout(() => nameInputRef.current?.focus(), 50);
+  }, [namingMode]);
+
   if (workflows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-10" style={{ minHeight: "calc(100vh - 80px)" }}>
@@ -511,20 +602,45 @@ function WorkflowList({
         </div>
 
         {/* CTA */}
-        <button
-          onClick={() => {
-            window.dispatchEvent(new CustomEvent("open-agent-sidebar"));
-            onNew();
-          }}
-          className="text-[15px] font-semibold text-white rounded-full hover:scale-105 active:scale-100 transition-all cursor-pointer"
-          style={{
-            padding: "14px 40px",
-            background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)",
-            boxShadow: "0 4px 24px rgba(168,130,255,0.35), 0 1px 3px rgba(0,0,0,0.08)",
-          }}
-        >
-          Let&apos;s get started
-        </button>
+        {namingMode ? (
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (wfName.trim()) onCreateDirect(wfName.trim()); }}
+            className="flex items-center gap-3"
+          >
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={wfName}
+              onChange={(e) => setWfName(e.target.value)}
+              placeholder="Name your workflow..."
+              className="px-4 py-3 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 transition-all"
+              style={{ width: 300 }}
+            />
+            <button
+              type="submit"
+              disabled={!wfName.trim()}
+              className="px-5 py-3 rounded-xl text-[14px] font-semibold text-white transition-all disabled:opacity-50 cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)" }}
+            >
+              Open builder →
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("open-agent-sidebar", { detail: { context: "workflow" } }));
+              setNamingMode(true);
+            }}
+            className="text-[15px] font-semibold text-white rounded-full hover:scale-105 active:scale-100 transition-all cursor-pointer"
+            style={{
+              padding: "14px 40px",
+              background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)",
+              boxShadow: "0 4px 24px rgba(168,130,255,0.35), 0 1px 3px rgba(0,0,0,0.08)",
+            }}
+          >
+            Let&apos;s get started
+          </button>
+        )}
 
         {/* Templates */}
         <div style={{ width: "100%", maxWidth: 700 }}>
@@ -533,7 +649,7 @@ function WorkflowList({
             {TEMPLATES.slice(0, 3).map((t) => (
               <button
                 key={t.name}
-                onClick={onNew}
+                onClick={() => onUseTemplate(t.name)}
                 className="flex flex-col items-start gap-2 text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 hover:shadow-md hover:border-[var(--color-accent)]/20 cursor-pointer"
                 style={{ padding: 20, transform: "translateY(0)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
