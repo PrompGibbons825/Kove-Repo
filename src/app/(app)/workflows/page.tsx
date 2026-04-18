@@ -408,95 +408,80 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  // Classic ⚡ bolt: top → upper-right → step left → bottom → lower-left → step right
-  const bolt = "M50 5 L78 52 L56 52 L66 115 L22 58 L44 58 Z";
-  const boltInner = "M50 14 L72 52 L56 52 L64 106 L28 58 L44 58 Z";
+  const BOLT_OUTER   = "M390 55 L305 240 L342 240 L262 450 L415 255 L370 255 L390 55 Z";
+  const BOLT_BLUE    = "M360 190 L288 350 L318 350 L258 450 L388 285 L350 285 L385 190 Z";
+  const BOLT_MID_GLW = "M390 62 L308 242 L344 242 L264 448 L412 257 L368 257 L390 62 Z";
+  const BOLT_MAIN    = "M390 68 L310 244 L346 244 L266 445 L410 259 L368 259 L390 68 Z";
+  const BOLT_CORE    = "M390 75 L314 245 L348 245 L270 435 L406 262 L370 262 L390 75 Z";
+  const BOLT_STREAK  = "M382 80 L325 246 L350 246 L295 410";
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto cursor-pointer"
-      style={{ width: 280, height: 280, perspective: 600 }}
+      style={{ width: 250, height: 400, perspective: 600 }}
     >
-      {/* Ambient glow behind everything */}
-      <div
-        className="absolute rounded-full transition-opacity duration-1000"
-        style={{
-          inset: "-60%",
-          filter: "blur(90px)",
-          opacity: mouse.active ? 0.55 : 0.3,
-          background: "radial-gradient(circle, rgba(0,229,255,0.3) 0%, rgba(139,92,246,0.25) 30%, rgba(255,119,255,0.15) 55%, transparent 75%)",
-        }}
-      />
-      {/* Mid glow */}
-      <div
-        className="absolute rounded-full transition-opacity duration-700"
-        style={{
-          inset: "-30%",
-          filter: "blur(50px)",
-          opacity: mouse.active ? 0.6 : 0.35,
-          background: "radial-gradient(circle, rgba(0,229,255,0.4) 0%, rgba(168,130,255,0.3) 40%, transparent 70%)",
-          animation: "orbPulse 4s ease-in-out infinite",
-        }}
-      />
-
-      {/* The SVG bolt */}
       <svg
-        viewBox="0 0 100 120"
+        width={250}
+        height={400}
+        viewBox="200 40 280 450"
         xmlns="http://www.w3.org/2000/svg"
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0"
         style={{
           overflow: "visible",
-          filter: "drop-shadow(0 0 12px rgba(0,229,255,0.4)) drop-shadow(0 0 30px rgba(255,119,255,0.2))",
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
           transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
           animation: "orbFloat 6s ease-in-out infinite",
         }}
+        role="img"
+        aria-label="Glowing lightning bolt"
       >
         <defs>
-          {/* Electric glow filter — soft distortion around edges */}
-          <filter id="electric-glow" x="-80%" y="-80%" width="260%" height="260%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="4" result="noise">
-              <animate attributeName="seed" from="0" to="100" dur="3s" repeatCount="indefinite" />
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" result="distorted" />
-            <feGaussianBlur in="distorted" stdDeviation="5" result="blueBlur" />
-            <feColorMatrix in="blueBlur" type="matrix" values="0.3 0 0 0 0.2  0 0.5 0 0 0.8  0 0 1 0 1  0 0 0 0.9 0" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="pinkBlur" />
-            <feColorMatrix in="pinkBlur" type="matrix" values="1 0 0 0 0.8  0 0.2 0 0 0  0 0 0.8 0 1  0 0 0 1.2 0" />
-            <feMerge>
-              <feMergeNode in="blueBlur" />
-              <feMergeNode in="pinkBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
+          <filter id="lb-gp" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="24" result="b2" />
+            <feMerge><feMergeNode in="b2" /><feMergeNode in="b1" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
-
-          {/* Gradient: pink top → cyan bottom */}
-          <linearGradient id="wfBoltGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ff77ff" />
-            <stop offset="50%" stopColor="#c084fc" />
-            <stop offset="100%" stopColor="#00e5ff" />
+          <filter id="lb-gb" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="b2" />
+            <feMerge><feMergeNode in="b2" /><feMergeNode in="b1" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <filter id="lb-gc" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+          </filter>
+          <linearGradient id="lb-grad" x1="0.35" y1="0" x2="0.65" y2="1">
+            <stop offset="0%" stopColor="#d946ef" />
+            <stop offset="35%" stopColor="#818cf8" />
+            <stop offset="100%" stopColor="#38bdf8" />
           </linearGradient>
-
-          {/* Lighter gradient for inner core */}
-          <linearGradient id="wfBoltCore" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ffd6ff" />
-            <stop offset="50%" stopColor="#e0b0ff" />
-            <stop offset="100%" stopColor="#b3f5ff" />
+          <linearGradient id="lb-grad-glow" x1="0.35" y1="0" x2="0.65" y2="1">
+            <stop offset="0%" stopColor="#f0abfc" stopOpacity={0.8} />
+            <stop offset="50%" stopColor="#6366f1" stopOpacity={0.65} />
+            <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.55} />
           </linearGradient>
         </defs>
 
-        {/* Aura layer — distorted electric glow */}
-        <path d={bolt} fill="url(#wfBoltGrad)" filter="url(#electric-glow)" opacity="0.7" />
+        <style>{`
+          @keyframes lb-pulse   { 0%,100%{opacity:.8}  50%{opacity:1} }
+          @keyframes lb-flicker { 0%,100%{opacity:1} 30%{opacity:.85} 60%{opacity:1} 80%{opacity:.75} }
+          .lb-outer { animation: lb-pulse 2.8s ease-in-out infinite; }
+          .lb-mid   { animation: lb-pulse 2.1s ease-in-out infinite 0.25s; }
+          .lb-core  { animation: lb-flicker 1.6s ease-in-out infinite; }
+        `}</style>
 
-        {/* Main bolt body — solid filled */}
-        <path d={bolt} fill="url(#wfBoltGrad)" />
-
-        {/* White-hot inner core */}
-        <path d={boltInner} fill="url(#wfBoltCore)" opacity="0.75" />
-
-        {/* Bright white center for depth */}
-        <path d={boltInner} fill="white" opacity="0.25" />
+        {/* Far outer purple aura */}
+        <path className="lb-outer" d={BOLT_OUTER} fill="#d946ef" filter="url(#lb-gp)" opacity={0.45} />
+        {/* Blue lower aura */}
+        <path className="lb-outer" d={BOLT_BLUE} fill="#38bdf8" filter="url(#lb-gb)" opacity={0.4} />
+        {/* Mid glow gradient */}
+        <path className="lb-mid" d={BOLT_MID_GLW} fill="url(#lb-grad-glow)" filter="url(#lb-gp)" opacity={0.55} />
+        {/* Solid main bolt */}
+        <path className="lb-mid" d={BOLT_MAIN} fill="url(#lb-grad)" opacity={0.93} />
+        {/* White core bloom */}
+        <path className="lb-core" d={BOLT_CORE} fill="white" opacity={0.2} filter="url(#lb-gc)" />
+        {/* Edge highlight streak */}
+        <path className="lb-core" d={BOLT_STREAK} stroke="#e0f2fe" strokeWidth={1.5} fill="none" opacity={0.45} />
       </svg>
     </div>
   );
