@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import type { User, Organization } from "@/lib/types/database";
+import { useLandingPageBuilder } from "@/components/landing-pages/builder-context";
 
 type Mode = "ask" | "plan" | "agent";
 type View = "list" | "chat";
@@ -76,6 +77,7 @@ function formatRelative(ts: number): string {
 }
 
 export function AgentSidebar({ user, org, width, onWidthChange, onClose, contained }: AgentSidebarProps) {
+  const lpBuilder = useLandingPageBuilder();
   const [view, setView] = useState<View>("list");
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -204,18 +206,32 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
     );
 
     try {
-      const response = await fetch("/api/agent", {
+      const isLpMode = lpBuilder.state.active;
+      const endpoint = isLpMode ? "/api/lp/generate" : "/api/agent";
+      const body = isLpMode
+        ? {
+            message: userMessage.content,
+            conversationHistory: currentMessages.map((m) => ({ role: m.role, content: m.content })),
+            landingPageId: lpBuilder.state.pageId || undefined,
+            brandAssets: lpBuilder.state.brandAssets,
+            slug: lpBuilder.state.slug,
+          }
+        : {
+            message: userMessage.content,
+            mode,
+            conversationHistory: currentMessages.map((m) => ({ role: m.role, content: m.content })),
+            pageContext: { page: window.location.pathname },
+          };
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userMessage.content,
-          mode,
-          conversationHistory: currentMessages.map((m) => ({ role: m.role, content: m.content })),
-          pageContext: { page: window.location.pathname },
-        }),
+        body: JSON.stringify(body),
       });
       const data = await response.json();
-      const assistantMessage: Message = { id: crypto.randomUUID(), role: "assistant", content: data.response ?? "Something went wrong. Try again." };
+      if (isLpMode && data.html) {
+        lpBuilder.setHtml(data.html);
+      }
+      const assistantMessage: Message = { id: crypto.randomUUID(), role: "assistant", content: data.response ?? data.summary ?? "Something went wrong. Try again." };
       setChats((prev) =>
         prev.map((c) => c.id === activeChatId ? { ...c, messages: [...c.messages, assistantMessage], updatedAt: Date.now() } : c)
       );
@@ -243,6 +259,11 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
         </svg>
       </button>
       <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">{activeChat?.name ?? "Chat"}</p>
+      {lpBuilder.state.active && (
+        <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent)] rounded-full whitespace-nowrap">
+          ✦ Landing Page
+        </span>
+      )}
     </div>
   ) : (
     <div className="flex items-center gap-2">

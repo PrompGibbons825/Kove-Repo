@@ -119,7 +119,7 @@ export async function POST(request: Request) {
         .eq("org_id", koveUser.org_id);
     }
 
-    return NextResponse.json({ html });
+    return NextResponse.json({ html, summary: "I've updated the landing page preview. Take a look and let me know if you'd like any changes!" });
   } catch (error) {
     console.error("LP generate error:", error);
     return NextResponse.json(
