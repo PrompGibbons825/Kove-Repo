@@ -1915,8 +1915,9 @@ function LandingPageEditor({
   const [showHtml, setShowHtml] = useState(false);
   const [htmlDraft, setHtmlDraft] = useState("");
   const [advanced, setAdvanced] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const htmlRef = useRef<HTMLTextAreaElement>(null);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load existing landing page for this workflow
   useEffect(() => {
@@ -1945,14 +1946,13 @@ function LandingPageEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowId]);
 
-  useEffect(() => { lpCtx.setSlug(slug); setDirty(true); }, [slug, lpCtx]);
-  useEffect(() => { lpCtx.setBrandAssets(brandAssets); setDirty(true); }, [brandAssets, lpCtx]);
+  useEffect(() => { lpCtx.setSlug(slug); }, [slug, lpCtx]);
+  useEffect(() => { lpCtx.setBrandAssets(brandAssets); }, [brandAssets, lpCtx]);
   useEffect(() => { lpCtx.setPageId(pageId); }, [pageId, lpCtx]);
 
   // Keep htmlDraft synced when AI sidebar updates HTML
   useEffect(() => {
     setHtmlDraft(lpCtx.state.html);
-    setDirty(true);
   }, [lpCtx.state.html]);
 
   const html = lpCtx.state.html;
@@ -1961,9 +1961,20 @@ function LandingPageEditor({
     lpCtx.setHtml(htmlDraft);
   }
 
-  async function handleSave() {
-    if (!slug.trim()) { setSlugError("A URL slug is required"); return; }
+  // Autosave — debounced 1.5s after any change
+  useEffect(() => {
+    if (loadingPage) return;
+    setSaveStatus("unsaved");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => { void performSave(); }, 1500);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [html, slug, brandAssets]);
+
+  async function performSave() {
+    if (!slug.trim()) return; // need a slug before we can save
     setSaving(true);
+    setSaveStatus("saving");
     setSlugError("");
 
     if (pageId) {
@@ -1971,7 +1982,7 @@ function LandingPageEditor({
         .from("landing_pages")
         .update({ slug, html_content: html, brand_assets: brandAssets, updated_at: new Date().toISOString() })
         .eq("id", pageId);
-      if (error?.code === "23505") { setSlugError("Slug taken."); setSaving(false); return; }
+      if (error?.code === "23505") { setSlugError("Slug already taken."); }
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setSaving(false); return; }
@@ -1983,15 +1994,15 @@ function LandingPageEditor({
         .insert({ org_id: koveUser.org_id, workflow_id: workflowId, slug, html_content: html, brand_assets: brandAssets })
         .select("id")
         .single();
-      if (error?.code === "23505") { setSlugError("Slug taken."); setSaving(false); return; }
+      if (error?.code === "23505") { setSlugError("Slug already taken."); }
       if (newPage) { setPageIdLocal(newPage.id); lpCtx.setPageId(newPage.id); }
     }
-    setDirty(false);
     setSaving(false);
+    setSaveStatus("saved");
   }
 
   async function handlePublish() {
-    if (!pageId) await handleSave();
+    if (!pageId) await performSave();
     if (!pageId && !slug.trim()) return;
     const newStatus = pageStatus === "live" ? "draft" : "live";
     await supabase.from("landing_pages").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", pageId);
@@ -2100,13 +2111,14 @@ function LandingPageEditor({
             />
           </div>
           {slugError && <span style={{ fontSize: 10, color: "var(--color-danger)", paddingLeft: 2 }}>{slugError}</span>}
-          {/* Row 3: action buttons */}
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={handleSave} disabled={saving} style={{ ...btnStyle(false), opacity: saving ? 0.5 : 1 }}>
-              {saving && <Loader2 className="w-3 h-3 animate-spin" />}
-              Save
-              {dirty && !saving && <span style={{ position: "absolute", top: 5, right: 5, width: 6, height: 6, borderRadius: 999, background: "#f59e0b" }} />}
-            </button>
+          {/* Row 3: status + Go Live button */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ flex: 1, fontSize: 10, color: "var(--color-text-tertiary)", display: "flex", alignItems: "center", gap: 4 }}>
+              {saveStatus === "saving" && <><Loader2 className="w-3 h-3 animate-spin" />Saving…</>}
+              {saveStatus === "saved" && <><span style={{ width: 6, height: 6, borderRadius: 999, background: "#10b981", display: "inline-block" }} />Saved</>}
+              {saveStatus === "unsaved" && <><span style={{ width: 6, height: 6, borderRadius: 999, background: "#f59e0b", display: "inline-block" }} />Unsaved</>}
+              {!slug.trim() && <span style={{ color: "var(--color-danger)" }}>— add a slug to save</span>}
+            </span>
             <button onClick={handlePublish} disabled={!html} style={btnStyle(true)}>
               {pageStatus === "live" ? "Unpublish" : "Go Live"}
             </button>
@@ -2149,7 +2161,7 @@ function LandingPageEditor({
                 <textarea
                   ref={htmlRef}
                   value={htmlDraft}
-                  onChange={(e) => { setHtmlDraft(e.target.value); setDirty(true); }}
+                  onChange={(e) => { setHtmlDraft(e.target.value); }}
                   onBlur={applyHtmlEdit}
                   spellCheck={false}
                   style={{ width:"100%", minHeight:220, padding:10, fontSize:11, fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace", background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:8, color:"var(--color-text-primary)", outline:"none", resize:"vertical", boxSizing:"border-box", lineHeight:1.5 }}
