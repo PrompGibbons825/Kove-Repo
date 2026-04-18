@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Contact, Activity, ContactStatus } from "@/lib/types/database";
+import type { Contact, Activity, ContactStatus, CustomFieldDef } from "@/lib/types/database";
 import { useContactPanel, type ContactViewMode } from "./contact-panel-context";
 import { useCall, formatDuration, type CallState } from "@/hooks/use-call";
 import { useLiveTranscript } from "@/hooks/use-live-transcript";
@@ -31,6 +31,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [pipelineOptions, setPipelineOptions] = useState<string[]>([]);
   const [sourceOptions, setSourceOptions] = useState<string[]>([]);
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
 
   // ── Call state ──
   const [callSummaryLoading, setCallSummaryLoading] = useState(false);
@@ -154,6 +155,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
       .then((data) => {
         setPipelineOptions(data.pipeline_options ?? []);
         setSourceOptions(data.source_options ?? []);
+        setCustomFieldDefs(data.custom_field_schema ?? []);
       })
       .catch(() => {});
   }, []);
@@ -239,6 +241,20 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
     updateContact(update);
   }
 
+  async function handleCustomFieldSave(fieldId: string, value: unknown) {
+    if (!contact) return;
+    const currentCustom = (typeof contact.custom_fields === "object" && contact.custom_fields && !Array.isArray(contact.custom_fields))
+      ? (contact.custom_fields as Record<string, unknown>)
+      : {};
+    const updated = { ...currentCustom, [fieldId]: value ?? null };
+    await fetch(`/api/contacts/${contact.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ custom_fields: updated }),
+    });
+    updateContact({ custom_fields: updated as Contact["custom_fields"] });
+  }
+
   function handleClose() {
     setVisible(false);
     setTimeout(closeContact, 250);
@@ -302,6 +318,26 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
               <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
               <EditableSelectField label="Source" value={contact.source ?? ""} options={sourceOptions} onSave={(v) => handleFieldSave("source", v)} />
             </div>
+            {customFieldDefs.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <SectionLabel>Custom Fields</SectionLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {customFieldDefs.map((def) => {
+                    const cfv = (typeof contact.custom_fields === "object" && contact.custom_fields && !Array.isArray(contact.custom_fields))
+                      ? (contact.custom_fields as Record<string, unknown>)[def.id]
+                      : undefined;
+                    return (
+                      <CustomFieldDetailRow
+                        key={def.id}
+                        def={def}
+                        value={cfv}
+                        onSave={(v) => handleCustomFieldSave(def.id, v)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <AssignedMembers
               contact={contact}
               orgMembers={orgMembers}
@@ -410,6 +446,26 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
           <EditableSelectField label="Pipeline" value={contact.pipeline_stage ?? ""} options={pipelineOptions} onSave={(v) => handleFieldSave("pipeline_stage", v)} />
           <EditableSelectField label="Source" value={contact.source ?? ""} options={sourceOptions} onSave={(v) => handleFieldSave("source", v)} />
         </div>
+        {customFieldDefs.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <SectionLabel>Custom Fields</SectionLabel>
+            <div className="flex flex-col gap-2">
+              {customFieldDefs.map((def) => {
+                const cfv = (typeof contact.custom_fields === "object" && contact.custom_fields && !Array.isArray(contact.custom_fields))
+                  ? (contact.custom_fields as Record<string, unknown>)[def.id]
+                  : undefined;
+                return (
+                  <CustomFieldDetailRow
+                    key={def.id}
+                    def={def}
+                    value={cfv}
+                    onSave={(v) => handleCustomFieldSave(def.id, v)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
         <AssignedMembers
           contact={contact}
           orgMembers={orgMembers}
@@ -434,6 +490,45 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 }
 
 /* ── Shared sub-components ── */
+
+function CustomFieldDetailRow({ def, value, onSave }: { def: CustomFieldDef; value: unknown; onSave: (v: unknown) => void }) {
+  if (def.type === "boolean") {
+    return (
+      <div className="rounded-lg border border-[var(--color-border)] flex items-center gap-3" style={{ padding: "8px 12px" }}>
+        <p className="text-[10px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider flex-1">{def.label}</p>
+        <input
+          type="checkbox"
+          checked={!!value}
+          onChange={(e) => onSave(e.target.checked)}
+          className="cursor-pointer accent-[var(--color-accent)]"
+        />
+      </div>
+    );
+  }
+  if (def.type === "select" && def.options) {
+    return (
+      <div className="rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)]/40 transition-colors" style={{ padding: "8px 12px" }}>
+        <p className="text-[10px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">{def.label}</p>
+        <select
+          value={(value as string) ?? ""}
+          onChange={(e) => onSave(e.target.value || null)}
+          className="w-full text-[13px] text-[var(--color-text-primary)] font-medium bg-transparent border-none outline-none cursor-pointer p-0"
+          style={{ marginTop: 3 }}
+        >
+          <option value="">—</option>
+          {def.options.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+    );
+  }
+  return (
+    <EditableField
+      label={def.label}
+      value={String(value ?? "")}
+      onSave={(v) => onSave(def.type === "number" ? (v ? Number(v) : null) : v || null)}
+    />
+  );
+}
 
 function EditableSelectField({ label, value, options, onSave }: { label: string; value: string; options: string[]; onSave: (v: string) => void }) {
   if (options.length === 0) {

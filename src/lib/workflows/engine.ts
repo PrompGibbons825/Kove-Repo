@@ -343,6 +343,18 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
       const tagsRaw = interpolate(cfg.tags ?? "");
       if (tagsRaw) payload.tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
 
+      // Collect custom field values from config keys prefixed with custom_field__
+      const customFieldEntries = Object.entries(cfg)
+        .filter(([k]) => k.startsWith("custom_field__"))
+        .map(([k, v]) => [k.replace("custom_field__", ""), interpolate(String(v ?? ""))] as [string, string])
+        .filter(([, v]) => v !== "");
+      if (customFieldEntries.length > 0) {
+        const existingCustom = (typeof (ctx.contact as Record<string, unknown>)?.custom_fields === "object")
+          ? (ctx.contact as Record<string, unknown>).custom_fields as Record<string, unknown>
+          : {};
+        payload.custom_fields = { ...existingCustom, ...Object.fromEntries(customFieldEntries) };
+      }
+
       let contactId: string;
       if (existing) {
         // Update

@@ -1233,6 +1233,7 @@ function WorkflowBuilder({
   const [showLpPanel, setShowLpPanel] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [orgSources, setOrgSources] = useState<string[]>([]);
+  const [orgCustomFields, setOrgCustomFields] = useState<{ id: string; label: string; type: string }[]>([]);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -1242,7 +1243,10 @@ function WorkflowBuilder({
   useEffect(() => {
     fetch("/api/settings/org")
       .then((r) => r.json())
-      .then((d) => setOrgSources(d.source_options ?? []))
+      .then((d) => {
+        setOrgSources(d.source_options ?? []);
+        setOrgCustomFields(d.custom_field_schema ?? []);
+      })
       .catch(() => {});
   }, []);
   // Non-passive wheel listener for pinch-to-zoom / Ctrl+scroll zoom
@@ -1875,12 +1879,26 @@ function WorkflowBuilder({
           const def = getNodeDef(selectedNode.type);
           const rawFields = NODE_CONFIG_FIELDS[selectedNode.type] ?? [];
           // Inject live org sources into the new-contact source dropdown
+          // Inject custom fields into create-contact node
           const fields = rawFields.map((f) => {
             if (selectedNode.type === "new-contact" && f.key === "source" && orgSources.length > 0) {
               return { ...f, options: [{ value: "", label: "Any source" }, ...orgSources.map((s) => ({ value: s, label: s }))] };
             }
+            if (selectedNode.type === "create-contact" && f.key === "source" && orgSources.length > 0) {
+              return { ...f, type: "select" as const, options: [{ value: "", label: "— none —" }, ...orgSources.map((s) => ({ value: s, label: s }))] };
+            }
             return f;
           });
+          // Append org custom fields as text config fields for create-contact
+          const extraFields = selectedNode.type === "create-contact"
+            ? orgCustomFields.map((cf) => ({
+                key: `custom_field__${cf.id}`,
+                label: cf.label,
+                type: "text" as const,
+                placeholder: `Value or {{payload.${cf.label.toLowerCase().replace(/\s+/g, "_")}}}`
+              }))
+            : [];
+          const allFields = [...fields, ...extraFields];
           const cfg = (selectedNode.config ?? {}) as Record<string, string>;
           return (
             <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
@@ -1908,10 +1926,10 @@ function WorkflowBuilder({
 
               {/* Panel body — scrollable */}
               <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-                {fields.length === 0 ? (
+                {allFields.length === 0 ? (
                   <p style={{ fontSize: 13, color: "var(--color-text-tertiary)", textAlign: "center", padding: "24px 0" }}>No configuration needed for this node.</p>
                 ) : (
-                  fields.map((field) => (
+                  allFields.map((field) => (
                     <div key={field.key}>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{field.label}</label>
                       {field.type === "select" ? (
