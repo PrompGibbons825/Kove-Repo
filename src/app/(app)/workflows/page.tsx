@@ -1289,17 +1289,17 @@ function WorkflowBuilder({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
+        <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+            className="p-2.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-xl transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="h-5 w-px bg-[var(--color-border)]" />
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-white" />
+          <div className="h-6 w-px bg-[var(--color-border)]" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center shadow-sm">
+            <Zap className="w-4 h-4 text-white" />
           </div>
           {editingName ? (
             <input
@@ -1335,17 +1335,17 @@ function WorkflowBuilder({
         {/* Node palette */}
         {paletteOpen && (
           <div className="w-[220px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+            <div className="flex-1 overflow-y-auto px-3 py-5 space-y-7">
               {[
                 { title: "Triggers", items: TRIGGERS },
                 { title: "Actions", items: ACTIONS },
                 { title: "Logic", items: LOGIC },
               ].map((group) => (
                 <div key={group.title}>
-                  <p className="text-[10px] font-bold text-[var(--color-text-tertiary)] uppercase tracking-widest mb-2.5 px-1">
+                  <p className="text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-3 px-2">
                     {group.title}
                   </p>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {group.items.map((def) => (
                       <div
                         key={def.type}
@@ -1354,7 +1354,7 @@ function WorkflowBuilder({
                           e.dataTransfer.setData("node-type", def.type);
                           e.dataTransfer.effectAllowed = "copy";
                         }}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
+                        className="flex items-center gap-3 px-3 py-3 rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
                       >
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-sm"
@@ -1374,24 +1374,24 @@ function WorkflowBuilder({
             </div>
 
             {/* Bottom actions */}
-            <div className="p-3 border-t border-[var(--color-border)] flex flex-col gap-2">
+            <div className="p-4 border-t border-[var(--color-border)] flex flex-col gap-3">
               <button
                 onClick={() => setPaletteOpen(false)}
-                className="flex items-center justify-center gap-2 w-full px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
+                className="flex items-center justify-center gap-2 w-full px-4 py-3.5 text-[13px] font-semibold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-2xl hover:bg-[var(--color-surface-hover)] transition-colors"
               >
-                <GripVertical className="w-3.5 h-3.5" />
+                <GripVertical className="w-4 h-4" />
                 Hide Nodes
               </button>
               <button
                 onClick={() => onChange({ ...workflow, status: workflow.status === "active" ? "draft" : "active", updatedAt: Date.now() })}
-                className={`flex items-center justify-center gap-2 w-full px-3 py-2 text-[12px] font-semibold rounded-xl transition-colors ${
+                className={`flex items-center justify-center gap-2 w-full px-4 py-3.5 text-[13px] font-semibold rounded-2xl transition-colors ${
                   workflow.status === "active"
                     ? "bg-[var(--color-danger)] text-white hover:opacity-90"
                     : "text-white hover:opacity-90"
                 }`}
-                style={workflow.status !== "active" ? { background: "linear-gradient(135deg, #a78bfa, #e879f9)" } : {}}
+                style={workflow.status !== "active" ? { background: "linear-gradient(135deg, #a78bfa, #e879f9)", boxShadow: "0 4px 16px rgba(168,130,255,0.3)" } : {}}
               >
-                <Play className="w-3.5 h-3.5" />
+                <Play className="w-4 h-4" />
                 {workflow.status === "active" ? "Deactivate" : "Activate"}
               </button>
             </div>
