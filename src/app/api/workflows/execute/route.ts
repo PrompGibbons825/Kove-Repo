@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 /**
  * POST /api/workflows/execute
  * Internal endpoint called when a triggering event occurs.
- * Body: { trigger: "new-contact" | "webhook" | "form-submit", contactId?, orgId, metadata? }
+ * Body: { trigger: "new-contact" | "webhook" | "form-submit" | "landing-page", contactId?, orgId, metadata? }
  */
 export async function POST(request: Request) {
   const body = await request.json();
@@ -37,6 +37,8 @@ export async function POST(request: Request) {
 
   // Filter workflows that have a trigger node matching the trigger type
   const matchingWorkflows = workflows.filter((wf) => {
+    // If a specific workflowId is provided (e.g. from LP submission), match by ID
+    if (metadata?.workflowId) return wf.id === metadata.workflowId;
     const nodes = (wf.nodes ?? []) as { type: string; config?: Record<string, string> }[];
     return nodes.some((n) => {
       if (n.type !== trigger) return false;

@@ -218,8 +218,10 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
     case "send-email": {
       const to = interpolate(cfg.to ?? "{{contact.email}}");
       const subject = interpolate(cfg.subject ?? "");
-      const body = interpolate(cfg.body ?? "");
-      if (!to || !body) return "skipped: missing to or body";
+      const isHtml = cfg.is_html === "true";
+      const bodyHtml = isHtml ? interpolate(cfg.body_html ?? "") : "";
+      const bodyText = interpolate(cfg.body ?? "");
+      if (!to || (!bodyText && !bodyHtml)) return "skipped: missing to or body";
 
       const { data: org } = await supabase
         .from("organizations")
@@ -237,21 +239,28 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
         auth: { user: smtp.user, pass: smtp.pass },
       });
 
-      await transporter.sendMail({
+      const mailOptions: Parameters<typeof transporter.sendMail>[0] = {
         from: smtp.from_name ? `"${smtp.from_name}" <${smtp.from_email || smtp.user}>` : smtp.from_email || smtp.user,
         to,
         subject: subject || "(no subject)",
-        text: body,
-      });
+      };
+      if (isHtml && bodyHtml) {
+        mailOptions.html = bodyHtml;
+        mailOptions.text = bodyHtml.replace(/<[^>]+>/g, ""); // plain-text fallback
+      } else {
+        mailOptions.text = bodyText;
+      }
+
+      await transporter.sendMail(mailOptions);
 
       await supabase.from("activities").insert({
         contact_id: (ctx.contact?.id as string) ?? null,
         user_id: null,
         org_id: ctx.orgId,
         type: "email",
-        content: body,
+        content: isHtml ? bodyHtml : bodyText,
         direction: "outbound",
-        metadata: { to, subject, automated: true, workflow_node: node.id },
+        metadata: { to, subject, automated: true, workflow_node: node.id, html: isHtml },
         occurred_at: new Date().toISOString(),
       });
 
