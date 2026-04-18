@@ -711,12 +711,12 @@ function WorkflowList({
     <div
       ref={containerRef}
       className="flex flex-col items-center overflow-y-auto"
-      style={{ height: "calc(100vh - 56px)", paddingBottom: 60 }}
+      style={{ height: "calc(100vh - 56px)", paddingTop: 64, paddingBottom: 60 }}
       onScroll={(e) => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 70)}
     >
       {/* ── Fade-away header ── */}
       <div
-        className="flex flex-col items-center gap-8 pt-24 pb-6 w-full"
+        className="flex flex-col items-center gap-8 pt-4 pb-6 w-full"
         style={{
           opacity: scrolled ? 0 : 1,
           transform: scrolled ? "translateY(-18px) scale(0.97)" : "translateY(0) scale(1)",
