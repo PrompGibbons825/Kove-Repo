@@ -956,10 +956,16 @@ function WorkflowBuilder({
 
   function handleNodeMouseDown(id: string, e: RMouseEvent) {
     if ((e.target as HTMLElement).closest("[data-port]")) return;
+    e.preventDefault();
     const node = nodes.find((n) => n.id === id);
-    if (!node) return;
+    if (!node || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    // Store offset as cursor position relative to canvas, minus the node's current canvas position
     setDragging(id);
-    setDragOffset({ x: e.clientX - node.x, y: e.clientY - node.y });
+    setDragOffset({
+      x: (e.clientX - rect.left + canvasRef.current.scrollLeft) - node.x,
+      y: (e.clientY - rect.top + canvasRef.current.scrollTop) - node.y,
+    });
   }
 
   function handleCanvasMouseMove(e: RMouseEvent) {
@@ -967,8 +973,8 @@ function WorkflowBuilder({
     const rect = canvasRef.current.getBoundingClientRect();
     moveNode(
       dragging,
-      e.clientX - rect.left - dragOffset.x + canvasRef.current.scrollLeft,
-      e.clientY - rect.top - dragOffset.y + canvasRef.current.scrollTop
+      (e.clientX - rect.left + canvasRef.current.scrollLeft) - dragOffset.x,
+      (e.clientY - rect.top + canvasRef.current.scrollTop) - dragOffset.y,
     );
   }
 
