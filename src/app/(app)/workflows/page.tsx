@@ -1777,11 +1777,11 @@ function WorkflowBuilder({
             <div style={{ display: isVisible ? "contents" : "none" }}>
               <LandingPageEditor
                 workflowId={workflow.id}
+                lpNodeId={lpNode.id}
                 onClose={() => { setShowLpPanel(false); setSelectedNodeId(null); }}
                 lpNode={selectedNode?.type === "landing-page" ? selectedNode : null}
                 onUpdateNode={(key, val) => {
-                  if (!selectedNode) return;
-                  onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, config: { ...(n.config ?? {}), [key]: val } } : n), updatedAt: Date.now() });
+                  onChange({ ...workflow, nodes: nodes.map((n) => n.id === lpNode.id ? { ...n, config: { ...(n.config ?? {}), [key]: val } } : n), updatedAt: Date.now() });
                 }}
                 onRenameNode={(label) => {
                   if (!selectedNode) return;
@@ -1893,6 +1893,7 @@ function WorkflowBuilder({
 
 function LandingPageEditor({
   workflowId,
+  lpNodeId,
   onClose,
   lpNode,
   onUpdateNode,
@@ -1900,6 +1901,7 @@ function LandingPageEditor({
   onDeleteNode,
 }: {
   workflowId: string;
+  lpNodeId: string;
   onClose: () => void;
   lpNode: WorkflowNode | null;
   onUpdateNode: (key: string, val: string) => void;
@@ -1963,16 +1965,24 @@ function LandingPageEditor({
         .eq("workflow_id", workflowId)
         .maybeSingle();
 
+      // Preserve any HTML the agent already set before this component mounted
+      const agentHtml = lpCtx.state.html;
+      const agentSlug = lpCtx.state.slug;
+
       if (data) {
         setPageIdLocal(data.id);
-        setSlugLocal(data.slug);
+        setSlugLocal(agentSlug || data.slug);
         setBrandAssetsLocal(data.brand_assets ?? []);
         setPageStatus(data.status);
-        lpCtx.open(data.id, data.slug, data.html_content ?? "", data.brand_assets ?? []);
-        setHtmlDraft(data.html_content ?? "");
+        const resolvedHtml = agentHtml || data.html_content || "";
+        lpCtx.open(data.id, agentSlug || data.slug, resolvedHtml, data.brand_assets ?? []);
+        setHtmlDraft(resolvedHtml);
+        // Link LP to node config
+        onUpdateNode("landing_page_id", data.id);
       } else {
-        lpCtx.open("", "", "", []);
-        setHtmlDraft("");
+        lpCtx.open("", agentSlug, agentHtml, []);
+        setHtmlDraft(agentHtml || "");
+        if (agentSlug) setSlugLocal(agentSlug);
       }
       setLoadingPage(false);
     }
@@ -2026,6 +2036,7 @@ function LandingPageEditor({
     setSaving(true);
     setSaveStatus("saving");
     setSlugError("");
+    let saveOk = false;
 
     try {
       if (curPageId) {
@@ -2036,12 +2047,14 @@ function LandingPageEditor({
         if (error) {
           console.error("LP update error:", error);
           if (error.code === "23505") { setSlugError("Slug already taken."); }
+        } else {
+          saveOk = true;
         }
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { setSaving(false); return; }
+        if (!user) { setSaving(false); setSaveStatus("unsaved"); return; }
         const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
-        if (!koveUser) { setSaving(false); return; }
+        if (!koveUser) { setSaving(false); setSaveStatus("unsaved"); return; }
 
         const { data: newPage, error } = await supabase
           .from("landing_pages")
@@ -2052,13 +2065,19 @@ function LandingPageEditor({
           console.error("LP insert error:", error);
           if (error.code === "23505") { setSlugError("Slug already taken."); }
         }
-        if (newPage) { setPageIdLocal(newPage.id); lpCtx.setPageId(newPage.id); }
+        if (newPage) {
+          setPageIdLocal(newPage.id);
+          lpCtx.setPageId(newPage.id);
+          // Link LP to the workflow node config
+          onUpdateNode("landing_page_id", newPage.id);
+          saveOk = true;
+        }
       }
     } catch (err) {
       console.error("LP save exception:", err);
     }
     setSaving(false);
-    setSaveStatus("saved");
+    setSaveStatus(saveOk ? "saved" : "unsaved");
   }
 
   async function handlePublish() {
