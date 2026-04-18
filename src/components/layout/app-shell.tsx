@@ -109,7 +109,7 @@ function AppShellInner({ user, org, children }: AppShellProps) {
           <button
             onClick={() => setAgentOpen(true)}
             aria-label="Open AI assistant"
-            className="fixed top-4 z-40 flex items-center justify-center rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md hover:border-[var(--color-accent)]/30 transition-all duration-200 cursor-pointer"
+            className="fixed top-4 z-50 flex items-center justify-center rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm hover:shadow-md hover:border-[var(--color-accent)]/30 transition-all duration-200 cursor-pointer"
             style={{ right: (contactSidebarOpen ? contactWidth : 0) + 20, width: 40, height: 40 }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)]">
