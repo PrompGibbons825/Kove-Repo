@@ -1289,7 +1289,7 @@ function WorkflowBuilder({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div style={{ display: "flex", flexDirection: "column", position: "fixed", inset: 0, overflow: "hidden", zIndex: 50, background: "var(--color-background)" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
         <div className="flex items-center gap-4">
@@ -1333,7 +1333,7 @@ function WorkflowBuilder({
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0 }}>
+      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
         {/* Node palette */}
         {paletteOpen && (
           <div style={{ width: 240, flexShrink: 0, borderRight: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", alignSelf: "stretch" }}>
