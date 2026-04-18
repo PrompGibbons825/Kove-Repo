@@ -16,34 +16,36 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typing an address…", className, style }: Props) {
-  const [query, setQuery] = useState(value ?? "");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  // Track whether the user is actively editing so we don't clobber their input
-  const isTypingRef = useRef(false);
+const GMAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
-  // Only sync external value changes when the field is not being edited
-  useEffect(() => {
-    if (!isTypingRef.current) {
-      setQuery(value ?? "");
-    }
-  }, [value]);
+async function fetchSuggestions(q: string): Promise<Suggestion[]> {
+  if (q.trim().length < 3) return [];
 
-  const search = useCallback(async (q: string) => {
-    if (q.trim().length < 3) { setSuggestions([]); setOpen(false); return; }
-    setLoading(true);
+  // ── Google Places Autocomplete (preferred — full house-number support) ──
+  if (GMAPS_KEY) {
     try {
-      // Photon (Komoot) — Elasticsearch on OSM, much better residential coverage than Nominatim
       const res = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=7&lang=en`,
-        { headers: { "Accept": "application/json" } }
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(q)}&types=address&key=${GMAPS_KEY}`
       );
       const data = await res.json();
-      const items: Suggestion[] = (data.features ?? []).map((f: Record<string, unknown>) => {
+      if (data.status === "OK") {
+        return (data.predictions ?? []).map((p: Record<string, unknown>) => ({
+          id: String(p.place_id),
+          label: String((p as Record<string, unknown>).description ?? ""),
+        }));
+      }
+    } catch { /* fall through */ }
+  }
+
+  // ── Photon/Komoot fallback (no key required) ──
+  try {
+    const res = await fetch(
+      `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=7&lang=en`,
+      { headers: { Accept: "application/json" } }
+    );
+    const data = await res.json();
+    return (data.features ?? [])
+      .map((f: Record<string, unknown>) => {
         const p = f.properties as Record<string, string>;
         const parts = [
           p.housenumber && p.street ? `${p.housenumber} ${p.street}` : p.street ?? p.name,
@@ -51,13 +53,33 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
           p.state,
           p.country,
         ].filter(Boolean);
-        return { id: String(f.id ?? Math.random()), label: parts.join(", ") };
-      }).filter((s: Suggestion) => s.label);
+        return { id: String((f as Record<string, unknown>).id ?? Math.random()), label: parts.join(", ") };
+      })
+      .filter((s: Suggestion) => s.label);
+  } catch {
+    return [];
+  }
+}
+
+export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "Start typing an address…", className, style }: Props) {
+  const [query, setQuery] = useState(value ?? "");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isTypingRef.current) setQuery(value ?? "");
+  }, [value]);
+
+  const search = useCallback(async (q: string) => {
+    setLoading(true);
+    try {
+      const items = await fetchSuggestions(q);
       setSuggestions(items);
       setOpen(items.length > 0);
-    } catch {
-      setSuggestions([]);
-      setOpen(false);
     } finally {
       setLoading(false);
     }
@@ -69,13 +91,18 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
     setQuery(v);
     onChange(v);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(v), 400);
+    if (v.trim().length >= 3) {
+      debounceRef.current = setTimeout(() => search(v), 400);
+    } else {
+      setSuggestions([]);
+      setOpen(false);
+    }
   }
 
-  function handleSelect(suggestion: Suggestion) {
+  function handleSelect(s: Suggestion) {
     isTypingRef.current = false;
-    setQuery(suggestion.label);
-    onChange(suggestion.label);
+    setQuery(s.label);
+    onChange(s.label);
     setOpen(false);
     setSuggestions([]);
   }
@@ -85,12 +112,9 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
     onBlur?.();
   }
 
-  // Close on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -124,11 +148,7 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
             <li
               key={s.id}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
-              style={{
-                padding: "9px 14px", fontSize: 12, lineHeight: 1.4,
-                color: "var(--color-text-primary)", cursor: "pointer",
-                borderBottom: "1px solid var(--color-border)",
-              }}
+              style={{ padding: "9px 14px", fontSize: 12, lineHeight: 1.4, color: "var(--color-text-primary)", cursor: "pointer", borderBottom: "1px solid var(--color-border)" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-hover)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
