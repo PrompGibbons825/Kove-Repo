@@ -408,10 +408,9 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  // Standard ⚡ shape: upper triangle leans left, lower triangle leans right
-  // Top point → down-left to mid-left → jog right to mid-center → down-right to bottom → up-right to mid-right → jog left to mid-center
-  const bolt = "M50 8 L25 55 L45 55 L35 108 L70 50 L55 50 Z";
-  const boltInner = "M50 16 L30 54 L46 54 L38 100 L66 52 L54 52 Z";
+  // Classic ⚡ bolt: top → upper-right → step left → bottom → lower-left → step right
+  const bolt = "M50 5 L78 52 L56 52 L66 115 L22 58 L44 58 Z";
+  const boltInner = "M50 14 L72 52 L56 52 L64 106 L28 58 L44 58 Z";
 
   return (
     <div
@@ -455,7 +454,7 @@ function LiquidBolt() {
         }}
       >
         <defs>
-          {/* Electric glow filter — wispy distortion around edges */}
+          {/* Electric glow filter — soft distortion around edges */}
           <filter id="electric-glow" x="-80%" y="-80%" width="260%" height="260%">
             <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="4" result="noise">
               <animate attributeName="seed" from="0" to="100" dur="3s" repeatCount="indefinite" />
@@ -470,15 +469,6 @@ function LiquidBolt() {
               <feMergeNode in="pinkBlur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
-          </filter>
-
-          {/* Wisp filter — more aggressive distortion for floating wisps */}
-          <filter id="wisp-filter" x="-100%" y="-100%" width="300%" height="300%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="3" result="wnoise">
-              <animate attributeName="seed" from="50" to="150" dur="5s" repeatCount="indefinite" />
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="wnoise" scale="12" />
-            <feGaussianBlur stdDeviation="3" />
           </filter>
 
           {/* Gradient: pink top → cyan bottom */}
@@ -496,45 +486,17 @@ function LiquidBolt() {
           </linearGradient>
         </defs>
 
-        {/* Wisps — small distorted shapes floating around the bolt */}
-        <ellipse cx="20" cy="35" rx="8" ry="3" fill="#c084fc" opacity="0.5" filter="url(#wisp-filter)">
-          <animateTransform attributeName="transform" type="translate" values="0,0; 5,-8; -3,5; 0,0" dur="4s" repeatCount="indefinite" />
-        </ellipse>
-        <ellipse cx="75" cy="60" rx="6" ry="2.5" fill="#00e5ff" opacity="0.4" filter="url(#wisp-filter)">
-          <animateTransform attributeName="transform" type="translate" values="0,0; -6,4; 4,-6; 0,0" dur="5s" repeatCount="indefinite" />
-        </ellipse>
-        <ellipse cx="30" cy="80" rx="7" ry="2" fill="#ff77ff" opacity="0.45" filter="url(#wisp-filter)">
-          <animateTransform attributeName="transform" type="translate" values="0,0; 8,3; -5,-4; 0,0" dur="3.5s" repeatCount="indefinite" />
-        </ellipse>
-        <ellipse cx="65" cy="25" rx="5" ry="3" fill="#a78bfa" opacity="0.35" filter="url(#wisp-filter)">
-          <animateTransform attributeName="transform" type="translate" values="0,0; -4,-5; 6,3; 0,0" dur="6s" repeatCount="indefinite" />
-        </ellipse>
-        <ellipse cx="40" cy="95" rx="6" ry="2" fill="#67e8f9" opacity="0.4" filter="url(#wisp-filter)">
-          <animateTransform attributeName="transform" type="translate" values="0,0; 3,6; -7,-2; 0,0" dur="4.5s" repeatCount="indefinite" />
-        </ellipse>
-
         {/* Aura layer — distorted electric glow */}
-        <path d={bolt} fill="url(#wfBoltGrad)" filter="url(#electric-glow)" opacity="0.7"
-          style={{ animation: "boltFlicker 3s infinite alternate ease-in-out" }} />
+        <path d={bolt} fill="url(#wfBoltGrad)" filter="url(#electric-glow)" opacity="0.7" />
 
         {/* Main bolt body — solid filled */}
-        <path d={bolt} fill="url(#wfBoltGrad)"
-          style={{ animation: "boltFlicker 3s infinite alternate ease-in-out" }} />
+        <path d={bolt} fill="url(#wfBoltGrad)" />
 
         {/* White-hot inner core */}
-        <path
-          d={boltInner}
-          fill="url(#wfBoltCore)"
-          opacity="0.75"
-        />
+        <path d={boltInner} fill="url(#wfBoltCore)" opacity="0.75" />
 
         {/* Bright white center for depth */}
-        <path
-          d={boltInner}
-          fill="white"
-          opacity="0.3"
-          style={{ animation: "boltFlicker 2s infinite alternate ease-in-out", animationDelay: "-0.5s" }}
-        />
+        <path d={boltInner} fill="white" opacity="0.25" />
       </svg>
     </div>
   );
