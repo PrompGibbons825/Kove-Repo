@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 interface Suggestion {
-  place_id: string;
-  display_name: string;
+  id: string;
+  label: string;
 }
 
 interface Props {
@@ -23,23 +23,41 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Track whether the user is actively editing so we don't clobber their input
+  const isTypingRef = useRef(false);
 
-  // Sync external value changes
-  useEffect(() => { setQuery(value ?? ""); }, [value]);
+  // Only sync external value changes when the field is not being edited
+  useEffect(() => {
+    if (!isTypingRef.current) {
+      setQuery(value ?? "");
+    }
+  }, [value]);
 
   const search = useCallback(async (q: string) => {
-    if (q.length < 4) { setSuggestions([]); setOpen(false); return; }
+    if (q.trim().length < 3) { setSuggestions([]); setOpen(false); return; }
     setLoading(true);
     try {
+      // Photon (Komoot) — Elasticsearch on OSM, much better residential coverage than Nominatim
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=6&addressdetails=0&q=${encodeURIComponent(q)}`,
-        { headers: { "Accept-Language": "en" } }
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=7&lang=en`,
+        { headers: { "Accept": "application/json" } }
       );
-      const data: Suggestion[] = await res.json();
-      setSuggestions(data);
-      setOpen(data.length > 0);
+      const data = await res.json();
+      const items: Suggestion[] = (data.features ?? []).map((f: Record<string, unknown>) => {
+        const p = f.properties as Record<string, string>;
+        const parts = [
+          p.housenumber && p.street ? `${p.housenumber} ${p.street}` : p.street ?? p.name,
+          p.city ?? p.town ?? p.village,
+          p.state,
+          p.country,
+        ].filter(Boolean);
+        return { id: String(f.id ?? Math.random()), label: parts.join(", ") };
+      }).filter((s: Suggestion) => s.label);
+      setSuggestions(items);
+      setOpen(items.length > 0);
     } catch {
       setSuggestions([]);
+      setOpen(false);
     } finally {
       setLoading(false);
     }
@@ -47,17 +65,24 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
+    isTypingRef.current = true;
     setQuery(v);
     onChange(v);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(v), 350);
+    debounceRef.current = setTimeout(() => search(v), 400);
   }
 
   function handleSelect(suggestion: Suggestion) {
-    setQuery(suggestion.display_name);
-    onChange(suggestion.display_name);
+    isTypingRef.current = false;
+    setQuery(suggestion.label);
+    onChange(suggestion.label);
     setOpen(false);
     setSuggestions([]);
+  }
+
+  function handleBlur() {
+    isTypingRef.current = false;
+    onBlur?.();
   }
 
   // Close on outside click
@@ -77,37 +102,37 @@ export function AddressAutocomplete({ value, onChange, onBlur, placeholder = "St
         type="text"
         value={query}
         onChange={handleInput}
-        onBlur={onBlur}
+        onBlur={handleBlur}
         placeholder={placeholder}
         className={className}
         autoComplete="off"
         style={{ width: "100%" }}
       />
       {loading && (
-        <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "var(--color-text-tertiary)" }}>
+        <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "var(--color-text-tertiary)", pointerEvents: "none" }}>
           …
         </div>
       )}
       {open && suggestions.length > 0 && (
         <ul style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999,
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999,
           background: "var(--color-surface)", border: "1px solid var(--color-border)",
-          borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", maxHeight: 220, overflowY: "auto",
+          borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.22)", maxHeight: 240, overflowY: "auto",
           padding: "4px 0", margin: 0, listStyle: "none",
         }}>
           {suggestions.map((s) => (
             <li
-              key={s.place_id}
-              onMouseDown={() => handleSelect(s)}
+              key={s.id}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
               style={{
-                padding: "8px 12px", fontSize: 12, lineHeight: 1.4,
+                padding: "9px 14px", fontSize: 12, lineHeight: 1.4,
                 color: "var(--color-text-primary)", cursor: "pointer",
                 borderBottom: "1px solid var(--color-border)",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-hover)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              {s.display_name}
+              {s.label}
             </li>
           ))}
         </ul>
