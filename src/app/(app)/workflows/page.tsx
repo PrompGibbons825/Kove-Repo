@@ -124,6 +124,14 @@ const NODE_CATALOG: NodeDef[] = [
     color: "#64748b",
     desc: "Run on a recurring schedule",
   },
+  {
+    type: "webhook",
+    label: "Webhook",
+    category: "trigger",
+    icon: <Code2 className="w-4 h-4" />,
+    color: "#0ea5e9",
+    desc: "Trigger from any external app via HTTP",
+  },
   // Actions
   {
     type: "send-email",
@@ -209,14 +217,19 @@ const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
     { key: "fields", label: "Required Fields", type: "textarea", placeholder: "name, email, phone (comma-separated)" },
   ],
   "new-contact": [
+    // source options are injected dynamically from fetched org settings — see WorkflowBuilder
     { key: "source", label: "Source Filter", type: "select", options: [
       { value: "", label: "Any source" },
-      { value: "website", label: "Website" },
-      { value: "import", label: "CSV Import" },
-      { value: "manual", label: "Manual" },
-      { value: "api", label: "API" },
     ]},
     { key: "tags", label: "Required Tags", type: "text", placeholder: "e.g. lead, vip (comma-separated)" },
+  ],
+  "webhook": [
+    { key: "name", label: "Webhook Name", type: "text", placeholder: "e.g. HubSpot lead form" },
+    { key: "secret", label: "Secret Key (optional)", type: "text", placeholder: "Used to verify the request" },
+    { key: "method", label: "HTTP Method", type: "select", options: [
+      { value: "POST", label: "POST" },
+      { value: "GET", label: "GET" },
+    ]},
   ],
   "inbound-call": [
     { key: "phoneNumber", label: "Phone Number", type: "text", placeholder: "+1 (555) 000-0000" },
@@ -1199,9 +1212,18 @@ function WorkflowBuilder({
   onOpenLpEditor: () => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [orgSources, setOrgSources] = useState<string[]>([]);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [connecting, setConnecting] = useState<string | null>(null);
+
+  // Load org sources so the New Contact trigger can filter by them
+  useEffect(() => {
+    fetch("/api/settings/org")
+      .then((r) => r.json())
+      .then((d) => setOrgSources(d.source_options ?? []))
+      .catch(() => {});
+  }, []);
   const [showTip, setShowTip] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [nodeSearch, setNodeSearch] = useState("");
@@ -1400,7 +1422,7 @@ function WorkflowBuilder({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 68, right: 0, overflow: "hidden", zIndex: 40, background: "var(--color-background)" }}>
+    <div style={{ display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 68, right: "var(--right-panel-width, 0px)", overflow: "hidden", zIndex: 40, background: "var(--color-background)", transition: "right 300ms cubic-bezier(0.16,1,0.3,1)" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
         <div className="flex items-center gap-4">
@@ -1763,7 +1785,14 @@ function WorkflowBuilder({
         {/* ── Node config panel ── */}
         {selectedNode && (() => {
           const def = getNodeDef(selectedNode.type);
-          const fields = NODE_CONFIG_FIELDS[selectedNode.type] ?? [];
+          const rawFields = NODE_CONFIG_FIELDS[selectedNode.type] ?? [];
+          // Inject live org sources into the new-contact source dropdown
+          const fields = rawFields.map((f) => {
+            if (selectedNode.type === "new-contact" && f.key === "source" && orgSources.length > 0) {
+              return { ...f, options: [{ value: "", label: "Any source" }, ...orgSources.map((s) => ({ value: s, label: s }))] };
+            }
+            return f;
+          });
           const cfg = (selectedNode.config ?? {}) as Record<string, string>;
           return (
             <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>

@@ -55,6 +55,11 @@ function AppShellInner({ user, org, children }: AppShellProps) {
   const rightColumnWidth = agentOpen ? columnWidth : (contactSidebarOpen ? contactWidth : 0);
   const rightMargin = contactFullscreen ? 0 : rightColumnWidth;
 
+  // Expose right panel width as a CSS variable so fixed-positioned overlays (e.g. canvas builder) can react
+  useEffect(() => {
+    document.body.style.setProperty("--right-panel-width", `${rightMargin}px`);
+  }, [rightMargin]);
+
   // ── Column width resize (left edge drag) ──
   const colResizingRef = useRef(false);
   const startColumnResize = useCallback((e: React.MouseEvent) => {
