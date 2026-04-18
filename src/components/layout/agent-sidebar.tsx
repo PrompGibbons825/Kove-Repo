@@ -274,14 +274,16 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       const endpoint = (isLpMode && !isWfMode) ? "/api/lp/generate" : "/api/agent";
 
       // Build workflow page context so agent sees current canvas state
-      const lpContext = isWfMode && isLpMode
+      // Include LP context whenever there's a landing-page node in the workflow (panel open or not)
+      const hasLpNode = isWfMode && wfBuilder.state.nodes.some((n) => n.type === "landing-page");
+      const lpContext = isWfMode && (isLpMode || hasLpNode)
         ? `\n\nLANDING PAGE CONTEXT:\n` +
-          `Landing page panel is OPEN for this workflow.\n` +
+          (isLpMode ? `Landing page panel is OPEN — you can generate/edit HTML for it.\n` : `A landing-page node exists on the canvas. The panel is not currently open.\n`) +
           `Page ID: ${lpBuilder.state.pageId || "(not saved yet)"}\n` +
-          `Slug: ${lpBuilder.state.slug || "(none)"}\n` +
+          `Slug: ${lpBuilder.state.slug || "(none set)"}\n` +
           `Brand assets: ${lpBuilder.state.brandAssets.length > 0 ? lpBuilder.state.brandAssets.map(a => `${a.type}: ${a.name} (${a.url})`).join(", ") : "(none)"}\n` +
-          `Current HTML: ${lpBuilder.state.html ? `${lpBuilder.state.html.length} chars` : "(empty — no page generated yet)"}\n` +
-          (lpBuilder.state.html ? `\nCurrent HTML content:\n${lpBuilder.state.html.slice(0, 2000)}${lpBuilder.state.html.length > 2000 ? "\n... (truncated)" : ""}` : "")
+          `Current HTML: ${lpBuilder.state.html ? `${lpBuilder.state.html.length} chars of HTML exist` : "(no HTML yet — page not generated)"}\n` +
+          (lpBuilder.state.html ? `\nCurrent HTML (first 3000 chars):\n${lpBuilder.state.html.slice(0, 3000)}${lpBuilder.state.html.length > 3000 ? "\n... (truncated)" : ""}` : "")
         : "";
 
       const wfPageContext = isWfMode
@@ -302,7 +304,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
           }
         : { page: window.location.pathname };
 
-      const body = isLpMode
+      const body = (isLpMode && !isWfMode)
         ? {
             message: userMessage.content,
             conversationHistory: currentMessages.map((m) => ({ role: m.role, content: m.content })),
