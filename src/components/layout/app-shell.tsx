@@ -29,6 +29,13 @@ export function AppShell({ user, org, children }: AppShellProps) {
 
 function AppShellInner({ user, org, children }: AppShellProps) {
   const [agentOpen, setAgentOpen] = useState(false);
+
+  // Allow any component to open the agent sidebar via custom event
+  useEffect(() => {
+    const handler = () => setAgentOpen(true);
+    window.addEventListener("open-agent-sidebar", handler);
+    return () => window.removeEventListener("open-agent-sidebar", handler);
+  }, []);
   const [columnWidth, setColumnWidth] = useState(400);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const { contact, viewMode, width: contactWidth, setRightOffset } = useContactPanel();

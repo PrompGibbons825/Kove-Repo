@@ -367,6 +367,143 @@ function MiniFlow({ nodes, color }: { nodes: { icon: React.ReactNode; label: str
   );
 }
 
+function LiquidBolt() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mouse, setMouse] = useState({ x: 0, y: 0, active: false });
+  const rafRef = useRef<number>(0);
+  const smoothRef = useRef({ x: 0, y: 0 });
+
+  const handleMove = useCallback((e: MouseEvent) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    setMouse({ x: dx, y: dy, active: dist < 2.5 });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [handleMove]);
+
+  useEffect(() => {
+    function tick() {
+      smoothRef.current.x += (mouse.x - smoothRef.current.x) * 0.08;
+      smoothRef.current.y += (mouse.y - smoothRef.current.y) * 0.08;
+      const el = containerRef.current;
+      if (el) {
+        el.style.setProperty("--mx", String(smoothRef.current.x));
+        el.style.setProperty("--my", String(smoothRef.current.y));
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [mouse]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative cursor-pointer"
+      style={{ width: 180, height: 200 }}
+    >
+      {/* Far ambient glow */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          inset: "-60%",
+          filter: "blur(80px)",
+          opacity: mouse.active ? 0.5 : 0.3,
+          transition: "opacity 1s",
+          background: "radial-gradient(circle, rgba(168,130,255,0.5) 0%, rgba(192,132,252,0.25) 30%, rgba(232,121,249,0.12) 55%, transparent 75%)",
+        }}
+      />
+      {/* Mid glow */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          inset: "-30%",
+          filter: "blur(40px)",
+          opacity: mouse.active ? 0.6 : 0.35,
+          transition: "opacity 0.7s",
+          background: "radial-gradient(circle, rgba(192,132,252,0.6) 0%, rgba(139,92,246,0.3) 40%, transparent 70%)",
+          animation: "orbPulse 4s ease-in-out infinite",
+        }}
+      />
+      {/* Bolt SVG with glow layers */}
+      <svg
+        viewBox="0 0 120 160"
+        className="absolute inset-0 w-full h-full"
+        style={{
+          transform: `rotateY(calc(var(--mx,0) * 10deg)) rotateX(calc(var(--my,0) * -10deg)) scale(${mouse.active ? 1.06 : 1})`,
+          transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
+          animation: "orbFloat 5s ease-in-out infinite",
+          filter: "drop-shadow(0 0 20px rgba(168,130,255,0.5)) drop-shadow(0 0 40px rgba(192,132,252,0.3))",
+        }}
+      >
+        <defs>
+          <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#c084fc" />
+            <stop offset="30%" stopColor="#a78bfa" />
+            <stop offset="60%" stopColor="#818cf8" />
+            <stop offset="100%" stopColor="#e879f9" />
+          </linearGradient>
+          <linearGradient id="boltShine" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
+            <stop offset="50%" stopColor="rgba(255,255,255,0.1)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0.4)" />
+          </linearGradient>
+          <filter id="boltBlur">
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+        </defs>
+        {/* Soft blurred background bolt */}
+        <path
+          d="M72 8 L42 68 L62 68 L38 152 L92 78 L68 78 Z"
+          fill="url(#boltGrad)"
+          filter="url(#boltBlur)"
+          opacity="0.6"
+        />
+        {/* Main bolt */}
+        <path
+          d="M72 8 L42 68 L62 68 L38 152 L92 78 L68 78 Z"
+          fill="url(#boltGrad)"
+        />
+        {/* Specular highlight */}
+        <path
+          d="M72 8 L42 68 L62 68 L38 152 L92 78 L68 78 Z"
+          fill="url(#boltShine)"
+          opacity="0.5"
+        />
+        {/* Inner bright edge */}
+        <path
+          d="M72 8 L42 68 L62 68 L38 152 L92 78 L68 78 Z"
+          fill="none"
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth="1.5"
+        />
+      </svg>
+      {/* Pulsing core glow */}
+      <div
+        className="absolute"
+        style={{
+          top: "20%", left: "25%", width: "50%", height: "60%",
+          borderRadius: "30%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)",
+          animation: "orbPulse 3s ease-in-out infinite",
+        }}
+      />
+    </div>
+  );
+}
+
 function WorkflowList({
   workflows,
   onNew,
@@ -381,22 +518,44 @@ function WorkflowList({
   if (workflows.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <div className="w-12 h-12 rounded-2xl bg-[var(--color-accent)] flex items-center justify-center mb-5">
-          <Zap className="w-5 h-5 text-white" strokeWidth={2} />
-        </div>
-        <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Workflows</h1>
-        <p className="text-[14px] text-[var(--color-text-secondary)] mt-2">Automate your sales process</p>
+        <LiquidBolt />
+        <h1 className="text-[24px] font-medium text-[var(--color-text-primary)] mt-6">Welcome to Workflows</h1>
+        <p className="text-[14px] text-[var(--color-text-secondary)] mt-2">build · ship · automate</p>
         <button
-          onClick={onNew}
-          className="inline-flex items-center gap-2 mt-6 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-all"
-          style={{ padding: "10px 20px", backgroundColor: "var(--color-accent)" }}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("open-agent-sidebar"));
+            onNew();
+          }}
+          className="mt-8 text-[15px] font-semibold text-white rounded-full hover:scale-105 active:scale-100 transition-all cursor-pointer"
+          style={{
+            padding: "14px 40px",
+            background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)",
+            boxShadow: "0 4px 24px rgba(168,130,255,0.35), 0 1px 3px rgba(0,0,0,0.08)",
+          }}
         >
-          <Plus className="w-4 h-4" />
-          New workflow
+          Let&apos;s get started
         </button>
-        <p className="text-[12px] text-[var(--color-text-tertiary)] mt-4">
+        <p className="text-[12px] text-[var(--color-text-tertiary)] mt-5">
           Tip: ask <span className="font-medium text-[var(--color-accent)]">Kove AI</span> in the sidebar to build one for you!
         </p>
+
+        {/* Templates */}
+        <div className="mt-12 w-full max-w-xl">
+          <p className="text-[12px] text-[var(--color-text-tertiary)] mb-3 text-left">templates:</p>
+          <div className="grid grid-cols-3 gap-3">
+            {TEMPLATES.slice(0, 3).map((t) => (
+              <button
+                key={t.name}
+                onClick={onNew}
+                className="text-left bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-md)] transition-all"
+                style={{ padding: "16px 18px" }}
+              >
+                <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t.name}</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-1">{t.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
