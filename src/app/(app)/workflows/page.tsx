@@ -1928,6 +1928,15 @@ function LandingPageEditor({
   const [previewWidth, setPreviewWidth] = useState(360);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
 
+  // Refs for autosave to always read latest values (avoid stale closure)
+  const latestSlug = useRef(slug);
+  const latestHtml = useRef("");
+  const latestBrandAssets = useRef(brandAssets);
+  const latestPageId = useRef(pageId);
+  latestSlug.current = slug;
+  latestBrandAssets.current = brandAssets;
+  latestPageId.current = pageId;
+
   function onDragStart(e: React.MouseEvent) {
     dragRef.current = { startX: e.clientX, startW: previewWidth };
     const onMove = (ev: MouseEvent) => {
@@ -1990,6 +1999,7 @@ function LandingPageEditor({
   }, [lpCtx.state.html]);
 
   const html = lpCtx.state.html;
+  latestHtml.current = html;
 
   function applyHtmlEdit() {
     lpCtx.setHtml(htmlDraft);
@@ -2006,40 +2016,55 @@ function LandingPageEditor({
   }, [html, slug, brandAssets]);
 
   async function performSave() {
-    if (!slug.trim()) return; // need a slug before we can save
+    const curSlug = latestSlug.current;
+    const curHtml = latestHtml.current;
+    const curAssets = latestBrandAssets.current;
+    const curPageId = latestPageId.current;
+
+    if (!curSlug.trim()) return; // need a slug before we can save
     setSaving(true);
     setSaveStatus("saving");
     setSlugError("");
 
-    if (pageId) {
-      const { error } = await supabase
-        .from("landing_pages")
-        .update({ slug, html_content: html, brand_assets: brandAssets, updated_at: new Date().toISOString() })
-        .eq("id", pageId);
-      if (error?.code === "23505") { setSlugError("Slug already taken."); }
-    } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setSaving(false); return; }
-      const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
-      if (!koveUser) { setSaving(false); return; }
+    try {
+      if (curPageId) {
+        const { error } = await supabase
+          .from("landing_pages")
+          .update({ slug: curSlug, html_content: curHtml, brand_assets: curAssets, updated_at: new Date().toISOString() })
+          .eq("id", curPageId);
+        if (error) {
+          console.error("LP update error:", error);
+          if (error.code === "23505") { setSlugError("Slug already taken."); }
+        }
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setSaving(false); return; }
+        const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
+        if (!koveUser) { setSaving(false); return; }
 
-      const { data: newPage, error } = await supabase
-        .from("landing_pages")
-        .insert({ org_id: koveUser.org_id, workflow_id: workflowId, slug, html_content: html, brand_assets: brandAssets })
-        .select("id")
-        .single();
-      if (error?.code === "23505") { setSlugError("Slug already taken."); }
-      if (newPage) { setPageIdLocal(newPage.id); lpCtx.setPageId(newPage.id); }
+        const { data: newPage, error } = await supabase
+          .from("landing_pages")
+          .insert({ org_id: koveUser.org_id, workflow_id: workflowId, slug: curSlug, html_content: curHtml, brand_assets: curAssets })
+          .select("id")
+          .single();
+        if (error) {
+          console.error("LP insert error:", error);
+          if (error.code === "23505") { setSlugError("Slug already taken."); }
+        }
+        if (newPage) { setPageIdLocal(newPage.id); lpCtx.setPageId(newPage.id); }
+      }
+    } catch (err) {
+      console.error("LP save exception:", err);
     }
     setSaving(false);
     setSaveStatus("saved");
   }
 
   async function handlePublish() {
-    if (!pageId) await performSave();
-    if (!pageId && !slug.trim()) return;
+    if (!latestPageId.current) await performSave();
+    if (!latestPageId.current && !latestSlug.current.trim()) return;
     const newStatus = pageStatus === "live" ? "draft" : "live";
-    await supabase.from("landing_pages").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", pageId);
+    await supabase.from("landing_pages").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", latestPageId.current);
     setPageStatus(newStatus);
   }
 
