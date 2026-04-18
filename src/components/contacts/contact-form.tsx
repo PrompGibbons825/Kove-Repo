@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { Contact, ContactStatus, CustomFieldDef, Json } from "@/lib/types/database";
+import { AddressAutocomplete } from "./address-autocomplete";
 
 const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -274,6 +275,20 @@ function CustomField({ def, value, onChange }: { def: CustomFieldDef; value: Jso
           className="cursor-pointer accent-[var(--color-accent)]"
         />
         <label className="text-[13px] text-[var(--color-text-primary)]">{def.label}</label>
+      </div>
+    );
+  }
+
+  if (def.type === "address") {
+    return (
+      <div>
+        <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ marginBottom: 6, display: "block" }}>{label}</label>
+        <AddressAutocomplete
+          value={String(value ?? "")}
+          onChange={(v) => onChange(v || null)}
+          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/40"
+          style={{ padding: "8px 12px" }}
+        />
       </div>
     );
   }

@@ -284,7 +284,6 @@ const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
     // source and pipeline_stage options are injected dynamically from org settings at render time
     { key: "source", label: "Source", type: "select", options: [] },
     { key: "pipeline_stage", label: "Pipeline Stage", type: "select", options: [] },
-    { key: "tags", label: "Tags", type: "text", placeholder: "lead, vip (comma-separated)" },
     { key: "status", label: "Status", type: "select", options: [
       { value: "", label: "— none —" },
       { value: "new", label: "New" },

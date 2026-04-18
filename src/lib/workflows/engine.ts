@@ -339,10 +339,6 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
       if (source) payload.source = source;
       if (pipelineStage) payload.pipeline_stage = pipelineStage;
 
-      // Add tags if specified
-      const tagsRaw = interpolate(cfg.tags ?? "");
-      if (tagsRaw) payload.tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
-
       // Collect custom field values from config keys prefixed with custom_field__
       const customFieldEntries = Object.entries(cfg)
         .filter(([k]) => k.startsWith("custom_field__"))

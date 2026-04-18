@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Contact, Activity, ContactStatus, CustomFieldDef } from "@/lib/types/database";
+import { AddressAutocomplete } from "./address-autocomplete";
 import { useContactPanel, type ContactViewMode } from "./contact-panel-context";
 import { useCall, formatDuration, type CallState } from "@/hooks/use-call";
 import { useLiveTranscript } from "@/hooks/use-live-transcript";
@@ -492,6 +493,19 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 /* ── Shared sub-components ── */
 
 function CustomFieldDetailRow({ def, value, onSave }: { def: CustomFieldDef; value: unknown; onSave: (v: unknown) => void }) {
+  if (def.type === "address") {
+    return (
+      <div className="rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)]/40 transition-colors" style={{ padding: "8px 12px" }}>
+        <p className="text-[10px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider" style={{ marginBottom: 4 }}>{def.label}</p>
+        <AddressAutocomplete
+          value={String(value ?? "")}
+          onChange={(v) => onSave(v || null)}
+          placeholder="Start typing an address…"
+          className="text-[13px] text-[var(--color-text-primary)] font-medium bg-transparent border-none outline-none w-full"
+        />
+      </div>
+    );
+  }
   if (def.type === "boolean") {
     return (
       <div className="rounded-lg border border-[var(--color-border)] flex items-center gap-3" style={{ padding: "8px 12px" }}>
