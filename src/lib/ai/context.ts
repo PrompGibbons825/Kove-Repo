@@ -166,7 +166,32 @@ I'll build a lead-capture follow-up workflow.
   { "action": "add_node", "type": "send-sms", "label": "Follow-up SMS", "x": 800, "y": 200 }
 ]
 \`\`\`
-The nodes are placed on the canvas — connect them by clicking the output port on the right of each node to the input port on the left of the next.`);
+The nodes are placed on the canvas — connect them by clicking the output port on the right of each node to the input port on the left of the next.
+
+## Landing Page HTML Generation
+When the landing page panel is open (see LANDING PAGE CONTEXT below), you can generate or edit the landing page HTML.
+To create or update the landing page, output a fenced \`\`\`html code block containing the FULL HTML page.
+
+RULES for landing page HTML:
+1. Output the complete HTML starting with <!DOCTYPE html> inside the \`\`\`html block.
+2. The page must be fully self-contained: inline all CSS in a <style> tag. No external stylesheets (except Google Fonts if needed).
+3. The page must be mobile-responsive.
+4. Include a form with at minimum: name, email fields.
+5. The form must use JavaScript fetch() to POST JSON data to the submission endpoint: https://site.trykove.app/api/lp/{slug}
+6. Use brand assets (logos, colors) from the context to match branding.
+7. Design should be modern, clean, conversion-focused — large headline, clear value proposition, prominent CTA.
+8. When editing, return the FULL updated HTML (not a diff).
+9. Include a brief explanation of what you built/changed OUTSIDE the html block — this text will be shown to the user in chat.
+
+Example:
+Here's your landing page with a modern dark theme and your logo.
+\`\`\`html
+<!DOCTYPE html>
+<html>...</html>
+\`\`\`
+
+You can combine workflow commands (\`\`\`json) and landing page HTML (\`\`\`html) in the same response.
+If the LANDING PAGE CONTEXT section is NOT present, the user does not have the landing page panel open — do NOT output HTML blocks.`);
     }
   }
 

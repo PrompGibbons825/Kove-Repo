@@ -270,9 +270,20 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       const isLpMode = lpBuilder.state.active;
       const isWfMode = wfBuilder.state.active;
 
-      const endpoint = isLpMode ? "/api/lp/generate" : "/api/agent";
+      // Always use /api/agent when in workflow mode — LP HTML generation is handled via ```html blocks
+      const endpoint = (isLpMode && !isWfMode) ? "/api/lp/generate" : "/api/agent";
 
       // Build workflow page context so agent sees current canvas state
+      const lpContext = isWfMode && isLpMode
+        ? `\n\nLANDING PAGE CONTEXT:\n` +
+          `Landing page panel is OPEN for this workflow.\n` +
+          `Page ID: ${lpBuilder.state.pageId || "(not saved yet)"}\n` +
+          `Slug: ${lpBuilder.state.slug || "(none)"}\n` +
+          `Brand assets: ${lpBuilder.state.brandAssets.length > 0 ? lpBuilder.state.brandAssets.map(a => `${a.type}: ${a.name} (${a.url})`).join(", ") : "(none)"}\n` +
+          `Current HTML: ${lpBuilder.state.html ? `${lpBuilder.state.html.length} chars` : "(empty — no page generated yet)"}\n` +
+          (lpBuilder.state.html ? `\nCurrent HTML content:\n${lpBuilder.state.html.slice(0, 2000)}${lpBuilder.state.html.length > 2000 ? "\n... (truncated)" : ""}` : "")
+        : "";
+
       const wfPageContext = isWfMode
         ? {
             page: window.location.pathname,
@@ -286,7 +297,8 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
               `\nEdges (${wfBuilder.state.edges.length}):\n` +
               (wfBuilder.state.edges.length
                 ? wfBuilder.state.edges.map((e) => `  - ${e.from.slice(0, 8)} → ${e.to.slice(0, 8)}`).join("\n")
-                : "  (no connections)"),
+                : "  (no connections)") +
+              lpContext,
           }
         : { page: window.location.pathname };
 
@@ -338,10 +350,20 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
             }
           } catch { /* ignore malformed JSON */ }
         }
+
+        // Parse ```html blocks — landing page HTML updates
+        const htmlRegex = /```html\s*([\s\S]*?)```/g;
+        let htmlMatch;
+        while ((htmlMatch = htmlRegex.exec(rawContent)) !== null) {
+          const generatedHtml = htmlMatch[1].trim();
+          if (generatedHtml && isLpMode) {
+            lpBuilder.setHtml(generatedHtml);
+          }
+        }
       }
 
-      // Strip the raw JSON blocks from the visible message
-      const displayContent = rawContent.replace(/```json[\s\S]*?```/g, "").trim();
+      // Strip the raw JSON and HTML blocks from the visible message
+      const displayContent = rawContent.replace(/```(?:json|html)[\s\S]*?```/g, "").trim();
 
       const assistantMessage: Message = { id: crypto.randomUUID(), role: "assistant", content: displayContent || "Done! The canvas has been updated." };
       setChats((prev) =>
