@@ -71,6 +71,21 @@ export async function POST(request: Request) {
           .eq("id", contact.id);
       })
       .catch((err) => console.error("Embedding generation failed:", err));
+
+    // Fire workflow triggers for new-contact (fire-and-forget)
+    fetch(new URL("/api/workflows/execute", request.url).toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        trigger: "new-contact",
+        contactId: contact.id,
+        orgId: koveUser.org_id,
+        metadata: { source: contact.source },
+      }),
+    }).catch((err) => console.error("[workflows] trigger failed:", err));
   }
 
   return NextResponse.json({ contact }, { status: 201 });

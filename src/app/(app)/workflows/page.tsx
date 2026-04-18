@@ -1913,7 +1913,11 @@ function LandingPageEditor({
   const [uploading, setUploading] = useState(false);
   const [slugError, setSlugError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [loadingPage, setLoadingPage] = useState(true);
+  const [showHtml, setShowHtml] = useState(false);
+  const [htmlDraft, setHtmlDraft] = useState("");
+  const htmlRef = useRef<HTMLTextAreaElement>(null);
 
   // Load existing landing page for this workflow
   useEffect(() => {
@@ -1930,8 +1934,10 @@ function LandingPageEditor({
         setBrandAssetsLocal(data.brand_assets ?? []);
         setPageStatus(data.status);
         lpCtx.open(data.id, data.slug, data.html_content ?? "", data.brand_assets ?? []);
+        setHtmlDraft(data.html_content ?? "");
       } else {
         lpCtx.open("", "", "", []);
+        setHtmlDraft("");
       }
       setLoadingPage(false);
     }
@@ -1944,7 +1950,16 @@ function LandingPageEditor({
   useEffect(() => { lpCtx.setBrandAssets(brandAssets); }, [brandAssets, lpCtx]);
   useEffect(() => { lpCtx.setPageId(pageId); }, [pageId, lpCtx]);
 
+  // Keep htmlDraft synced when AI sidebar updates HTML
+  useEffect(() => {
+    setHtmlDraft(lpCtx.state.html);
+  }, [lpCtx.state.html]);
+
   const html = lpCtx.state.html;
+
+  function applyHtmlEdit() {
+    lpCtx.setHtml(htmlDraft);
+  }
 
   async function handleSave() {
     if (!slug.trim()) { setSlugError("A URL slug is required"); return; }
@@ -1994,15 +2009,25 @@ function LandingPageEditor({
     const { error } = await supabase.storage.from("brand-assets").upload(path, file);
     if (!error) {
       const { data: { publicUrl } } = supabase.storage.from("brand-assets").getPublicUrl(path);
-      setBrandAssetsLocal([...brandAssets, { type: file.type.startsWith("image/") ? "logo" : "file", url: publicUrl, name: file.name }]);
+      const newAsset = { type: file.type.startsWith("image/") ? "logo" : "file", url: publicUrl, name: file.name };
+      setBrandAssetsLocal([...brandAssets, newAsset]);
     }
     setUploading(false);
   }
 
-  function copyEmbed() {
-    navigator.clipboard.writeText(`<iframe src="https://site.trykove.app/lp/${slug}" style="width:100%;min-height:600px;border:none;" loading="lazy"></iframe>`);
+  const liveUrl = `https://site.trykove.app/lp/${slug}`;
+  const embedCode = `<iframe src="${liveUrl}" style="width:100%;min-height:600px;border:none;" loading="lazy"></iframe>`;
+
+  function copyUrl() {
+    navigator.clipboard.writeText(liveUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function copyEmbed() {
+    navigator.clipboard.writeText(embedCode);
+    setCopiedEmbed(true);
+    setTimeout(() => setCopiedEmbed(false), 2000);
   }
 
   if (loadingPage) {
@@ -2014,78 +2039,197 @@ function LandingPageEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors">
+    <div style={{ display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 68, right: "var(--right-panel-width, 0px)", overflow: "hidden", zIndex: 40, background: "var(--color-background)", transition: "right 300ms cubic-bezier(0.16,1,0.3,1)" }}>
+      {/* Top toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", flexShrink: 0, minHeight: 56 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={onBack} style={{ padding: 8, borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}>
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="h-5 w-px bg-[var(--color-border)]" />
-          <Globe className="w-3.5 h-3.5 text-[var(--color-text-tertiary)]" />
-          <span className="text-[13px] text-[var(--color-text-tertiary)]">site.trykove.app/lp/</span>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) => { setSlugLocal(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
-            placeholder="your-page-slug"
-            className="px-2.5 py-1.5 text-[13px] bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] w-48 focus:outline-none focus:border-[var(--color-accent)] transition-colors"
-          />
-          {slugError && <span className="text-[12px] text-[var(--color-danger)]">{slugError}</span>}
+          <div style={{ width: 1, height: 20, background: "var(--color-border)" }} />
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Globe className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary)", lineHeight: 1.2 }}>Landing Page</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>site.trykove.app/lp/</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => { setSlugLocal(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
+                placeholder="your-slug"
+                style={{ padding: "2px 6px", fontSize: 11, fontWeight: 600, background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-primary)", width: 120, outline: "none" }}
+              />
+              {slugError && <span style={{ fontSize: 11, color: "var(--color-danger)" }}>{slugError}</span>}
+            </div>
+          </div>
+          <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 999, fontWeight: 600, marginLeft: 8, background: pageStatus === "live" ? "rgba(16,185,129,0.1)" : "var(--color-surface-hover)", color: pageStatus === "live" ? "#10b981" : "var(--color-text-tertiary)" }}>
+            {pageStatus === "live" ? "Live" : "Draft"}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer">
-            <Upload className="w-3.5 h-3.5" />
-            {uploading ? "Uploading…" : "Assets"}
-            <input type="file" accept="image/*,.svg" className="hidden" onChange={handleUploadAsset} />
-          </label>
-          {pageId && slug && (
-            <button onClick={copyEmbed} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors">
-              {copied ? <Check className="w-3.5 h-3.5 text-[var(--color-success)]" /> : <Code2 className="w-3.5 h-3.5" />}
-              {copied ? "Copied" : "Embed"}
-            </button>
-          )}
-          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-50">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={handleSave} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 10, cursor: "pointer", opacity: saving ? 0.5 : 1 }}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Save
           </button>
-          <button onClick={handlePublish} disabled={!html} className={`flex items-center gap-1.5 px-5 py-1.5 text-[12px] font-medium rounded-lg transition-colors disabled:opacity-40 ${pageStatus === "live" ? "bg-[var(--color-danger)] text-white hover:bg-red-600" : "bg-[var(--color-success)] text-white hover:bg-emerald-600"}`}>
+          <button onClick={handlePublish} disabled={!html} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 20px", fontSize: 12, fontWeight: 700, color: "white", background: pageStatus === "live" ? "var(--color-danger)" : "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 10, cursor: "pointer", opacity: html ? 1 : 0.4 }}>
             {pageStatus === "live" ? "Unpublish" : "Go Live"}
           </button>
         </div>
       </div>
 
-      {/* Asset pills */}
-      {brandAssets.length > 0 && (
-        <div className="flex items-center gap-2 px-5 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-          <span className="text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">Assets</span>
-          {brandAssets.map((a, i) => (
-            <div key={i} className="flex items-center gap-1.5 px-2 py-0.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md text-[11px] text-[var(--color-text-secondary)]">
-              {a.type === "logo" ? "🖼" : "📄"} {a.name}
-              <button onClick={() => setBrandAssetsLocal(brandAssets.filter((_, j) => j !== i))} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)]"><X className="w-3 h-3" /></button>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Main content row */}
+      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-      {/* Preview */}
-      <div className="flex-1 bg-[var(--color-background)] overflow-hidden">
-        {html ? (
-          <iframe srcDoc={html} className="w-full h-full bg-white" sandbox="allow-scripts allow-forms" title="Landing page preview" />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-soft)] flex items-center justify-center mb-4">
-              <Sparkles className="w-6 h-6 text-[var(--color-accent)]" strokeWidth={1.5} />
+        {/* LEFT: Live preview */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--color-background)" }}>
+          {html ? (
+            <iframe
+              srcDoc={html}
+              style={{ flex: 1, width: "100%", border: "none", background: "white" }}
+              sandbox="allow-scripts allow-forms"
+              title="Landing page preview"
+            />
+          ) : (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--color-accent-soft)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                <Sparkles className="w-6 h-6 text-[var(--color-accent)]" strokeWidth={1.5} />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 8 }}>Open the AI assistant to build your page</h3>
+              <p style={{ fontSize: 13, color: "var(--color-text-tertiary)", maxWidth: 400, textAlign: "center", lineHeight: 1.5 }}>
+                Click the chat icon to open the AI sidebar. Describe the landing page you want and it will generate it live.
+              </p>
             </div>
-            <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)] mb-2">
-              Open the AI assistant to build your page
-            </h3>
-            <p className="text-[13px] text-[var(--color-text-tertiary)] max-w-md">
-              Click the chat icon to open the AI sidebar. Describe the landing page you want
-              and it will generate it live. Iterate until it&apos;s perfect.
-            </p>
+          )}
+        </div>
+
+        {/* RIGHT: Settings sidebar */}
+        <div style={{ width: 320, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+
+          {/* Sidebar scrollable content */}
+          <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* HTML Toggle */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>HTML Source</label>
+                <button
+                  onClick={() => setShowHtml(!showHtml)}
+                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", fontSize: 11, fontWeight: 600, color: showHtml ? "var(--color-accent)" : "var(--color-text-tertiary)", background: showHtml ? "rgba(99,102,241,0.08)" : "var(--color-surface-hover)", border: "1px solid " + (showHtml ? "rgba(99,102,241,0.2)" : "var(--color-border)"), borderRadius: 8, cursor: "pointer" }}
+                >
+                  <Code2 className="w-3 h-3" />
+                  {showHtml ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {showHtml && (
+                <div style={{ position: "relative" }}>
+                  <textarea
+                    ref={htmlRef}
+                    value={htmlDraft}
+                    onChange={(e) => setHtmlDraft(e.target.value)}
+                    onBlur={applyHtmlEdit}
+                    spellCheck={false}
+                    style={{ width: "100%", minHeight: 200, maxHeight: 400, padding: 12, fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text-primary)", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.5 }}
+                  />
+                  {htmlDraft !== html && (
+                    <button
+                      onClick={applyHtmlEdit}
+                      style={{ position: "absolute", bottom: 8, right: 8, padding: "6px 14px", fontSize: 11, fontWeight: 700, color: "white", background: "var(--color-accent)", border: "none", borderRadius: 8, cursor: "pointer" }}
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Brand Assets */}
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Brand Assets</label>
+              <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 10, lineHeight: 1.4 }}>Upload logos, images, and files. The AI assistant can use these to brand your page.</p>
+
+              {brandAssets.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                  {brandAssets.map((a, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 10 }}>
+                      {a.type === "logo" ? (
+                        <img src={a.url} alt={a.name} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "var(--color-surface-hover)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Code2 className="w-3.5 h-3.5" style={{ color: "var(--color-text-tertiary)" }} />
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</p>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(a.url); }}
+                          style={{ fontSize: 10, color: "var(--color-accent)", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                        >
+                          Copy URL
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setBrandAssetsLocal(brandAssets.filter((_, j) => j !== i))}
+                        style={{ padding: 4, borderRadius: 6, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "14px 16px", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", background: "var(--color-background)", border: "2px dashed var(--color-border)", borderRadius: 12, cursor: "pointer" }}>
+                <Upload className="w-4 h-4" />
+                {uploading ? "Uploading…" : "Upload Asset"}
+                <input type="file" accept="image/*,.svg,.html,.css,.js" className="hidden" onChange={handleUploadAsset} style={{ display: "none" }} />
+              </label>
+            </div>
+
+            {/* Embed / Share */}
+            {pageId && slug && (
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Share & Embed</label>
+
+                {/* Direct link */}
+                <div style={{ marginBottom: 10 }}>
+                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Direct Link</p>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ flex: 1, padding: "8px 10px", fontSize: 11, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 8, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {liveUrl}
+                    </div>
+                    <button onClick={copyUrl} style={{ padding: "8px 12px", fontSize: 11, fontWeight: 600, color: copied ? "#10b981" : "var(--color-text-secondary)", background: "var(--color-surface-hover)", border: "1px solid var(--color-border)", borderRadius: 8, cursor: "pointer", flexShrink: 0 }}>
+                      {copied ? <Check className="w-3.5 h-3.5" /> : "Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Embed code */}
+                <div>
+                  <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Embed Code — paste into your website</p>
+                  <div style={{ position: "relative" }}>
+                    <pre style={{ padding: "10px 12px", fontSize: 10, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", background: "var(--color-background)", border: "1px solid var(--color-border)", borderRadius: 8, color: "var(--color-text-secondary)", overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5, margin: 0 }}>
+                      {embedCode}
+                    </pre>
+                    <button onClick={copyEmbed} style={{ position: "absolute", top: 6, right: 6, padding: "4px 10px", fontSize: 10, fontWeight: 700, color: copiedEmbed ? "#10b981" : "var(--color-accent)", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 6, cursor: "pointer" }}>
+                      {copiedEmbed ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Branded HTML inject tip */}
+            <div style={{ padding: 14, background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.12)", borderRadius: 12 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>💡 Custom HTML Inserts</p>
+              <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
+                Upload your branded HTML snippets as assets, then ask the AI assistant to &quot;inject my branded header&quot; or &quot;use my uploaded logo.&quot; You can also edit the raw HTML directly above.
+              </p>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
