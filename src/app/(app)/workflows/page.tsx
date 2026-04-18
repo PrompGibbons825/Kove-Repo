@@ -607,7 +607,7 @@ function WorkflowList({
         {namingMode ? (
           <form
             onSubmit={(e) => { e.preventDefault(); if (wfName.trim()) onCreateDirect(wfName.trim()); }}
-            style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", maxWidth: 560, padding: "0 20px" }}
+            style={{ display: "flex", alignItems: "center", gap: 16, width: 560 }}
           >
             <input
               ref={nameInputRef}
@@ -615,15 +615,16 @@ function WorkflowList({
               value={wfName}
               onChange={(e) => setWfName(e.target.value)}
               placeholder="Name your workflow..."
-              className="flex-1 min-w-0 px-4 py-3 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 transition-all"
+              style={{ flex: 1, minWidth: 0, padding: "14px 20px", fontSize: 15, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 14, color: "var(--color-text-primary)", outline: "none", transition: "border-color 0.15s" }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--color-accent)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
             />
             <button
               type="submit"
               disabled={!wfName.trim()}
-              className="flex-shrink-0 px-5 py-3 rounded-xl text-[14px] font-semibold text-white transition-all disabled:opacity-50 cursor-pointer"
-              style={{ background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)" }}
+              style={{ flexShrink: 0, padding: "14px 28px", borderRadius: 14, fontSize: 14, fontWeight: 600, color: "white", background: "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)", boxShadow: "0 4px 24px rgba(168,130,255,0.35)", cursor: "pointer", opacity: wfName.trim() ? 1 : 0.5, border: "none", whiteSpace: "nowrap" }}
             >
-              Open builder →
+              Open builder &rarr;
             </button>
           </form>
         ) : (
@@ -644,20 +645,20 @@ function WorkflowList({
         )}
 
         {/* Templates */}
-        <div style={{ width: "100%", maxWidth: 700 }}>
-          <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginBottom: 12 }}>templates:</p>
-          <div className="grid grid-cols-3 gap-4">
+        <div style={{ width: 560 }}>
+          <p className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-widest" style={{ marginBottom: 14 }}>Start from a template</p>
+          <div className="grid grid-cols-3 gap-3">
             {TEMPLATES.slice(0, 3).map((t) => (
               <button
                 key={t.name}
                 onClick={() => onUseTemplate(t.name)}
-                className="flex flex-col items-start gap-2 text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 hover:shadow-md hover:border-[var(--color-accent)]/20 cursor-pointer"
-                style={{ padding: 20, transform: "translateY(0)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+                className="flex flex-col items-start text-left rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200 cursor-pointer"
+                style={{ padding: "18px 20px", gap: 6 }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.3)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--color-border)"; }}
               >
                 <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">{t.name}</p>
-                <p className="text-[13px] text-[var(--color-text-tertiary)]">{t.desc}</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] leading-snug">{t.desc}</p>
               </button>
             ))}
           </div>
