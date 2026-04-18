@@ -1959,14 +1959,11 @@ function LandingPageEditor({
   // Load existing landing page for this workflow
   useEffect(() => {
     async function load() {
-      console.log("[LP load] querying for workflow_id:", workflowId);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("landing_pages")
         .select("*")
         .eq("workflow_id", workflowId)
         .maybeSingle();
-
-      console.log("[LP load] result:", { data: data ? { id: data.id, slug: data.slug, htmlLen: data.html_content?.length } : null, error });
 
       // Preserve any HTML the agent already set before this component mounted
       const agentHtml = lpCtx.state.html;
@@ -2021,9 +2018,8 @@ function LandingPageEditor({
 
   // Autosave — debounced 1.5s after any change
   useEffect(() => {
-    console.log("[LP autosave trigger] loadingPage:", loadingPage, "slug:", slug, "htmlLen:", html.length);
     if (loadingPage) return;
-    if (!latestSlug.current.trim()) { console.log("[LP autosave trigger] SKIP — no slug"); return; }
+    if (!latestSlug.current.trim()) return;
     setSaveStatus("unsaved");
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => { void performSave(); }, 1500);
@@ -2037,9 +2033,7 @@ function LandingPageEditor({
     const curAssets = latestBrandAssets.current;
     const curPageId = latestPageId.current;
 
-    console.log("[LP save] called — slug:", JSON.stringify(curSlug), "pageId:", curPageId, "htmlLen:", curHtml.length);
-
-    if (!curSlug.trim()) { console.log("[LP save] SKIP — empty slug"); return; }
+    if (!curSlug.trim()) return;
     setSaving(true);
     setSaveStatus("saving");
     setSlugError("");
@@ -2047,13 +2041,10 @@ function LandingPageEditor({
 
     try {
       if (curPageId) {
-        console.log("[LP save] UPDATE existing:", curPageId);
-        const { error, data, count } = await supabase
+        const { error } = await supabase
           .from("landing_pages")
           .update({ slug: curSlug, html_content: curHtml, brand_assets: curAssets, updated_at: new Date().toISOString() })
-          .eq("id", curPageId)
-          .select("id");
-        console.log("[LP save] UPDATE result:", { data, error, count });
+          .eq("id", curPageId);
         if (error) {
           console.error("LP update error:", error);
           if (error.code === "23505") { setSlugError("Slug already taken."); }
@@ -2061,22 +2052,16 @@ function LandingPageEditor({
           saveOk = true;
         }
       } else {
-        console.log("[LP save] INSERT new — getting user...");
-        const { data: { user }, error: authErr } = await supabase.auth.getUser();
-        console.log("[LP save] auth user:", user?.id, "error:", authErr);
-        if (!user) { console.error("[LP save] ABORT — no user"); setSaving(false); setSaveStatus("unsaved"); return; }
-        
-        const { data: koveUser, error: userErr } = await supabase.from("users").select("org_id").eq("id", user.id).single();
-        console.log("[LP save] koveUser:", koveUser, "error:", userErr);
-        if (!koveUser) { console.error("[LP save] ABORT — no koveUser"); setSaving(false); setSaveStatus("unsaved"); return; }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setSaving(false); setSaveStatus("unsaved"); return; }
+        const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
+        if (!koveUser) { setSaving(false); setSaveStatus("unsaved"); return; }
 
-        console.log("[LP save] inserting — org:", koveUser.org_id, "wfId:", workflowId);
         const { data: newPage, error } = await supabase
           .from("landing_pages")
           .insert({ org_id: koveUser.org_id, workflow_id: workflowId, slug: curSlug, html_content: curHtml, brand_assets: curAssets })
           .select("id")
           .single();
-        console.log("[LP save] INSERT result:", { newPage, error });
         if (error) {
           console.error("LP insert error:", error);
           if (error.code === "23505") { setSlugError("Slug already taken."); }
@@ -2092,7 +2077,6 @@ function LandingPageEditor({
       console.error("LP save exception:", err);
     }
     setSaving(false);
-    console.log("[LP save] DONE —", saveOk ? "SUCCESS" : "FAILED");
     setSaveStatus(saveOk ? "saved" : "unsaved");
   }
 
