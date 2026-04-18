@@ -5,6 +5,7 @@ import { Sidebar } from "./sidebar";
 import { AgentSidebar } from "./agent-sidebar";
 import { ContactPanelProvider, useContactPanel } from "@/components/contacts/contact-panel-context";
 import { LandingPageBuilderProvider } from "@/components/landing-pages/builder-context";
+import { WorkflowBuilderProvider } from "@/components/workflows/workflow-context";
 import { ContactDetail } from "@/components/contacts/contact-detail";
 import type { User, Organization } from "@/lib/types/database";
 
@@ -18,7 +19,9 @@ export function AppShell({ user, org, children }: AppShellProps) {
   return (
     <ContactPanelProvider>
       <LandingPageBuilderProvider>
-        <AppShellInner user={user} org={org}>{children}</AppShellInner>
+        <WorkflowBuilderProvider>
+          <AppShellInner user={user} org={org}>{children}</AppShellInner>
+        </WorkflowBuilderProvider>
       </LandingPageBuilderProvider>
     </ContactPanelProvider>
   );

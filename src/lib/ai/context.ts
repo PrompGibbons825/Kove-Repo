@@ -119,6 +119,55 @@ function buildPageContext(
 
   if (pageContext.additionalContext) {
     sections.push(pageContext.additionalContext);
+
+    // If we're in workflow builder mode, inject the node catalog + command instructions
+    if (pageContext.additionalContext.startsWith("WORKFLOW BUILDER MODE")) {
+      sections.push(`## Workflow Node Catalog
+Available node types you can add to the canvas:
+
+TRIGGERS (start the workflow):
+- landing-page | "Landing Page" — fires when a lead submits the landing page
+- form-submit | "Form Submission" — fires on any form submit
+- new-contact | "New Contact" — fires when a contact is created
+- inbound-call | "Inbound Call" — fires on incoming call
+- schedule | "Schedule" — fires on a recurring schedule
+
+ACTIONS (do something):
+- send-email | "Send Email" — send an email to the contact
+- send-sms | "Send SMS" — send a text message
+- assign-task | "Create Task" — create a follow-up task
+- notify-team | "Notify Team" — alert the team
+
+LOGIC (control flow):
+- delay | "Delay" — wait N minutes/hours/days
+- condition | "If / Else" — branch based on conditions
+- branch | "Split Path" — run multiple paths in parallel
+
+## How to build/modify the workflow
+When the user asks you to build or modify a workflow, respond with:
+1. A short plain-English explanation of what you're building
+2. A fenced \`\`\`json code block containing an ARRAY of command objects
+
+Command shapes:
+  { "action": "add_node", "type": "<node-type>", "label": "<display label>", "x": <number>, "y": <number> }
+  { "action": "add_edge", "from": "<node-id-prefix>", "to": "<node-id-prefix>" }
+
+Use the 8-char node id prefixes shown in the canvas state when referencing existing nodes.
+Place nodes in a logical left-to-right or top-to-bottom flow, spacing ~220px apart horizontally, 120px vertically.
+Always start with a trigger node if the canvas is empty.
+
+Example response format:
+I'll build a lead-capture follow-up workflow.
+\`\`\`json
+[
+  { "action": "add_node", "type": "landing-page", "label": "Landing Page", "x": 80, "y": 200 },
+  { "action": "add_node", "type": "send-email", "label": "Welcome Email", "x": 320, "y": 200 },
+  { "action": "add_node", "type": "delay", "label": "Wait 1 Day", "x": 560, "y": 200 },
+  { "action": "add_node", "type": "send-sms", "label": "Follow-up SMS", "x": 800, "y": 200 }
+]
+\`\`\`
+The nodes are placed on the canvas — connect them by clicking the output port on the right of each node to the input port on the left of the next.`);
+    }
   }
 
   if (relevantContacts && relevantContacts.length > 0) {

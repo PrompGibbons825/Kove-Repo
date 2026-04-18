@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import type { User, Organization } from "@/lib/types/database";
 import { useLandingPageBuilder } from "@/components/landing-pages/builder-context";
+import { useWorkflowBuilder } from "@/components/workflows/workflow-context";
 
 type Mode = "ask" | "plan" | "agent";
 type View = "list" | "chat";
@@ -78,6 +79,7 @@ function formatRelative(ts: number): string {
 
 export function AgentSidebar({ user, org, width, onWidthChange, onClose, contained }: AgentSidebarProps) {
   const lpBuilder = useLandingPageBuilder();
+  const wfBuilder = useWorkflowBuilder();
   const [view, setView] = useState<View>("list");
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -207,7 +209,28 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
 
     try {
       const isLpMode = lpBuilder.state.active;
+      const isWfMode = wfBuilder.state.active;
+
       const endpoint = isLpMode ? "/api/lp/generate" : "/api/agent";
+
+      // Build workflow page context so agent sees current canvas state
+      const wfPageContext = isWfMode
+        ? {
+            page: window.location.pathname,
+            additionalContext:
+              `WORKFLOW BUILDER MODE\n` +
+              `Current workflow: "${wfBuilder.state.workflowName}" (id: ${wfBuilder.state.workflowId})\n` +
+              `Nodes (${wfBuilder.state.nodes.length}):\n` +
+              (wfBuilder.state.nodes.length
+                ? wfBuilder.state.nodes.map((n) => `  - [${n.id.slice(0, 8)}] ${n.label} (type: ${n.type})`).join("\n")
+                : "  (empty canvas)") +
+              `\nEdges (${wfBuilder.state.edges.length}):\n` +
+              (wfBuilder.state.edges.length
+                ? wfBuilder.state.edges.map((e) => `  - ${e.from.slice(0, 8)} → ${e.to.slice(0, 8)}`).join("\n")
+                : "  (no connections)"),
+          }
+        : { page: window.location.pathname };
+
       const body = isLpMode
         ? {
             message: userMessage.content,
@@ -220,7 +243,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
             message: userMessage.content,
             mode,
             conversationHistory: currentMessages.map((m) => ({ role: m.role, content: m.content })),
-            pageContext: { page: window.location.pathname },
+            pageContext: wfPageContext,
           };
       const response = await fetch(endpoint, {
         method: "POST",
@@ -231,7 +254,37 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       if (isLpMode && data.html) {
         lpBuilder.setHtml(data.html);
       }
-      const assistantMessage: Message = { id: crypto.randomUUID(), role: "assistant", content: data.response ?? data.summary ?? "Something went wrong. Try again." };
+
+      const rawContent: string = data.response ?? data.summary ?? "Something went wrong. Try again.";
+
+      // Parse any JSON workflow commands the agent embedded in its response
+      if (isWfMode) {
+        const cmdRegex = /```json\s*([\s\S]*?)```/g;
+        let match;
+        while ((match = cmdRegex.exec(rawContent)) !== null) {
+          try {
+            const parsed = JSON.parse(match[1]);
+            const cmds = Array.isArray(parsed) ? parsed : [parsed];
+            for (const cmd of cmds) {
+              if (cmd.action === "add_node" && cmd.type && cmd.label) {
+                wfBuilder.addNode({
+                  type: cmd.type,
+                  label: cmd.label,
+                  x: cmd.x ?? 100 + wfBuilder.state.nodes.length * 220,
+                  y: cmd.y ?? 200,
+                });
+              } else if (cmd.action === "add_edge" && cmd.from && cmd.to) {
+                wfBuilder.addEdge(cmd.from, cmd.to);
+              }
+            }
+          } catch { /* ignore malformed JSON */ }
+        }
+      }
+
+      // Strip the raw JSON blocks from the visible message
+      const displayContent = rawContent.replace(/```json[\s\S]*?```/g, "").trim();
+
+      const assistantMessage: Message = { id: crypto.randomUUID(), role: "assistant", content: displayContent || "Done! The canvas has been updated." };
       setChats((prev) =>
         prev.map((c) => c.id === activeChatId ? { ...c, messages: [...c.messages, assistantMessage], updatedAt: Date.now() } : c)
       );
@@ -262,6 +315,11 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       {lpBuilder.state.active && (
         <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent)] rounded-full whitespace-nowrap">
           ✦ Landing Page
+        </span>
+      )}
+      {wfBuilder.state.active && (
+        <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-emerald-500/10 text-emerald-600 rounded-full whitespace-nowrap">
+          ⚡ Workflow
         </span>
       )}
     </div>

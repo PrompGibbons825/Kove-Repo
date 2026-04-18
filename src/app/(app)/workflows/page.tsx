@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLandingPageBuilder } from "@/components/landing-pages/builder-context";
+import { useWorkflowBuilder, type WorkflowNode as CtxNode } from "@/components/workflows/workflow-context";
 import {
   Plus,
   Globe,
@@ -554,6 +555,44 @@ function WorkflowBuilder({
   const [editingName, setEditingName] = useState(false);
   const [wfName, setWfName] = useState(workflow.name);
   const nameRef = useRef<HTMLInputElement>(null);
+  const wfCtx = useWorkflowBuilder();
+
+  // Register with shared context so agent sidebar can see canvas state
+  useEffect(() => {
+    wfCtx.openBuilder(workflow.id, workflow.name, workflow.nodes as CtxNode[], workflow.edges);
+    return () => wfCtx.closeBuilder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflow.id]);
+
+  // Sync canvas state to context whenever nodes/edges change
+  useEffect(() => {
+    wfCtx.syncState(workflow.nodes as CtxNode[], workflow.edges);
+  }, [workflow.nodes, workflow.edges, wfCtx]);
+
+  // Consume pending AI commands from the agent sidebar
+  useEffect(() => {
+    if (wfCtx.pendingCommands.length === 0) return;
+    let updated = { ...workflow };
+    for (const cmd of wfCtx.pendingCommands) {
+      if (cmd.type === "add_node") {
+        const p = cmd.payload as { id: string; type: string; label: string; x: number; y: number };
+        if (!updated.nodes.find((n) => n.id === p.id)) {
+          updated = { ...updated, nodes: [...updated.nodes, { id: p.id, type: p.type, label: p.label, x: p.x, y: p.y }], updatedAt: Date.now() };
+        }
+      } else if (cmd.type === "add_edge") {
+        const p = cmd.payload as { from: string; to: string };
+        // Resolve partial IDs (8-char prefix match)
+        const fromNode = updated.nodes.find((n) => n.id.startsWith(p.from));
+        const toNode = updated.nodes.find((n) => n.id.startsWith(p.to));
+        if (fromNode && toNode && !updated.edges.find((e) => e.from === fromNode.id && e.to === toNode.id)) {
+          updated = { ...updated, edges: [...updated.edges, { id: crypto.randomUUID(), from: fromNode.id, to: toNode.id }], updatedAt: Date.now() };
+        }
+      }
+    }
+    onChange(updated);
+    wfCtx.clearCommands();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wfCtx.pendingCommands]);
 
   useEffect(() => {
     if (editingName) nameRef.current?.focus();
