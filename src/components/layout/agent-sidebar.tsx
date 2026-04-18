@@ -154,6 +154,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
     setChats((prev) => [newChat, ...prev]);
     setActiveChatId(newChat.id);
     setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setView("chat");
   }
 
@@ -199,6 +200,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
     setChats((prev) => [newChat, ...prev]);
     setActiveChatId(newChat.id);
     setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setView("chat");
   }
 
@@ -254,6 +256,7 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
 
     const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: input.trim() };
     setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setLoading(true);
 
     const currentMessages = activeChat?.messages ?? [];
@@ -617,10 +620,16 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  const el = e.target;
+                  el.style.height = "auto";
+                  el.style.height = `${el.scrollHeight}px`;
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about your leads, tasks, or pipeline..."
                 rows={1}
+                style={{ maxHeight: 200, overflowY: "auto" }}
                 className="w-full resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none leading-relaxed"
               />
               <div className="flex items-center justify-between" style={{ marginTop: 8 }}>

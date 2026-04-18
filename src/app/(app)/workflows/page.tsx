@@ -2176,25 +2176,33 @@ function LandingPageEditor({
           {/* Brand Assets */}
           <div>
             <label style={{ display:"block", fontSize:10, fontWeight:700, color:"var(--color-text-secondary)", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>Brand Assets</label>
-            {brandAssets.length > 0 && (
-              <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:8 }}>
-                {brandAssets.map((a, i) => (
-                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:8 }}>
-                    {a.type === "logo" ? <img src={a.url} alt={a.name} style={{ width:22, height:22, borderRadius:4, objectFit:"cover", flexShrink:0 }} /> : <Code2 style={{ width:16, height:16, color:"var(--color-text-tertiary)", flexShrink:0 }} />}
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <p style={{ fontSize:11, fontWeight:600, color:"var(--color-text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.name}</p>
-                      <button onClick={() => navigator.clipboard.writeText(a.url)} style={{ fontSize:9, color:"var(--color-accent)", background:"none", border:"none", padding:0, cursor:"pointer" }}>Copy URL</button>
-                    </div>
-                    <button onClick={() => setBrandAssetsLocal(brandAssets.filter((_,j)=>j!==i))} style={{ padding:3, borderRadius:4, border:"none", background:"none", cursor:"pointer", color:"var(--color-text-tertiary)" }}><X className="w-3 h-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
             <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, width:"100%", padding:"10px 12px", fontSize:11, fontWeight:600, color:"var(--color-text-secondary)", background:"var(--color-background)", border:"2px dashed var(--color-border)", borderRadius:8, cursor:"pointer" }}>
               <Upload className="w-3.5 h-3.5" />
               {uploading ? "Uploading…" : "Upload Asset"}
               <input type="file" accept="image/*,.svg,.html,.css,.js" onChange={handleUploadAsset} style={{ display:"none" }} />
             </label>
+            {brandAssets.length > 0 && (
+              <div style={{ display:"flex", flexDirection:"column", gap:6, marginTop:8 }}>
+                {brandAssets.map((a, i) => (
+                  <div key={i} style={{ background:"var(--color-background)", border:"1px solid var(--color-border)", borderRadius:8, overflow:"hidden" }}>
+                    {a.type === "logo" || a.url.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) ? (
+                      <div style={{ width:"100%", aspectRatio:"16/9", background:"#111", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        <img src={a.url} alt={a.name} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} />
+                      </div>
+                    ) : (
+                      <div style={{ width:"100%", padding:"14px 12px", background:"var(--color-surface-hover)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <Code2 style={{ width:24, height:24, color:"var(--color-text-tertiary)" }} />
+                      </div>
+                    )}
+                    <div style={{ padding:"6px 8px", display:"flex", alignItems:"center", gap:6 }}>
+                      <p style={{ flex:1, fontSize:11, fontWeight:600, color:"var(--color-text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0 }}>{a.name}</p>
+                      <button onClick={() => navigator.clipboard.writeText(a.url)} style={{ fontSize:9, color:"var(--color-accent)", background:"none", border:"none", padding:"2px 6px", cursor:"pointer", flexShrink:0, borderRadius:4, whiteSpace:"nowrap" }}>Copy URL</button>
+                      <button onClick={() => setBrandAssetsLocal(brandAssets.filter((_,j)=>j!==i))} style={{ padding:3, borderRadius:4, border:"none", background:"none", cursor:"pointer", color:"var(--color-text-tertiary)", flexShrink:0 }}><X className="w-3 h-3" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Embed / Share */}
