@@ -1,321 +1,1033 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type DragEvent,
+  type MouseEvent as RMouseEvent,
+} from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLandingPageBuilder } from "@/components/landing-pages/builder-context";
 import {
   Plus,
   Globe,
-  Code2,
   Loader2,
-  Eye,
-  Trash2,
-  Check,
-  Upload,
-  X,
   ArrowLeft,
   Sparkles,
+  Play,
+  Trash2,
+  MoreHorizontal,
+  Zap,
+  Mail,
+  MessageSquare,
+  UserPlus,
+  ClipboardList,
+  Bell,
+  GitBranch,
+  Clock,
+  Filter,
+  CheckCircle2,
+  ChevronRight,
+  GripVertical,
+  X,
+  Upload,
+  Code2,
+  Check,
+  Eye,
 } from "lucide-react";
 
-interface LandingPage {
+/* ─────────────────────── Types ─────────────────────── */
+
+interface Workflow {
   id: string;
-  org_id: string;
-  workflow_id: string | null;
-  slug: string;
-  html_content: string;
-  brand_assets: { type: string; url: string; name: string }[];
-  status: "draft" | "live";
-  created_at: string;
-  updated_at: string;
+  name: string;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  status: "draft" | "active";
+  createdAt: number;
+  updatedAt: number;
 }
 
-export default function WorkflowsPage() {
-  const supabase = createClient();
-  const [pages, setPages] = useState<LandingPage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingPage, setEditingPage] = useState<LandingPage | null>(null);
-  const [showBuilder, setShowBuilder] = useState(false);
+interface WorkflowNode {
+  id: string;
+  type: string;
+  label: string;
+  x: number;
+  y: number;
+  config?: Record<string, unknown>;
+}
 
-  const fetchPages = useCallback(async () => {
-    const { data } = await supabase
-      .from("landing_pages")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setPages((data as LandingPage[]) ?? []);
-    setLoading(false);
-  }, [supabase]);
+interface WorkflowEdge {
+  id: string;
+  from: string;
+  to: string;
+}
+
+type PageView = "list" | "create" | "builder" | "lp-editor";
+
+/* ─── Node catalog ─── */
+
+interface NodeDef {
+  type: string;
+  label: string;
+  category: "trigger" | "action" | "logic";
+  icon: React.ReactNode;
+  color: string;
+  desc: string;
+}
+
+const NODE_CATALOG: NodeDef[] = [
+  // Triggers
+  {
+    type: "landing-page",
+    label: "Landing Page",
+    category: "trigger",
+    icon: <Globe className="w-4 h-4" />,
+    color: "#6366f1",
+    desc: "Capture leads from an AI-built landing page",
+  },
+  {
+    type: "form-submit",
+    label: "Form Submission",
+    category: "trigger",
+    icon: <ClipboardList className="w-4 h-4" />,
+    color: "#8b5cf6",
+    desc: "Trigger when a form is submitted",
+  },
+  {
+    type: "new-contact",
+    label: "New Contact",
+    category: "trigger",
+    icon: <UserPlus className="w-4 h-4" />,
+    color: "#06b6d4",
+    desc: "Trigger when a contact is created",
+  },
+  {
+    type: "inbound-call",
+    label: "Inbound Call",
+    category: "trigger",
+    icon: <Bell className="w-4 h-4" />,
+    color: "#f59e0b",
+    desc: "Trigger on incoming phone call",
+  },
+  {
+    type: "schedule",
+    label: "Schedule",
+    category: "trigger",
+    icon: <Clock className="w-4 h-4" />,
+    color: "#64748b",
+    desc: "Run on a recurring schedule",
+  },
+  // Actions
+  {
+    type: "send-email",
+    label: "Send Email",
+    category: "action",
+    icon: <Mail className="w-4 h-4" />,
+    color: "#3b82f6",
+    desc: "Send an email to a contact",
+  },
+  {
+    type: "send-sms",
+    label: "Send SMS",
+    category: "action",
+    icon: <MessageSquare className="w-4 h-4" />,
+    color: "#10b981",
+    desc: "Send a text message",
+  },
+  {
+    type: "assign-task",
+    label: "Create Task",
+    category: "action",
+    icon: <CheckCircle2 className="w-4 h-4" />,
+    color: "#f97316",
+    desc: "Create a follow-up task",
+  },
+  {
+    type: "notify-team",
+    label: "Notify Team",
+    category: "action",
+    icon: <Bell className="w-4 h-4" />,
+    color: "#ec4899",
+    desc: "Send a notification to your team",
+  },
+  // Logic
+  {
+    type: "delay",
+    label: "Delay",
+    category: "logic",
+    icon: <Clock className="w-4 h-4" />,
+    color: "#64748b",
+    desc: "Wait before the next step",
+  },
+  {
+    type: "condition",
+    label: "If / Else",
+    category: "logic",
+    icon: <Filter className="w-4 h-4" />,
+    color: "#a855f7",
+    desc: "Branch based on conditions",
+  },
+  {
+    type: "branch",
+    label: "Split Path",
+    category: "logic",
+    icon: <GitBranch className="w-4 h-4" />,
+    color: "#14b8a6",
+    desc: "Run multiple paths in parallel",
+  },
+];
+
+const TRIGGERS = NODE_CATALOG.filter((n) => n.category === "trigger");
+const ACTIONS = NODE_CATALOG.filter((n) => n.category === "action");
+const LOGIC = NODE_CATALOG.filter((n) => n.category === "logic");
+
+/* ─── Storage helpers ─── */
+
+const WF_KEY = "kove_workflows";
+
+function loadWorkflows(): Workflow[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(WF_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function saveWorkflows(wfs: Workflow[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(WF_KEY, JSON.stringify(wfs));
+}
+
+/* ═══════════════════════════════════════════════════════
+   Main Page
+   ═══════════════════════════════════════════════════════ */
+
+export default function WorkflowsPage() {
+  const [view, setView] = useState<PageView>("list");
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [activeWfId, setActiveWfId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPages();
-  }, [fetchPages]);
+    setWorkflows(loadWorkflows());
+    setLoading(false);
+  }, []);
 
-  function openBuilder(page: LandingPage | null) {
-    setEditingPage(page);
-    setShowBuilder(true);
+  function persist(wfs: Workflow[]) {
+    setWorkflows(wfs);
+    saveWorkflows(wfs);
   }
 
-  function closeBuilder() {
-    setShowBuilder(false);
-    setEditingPage(null);
-    fetchPages();
+  function openBuilder(id: string) {
+    setActiveWfId(id);
+    setView("builder");
   }
 
-  if (showBuilder) {
-    return <LandingPageBuilder page={editingPage} onClose={closeBuilder} />;
+  function createWorkflow(name: string) {
+    const wf: Workflow = {
+      id: crypto.randomUUID(),
+      name,
+      nodes: [],
+      edges: [],
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    persist([wf, ...workflows]);
+    openBuilder(wf.id);
+  }
+
+  function deleteWorkflow(id: string) {
+    persist(workflows.filter((w) => w.id !== id));
+  }
+
+  function updateWorkflow(updated: Workflow) {
+    persist(workflows.map((w) => (w.id === updated.id ? updated : w)));
+  }
+
+  const activeWf = workflows.find((w) => w.id === activeWfId) ?? null;
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-tertiary)]" />
+      </div>
+    );
+  }
+
+  if (view === "create") {
+    return (
+      <CreateWorkflow
+        onCreate={createWorkflow}
+        onCancel={() => setView("list")}
+      />
+    );
+  }
+
+  if (view === "builder" && activeWf) {
+    return (
+      <WorkflowBuilder
+        workflow={activeWf}
+        onChange={updateWorkflow}
+        onBack={() => {
+          setView("list");
+          setActiveWfId(null);
+        }}
+        onOpenLpEditor={() => setView("lp-editor")}
+      />
+    );
+  }
+
+  if (view === "lp-editor" && activeWf) {
+    return (
+      <LandingPageEditor
+        workflowId={activeWf.id}
+        onBack={() => setView("builder")}
+      />
+    );
+  }
+
+  return (
+    <WorkflowList
+      workflows={workflows}
+      onNew={() => setView("create")}
+      onOpen={openBuilder}
+      onDelete={deleteWorkflow}
+    />
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   Workflow List
+   ═══════════════════════════════════════════════════════ */
+
+function WorkflowList({
+  workflows,
+  onNew,
+  onOpen,
+  onDelete,
+}: {
+  workflows: Workflow[];
+  onNew: () => void;
+  onOpen: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (workflows.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-500/20">
+            <Zap className="w-9 h-9 text-white" strokeWidth={1.5} />
+          </div>
+          <h1 className="text-[28px] font-bold text-[var(--color-text-primary)] mb-3">
+            Automate your workflow
+          </h1>
+          <p className="text-[15px] text-[var(--color-text-tertiary)] leading-relaxed mb-8">
+            Build powerful automations with a visual drag-and-drop builder.
+            Connect triggers like landing pages, forms, and calls to actions
+            like emails, SMS, and tasks.
+          </p>
+          <button
+            onClick={onNew}
+            className="inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--color-accent)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--color-accent-hover)] transition-all shadow-md shadow-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="w-5 h-5" />
+            Create your first workflow
+          </button>
+          <div className="mt-10 flex items-start gap-3 text-left p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Sparkles className="w-4 h-4 text-[var(--color-accent)]" />
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-0.5">
+                Pro tip: Use the AI assistant
+              </p>
+              <p className="text-[12px] text-[var(--color-text-tertiary)] leading-relaxed">
+                Open the AI sidebar and describe the automation you want. It can
+                build entire workflows for you — triggers, actions, and all.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between px-8 pt-8 pb-6">
         <div>
           <h1 className="text-[24px] font-semibold text-[var(--color-text-primary)]">
             Workflows
           </h1>
           <p className="text-[14px] text-[var(--color-text-tertiary)] mt-1">
-            Build landing pages and automate your lead capture
+            {workflows.length} workflow{workflows.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
-          onClick={() => openBuilder(null)}
+          onClick={onNew}
           className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent)] text-white text-[13px] font-medium rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
-          New Landing Page
+          New Workflow
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 pb-8">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-tertiary)]" />
-          </div>
-        ) : pages.length === 0 ? (
-          <EmptyState onCreate={() => openBuilder(null)} />
-        ) : (
-          <div className="grid gap-3">
-            {pages.map((page) => (
-              <PageCard
-                key={page.id}
-                page={page}
-                onEdit={() => openBuilder(page)}
-                onDelete={async () => {
-                  await supabase.from("landing_pages").delete().eq("id", page.id);
-                  fetchPages();
+      <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-2">
+        {workflows.map((wf) => (
+          <div
+            key={wf.id}
+            onClick={() => onOpen(wf.id)}
+            className="flex items-center justify-between p-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/30 hover:shadow-sm transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Zap className="w-4.5 h-4.5 text-white" strokeWidth={2} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
+                  {wf.name}
+                </p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
+                  {wf.nodes.length} step{wf.nodes.length !== 1 ? "s" : ""} ·{" "}
+                  {wf.status === "active" ? (
+                    <span className="text-[var(--color-success)]">Active</span>
+                  ) : (
+                    "Draft"
+                  )}{" "}
+                  · Updated {new Date(wf.updatedAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(wf.id);
                 }}
-              />
-            ))}
+                className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+              <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors" />
+            </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
 }
 
-/* ─── Empty State ─── */
+/* ═══════════════════════════════════════════════════════
+   Create Workflow
+   ═══════════════════════════════════════════════════════ */
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[var(--color-accent-soft)] flex items-center justify-center mb-5">
-        <Globe className="w-7 h-7 text-[var(--color-accent)]" strokeWidth={1.5} />
-      </div>
-      <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)] mb-2">
-        No landing pages yet
-      </h2>
-      <p className="text-[14px] text-[var(--color-text-tertiary)] mb-6 max-w-sm">
-        Build your first AI-powered landing page. Describe what you want in the
-        AI assistant, and it will generate a complete page for you.
-      </p>
-      <button
-        onClick={onCreate}
-        className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent)] text-white text-[13px] font-medium rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors shadow-sm"
-      >
-        <Sparkles className="w-4 h-4" />
-        Build with AI
-      </button>
-    </div>
-  );
-}
-
-/* ─── Page Card ─── */
-
-function PageCard({
-  page,
-  onEdit,
-  onDelete,
+function CreateWorkflow({
+  onCreate,
+  onCancel,
 }: {
-  page: LandingPage;
-  onEdit: () => void;
-  onDelete: () => void;
+  onCreate: (name: string) => void;
+  onCancel: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  function copyEmbed() {
-    const snippet = `<iframe src="https://site.trykove.app/lp/${page.slug}" style="width:100%;min-height:600px;border:none;" loading="lazy"></iframe>`;
-    navigator.clipboard.writeText(snippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onCreate(name.trim());
   }
 
   return (
-    <div className="flex items-center justify-between p-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:shadow-[var(--shadow-sm)] transition-all">
-      <div className="flex items-center gap-4 min-w-0">
-        <div
-          className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-            page.status === "live" ? "bg-[var(--color-success)]" : "bg-[var(--color-text-tertiary)]"
-          }`}
-        />
-        <div className="min-w-0">
-          <p className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
-            site.trykove.app/lp/{page.slug}
-          </p>
-          <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
-            {page.status === "live" ? "Live" : "Draft"} · Created{" "}
-            {new Date(page.created_at).toLocaleDateString()}
-          </p>
+    <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="max-w-lg w-full">
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-2 text-[13px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to workflows
+        </button>
+
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
+          <Zap className="w-6 h-6 text-white" strokeWidth={1.5} />
         </div>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          onClick={copyEmbed}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
-          title="Copy embed code"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 text-[var(--color-success)]" /> : <Code2 className="w-3.5 h-3.5" />}
-          {copied ? "Copied" : "Embed"}
-        </button>
-        {page.status === "live" && (
-          <a
-            href={`https://site.trykove.app/lp/${page.slug}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            View
-          </a>
-        )}
-        <button
-          onClick={onEdit}
-          className="px-4 py-1.5 text-[12px] font-medium text-white bg-[var(--color-accent)] rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors"
-        >
-          Edit
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+
+        <h1 className="text-[24px] font-bold text-[var(--color-text-primary)] mb-2">
+          Name your workflow
+        </h1>
+        <p className="text-[14px] text-[var(--color-text-tertiary)] mb-8">
+          Give it something descriptive — you can always rename it later.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. New lead follow-up, Event registration…"
+            className="w-full px-4 py-3.5 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all"
+          />
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className="flex items-center gap-2 px-6 py-3 bg-[var(--color-accent)] text-white text-[14px] font-semibold rounded-xl hover:bg-[var(--color-accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+            >
+              <Play className="w-4 h-4" />
+              Start building
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-6 py-3 text-[14px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+
+        {/* Templates hint */}
+        <div className="mt-12 grid grid-cols-2 gap-3">
+          {[
+            { name: "Lead capture", icon: <Globe className="w-4 h-4" />, desc: "Landing page → Email follow-up" },
+            { name: "Call follow-up", icon: <Bell className="w-4 h-4" />, desc: "Missed call → SMS + Task" },
+            { name: "Drip campaign", icon: <Mail className="w-4 h-4" />, desc: "New contact → Email sequence" },
+            { name: "Meeting reminder", icon: <Clock className="w-4 h-4" />, desc: "Schedule → SMS reminder" },
+          ].map((t) => (
+            <button
+              key={t.name}
+              onClick={() => {
+                setName(t.name);
+                inputRef.current?.focus();
+              }}
+              className="flex items-start gap-3 p-3.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/30 hover:shadow-sm transition-all text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 text-[var(--color-accent)]">
+                {t.icon}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-[var(--color-text-primary)]">
+                  {t.name}
+                </p>
+                <p className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
+                  {t.desc}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ─── Landing Page Builder ─── */
+/* ═══════════════════════════════════════════════════════
+   Workflow Builder (drag-and-drop canvas)
+   ═══════════════════════════════════════════════════════ */
 
-function LandingPageBuilder({
-  page,
-  onClose,
+function WorkflowBuilder({
+  workflow,
+  onChange,
+  onBack,
+  onOpenLpEditor,
 }: {
-  page: LandingPage | null;
-  onClose: () => void;
+  workflow: Workflow;
+  onChange: (wf: Workflow) => void;
+  onBack: () => void;
+  onOpenLpEditor: () => void;
+}) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [showTip, setShowTip] = useState(true);
+  const [paletteOpen, setPaletteOpen] = useState(true);
+  const [editingName, setEditingName] = useState(false);
+  const [wfName, setWfName] = useState(workflow.name);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingName) nameRef.current?.focus();
+  }, [editingName]);
+
+  const nodes = workflow.nodes;
+  const edges = workflow.edges;
+
+  function addNode(def: NodeDef, x: number, y: number) {
+    const node: WorkflowNode = {
+      id: crypto.randomUUID(),
+      type: def.type,
+      label: def.label,
+      x,
+      y,
+    };
+    onChange({ ...workflow, nodes: [...nodes, node], updatedAt: Date.now() });
+  }
+
+  function removeNode(id: string) {
+    onChange({
+      ...workflow,
+      nodes: nodes.filter((n) => n.id !== id),
+      edges: edges.filter((e) => e.from !== id && e.to !== id),
+      updatedAt: Date.now(),
+    });
+  }
+
+  function moveNode(id: string, x: number, y: number) {
+    onChange({
+      ...workflow,
+      nodes: nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
+      updatedAt: Date.now(),
+    });
+  }
+
+  function addEdge(from: string, to: string) {
+    if (from === to) return;
+    if (edges.some((e) => e.from === from && e.to === to)) return;
+    onChange({
+      ...workflow,
+      edges: [...edges, { id: crypto.randomUUID(), from, to }],
+      updatedAt: Date.now(),
+    });
+  }
+
+  function removeEdge(id: string) {
+    onChange({
+      ...workflow,
+      edges: edges.filter((e) => e.id !== id),
+      updatedAt: Date.now(),
+    });
+  }
+
+  function handleCanvasDrop(e: DragEvent) {
+    e.preventDefault();
+    const type = e.dataTransfer.getData("node-type");
+    const def = NODE_CATALOG.find((n) => n.type === type);
+    if (!def || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    addNode(def, e.clientX - rect.left - 80, e.clientY - rect.top - 24);
+  }
+
+  function handleNodeMouseDown(id: string, e: RMouseEvent) {
+    if ((e.target as HTMLElement).closest("[data-port]")) return;
+    const node = nodes.find((n) => n.id === id);
+    if (!node) return;
+    setDragging(id);
+    setDragOffset({ x: e.clientX - node.x, y: e.clientY - node.y });
+  }
+
+  function handleCanvasMouseMove(e: RMouseEvent) {
+    if (!dragging || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    moveNode(
+      dragging,
+      e.clientX - rect.left - dragOffset.x + canvasRef.current.scrollLeft,
+      e.clientY - rect.top - dragOffset.y + canvasRef.current.scrollTop
+    );
+  }
+
+  function handleCanvasMouseUp() {
+    setDragging(null);
+    setConnecting(null);
+  }
+
+  function handlePortClick(nodeId: string, port: "out" | "in") {
+    if (port === "out") {
+      setConnecting(nodeId);
+    } else if (connecting) {
+      addEdge(connecting, nodeId);
+      setConnecting(null);
+    }
+  }
+
+  function saveName() {
+    if (wfName.trim()) {
+      onChange({ ...workflow, name: wfName.trim(), updatedAt: Date.now() });
+    } else {
+      setWfName(workflow.name);
+    }
+    setEditingName(false);
+  }
+
+  function getNodeDef(type: string) {
+    return NODE_CATALOG.find((n) => n.type === type);
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="h-5 w-px bg-[var(--color-border)]" />
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-white" />
+          </div>
+          {editingName ? (
+            <input
+              ref={nameRef}
+              value={wfName}
+              onChange={(e) => setWfName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveName();
+                if (e.key === "Escape") {
+                  setWfName(workflow.name);
+                  setEditingName(false);
+                }
+              }}
+              className="px-2 py-1 text-[14px] font-medium bg-[var(--color-background)] border border-[var(--color-accent)] rounded-lg text-[var(--color-text-primary)] focus:outline-none w-64"
+            />
+          ) : (
+            <button
+              onClick={() => setEditingName(true)}
+              className="text-[14px] font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] transition-colors"
+            >
+              {workflow.name}
+            </button>
+          )}
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+            workflow.status === "active"
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
+          }`}>
+            {workflow.status === "active" ? "Active" : "Draft"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPaletteOpen(!paletteOpen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+            {paletteOpen ? "Hide" : "Show"} Nodes
+          </button>
+          <button
+            onClick={() =>
+              onChange({
+                ...workflow,
+                status: workflow.status === "active" ? "draft" : "active",
+                updatedAt: Date.now(),
+              })
+            }
+            className={`flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
+              workflow.status === "active"
+                ? "bg-[var(--color-danger)] text-white hover:bg-red-600"
+                : "bg-[var(--color-success)] text-white hover:bg-emerald-600"
+            }`}
+          >
+            <Play className="w-3.5 h-3.5" />
+            {workflow.status === "active" ? "Deactivate" : "Activate"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Node palette */}
+        {paletteOpen && (
+          <div className="w-[240px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto">
+            <div className="p-4 space-y-5">
+              {[
+                { title: "Triggers", items: TRIGGERS },
+                { title: "Actions", items: ACTIONS },
+                { title: "Logic", items: LOGIC },
+              ].map((group) => (
+                <div key={group.title}>
+                  <p className="text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-2">
+                    {group.title}
+                  </p>
+                  <div className="space-y-1.5">
+                    {group.items.map((def) => (
+                      <div
+                        key={def.type}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("node-type", def.type);
+                          e.dataTransfer.effectAllowed = "copy";
+                        }}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all group/node"
+                      >
+                        <div
+                          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 text-white"
+                          style={{ backgroundColor: def.color }}
+                        >
+                          {def.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-medium text-[var(--color-text-primary)] leading-tight">
+                            {def.label}
+                          </p>
+                          <p className="text-[10px] text-[var(--color-text-tertiary)] leading-tight mt-0.5 truncate">
+                            {def.desc}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Canvas */}
+        <div
+          ref={canvasRef}
+          className="flex-1 relative overflow-auto"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+            backgroundColor: "var(--color-background)",
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }}
+          onDrop={handleCanvasDrop}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseUp}
+        >
+          {/* AI tip */}
+          {showTip && nodes.length === 0 && (
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-start gap-3 p-4 bg-[var(--color-surface)] border border-[var(--color-accent)]/20 rounded-xl shadow-lg max-w-sm z-20">
+              <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-[var(--color-accent)]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-1">
+                  Let AI build this for you
+                </p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] leading-relaxed">
+                  Open the AI sidebar and describe what you want to automate.
+                  It&apos;ll wire up the triggers, actions, and logic.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowTip(false)}
+                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors flex-shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Empty canvas prompt */}
+          {nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-[var(--color-border)] flex items-center justify-center mx-auto mb-4">
+                  <Plus className="w-6 h-6 text-[var(--color-text-tertiary)]" />
+                </div>
+                <p className="text-[14px] font-medium text-[var(--color-text-tertiary)]">
+                  Drag nodes from the panel to get started
+                </p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-1">
+                  or let the AI sidebar build it for you
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* SVG edges */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+            {edges.map((edge) => {
+              const fromNode = nodes.find((n) => n.id === edge.from);
+              const toNode = nodes.find((n) => n.id === edge.to);
+              if (!fromNode || !toNode) return null;
+              const x1 = fromNode.x + 160;
+              const y1 = fromNode.y + 28;
+              const x2 = toNode.x;
+              const y2 = toNode.y + 28;
+              const mx = (x1 + x2) / 2;
+              return (
+                <g key={edge.id} className="pointer-events-auto cursor-pointer" onClick={() => removeEdge(edge.id)}>
+                  <path
+                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    fill="none"
+                    stroke="var(--color-accent)"
+                    strokeWidth="2"
+                    strokeDasharray={connecting ? "6 3" : "none"}
+                    opacity={0.5}
+                  />
+                  <path
+                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="16"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Nodes */}
+          {nodes.map((node) => {
+            const def = getNodeDef(node.type);
+            const isLp = node.type === "landing-page";
+            return (
+              <div
+                key={node.id}
+                className={`absolute flex items-center gap-0 select-none z-10 group/card ${
+                  dragging === node.id ? "cursor-grabbing" : "cursor-grab"
+                }`}
+                style={{ left: node.x, top: node.y }}
+                onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
+              >
+                {/* In port */}
+                <div
+                  data-port="in"
+                  onClick={() => handlePortClick(node.id, "in")}
+                  className={`w-3 h-3 rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)] transition-colors cursor-crosshair -mr-1.5 z-20 ${
+                    connecting ? "scale-125 border-[var(--color-accent)]" : ""
+                  }`}
+                />
+
+                {/* Card */}
+                <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-sm hover:shadow-md transition-all min-w-[160px]">
+                  <div
+                    className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 text-white"
+                    style={{ backgroundColor: def?.color ?? "#6366f1" }}
+                  >
+                    {def?.icon ?? <Zap className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium text-[var(--color-text-primary)] truncate">
+                      {node.label}
+                    </p>
+                    {isLp && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenLpEditor();
+                        }}
+                        className="text-[10px] text-[var(--color-accent)] hover:underline mt-0.5"
+                      >
+                        Edit page →
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeNode(node.id);
+                    }}
+                    className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] rounded transition-colors opacity-0 group-hover/card:opacity-100"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Out port */}
+                <div
+                  data-port="out"
+                  onClick={() => handlePortClick(node.id, "out")}
+                  className="w-3 h-3 rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)] transition-colors cursor-crosshair -ml-1.5 z-20"
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   Landing Page Editor (accessed from LP node)
+   ═══════════════════════════════════════════════════════ */
+
+function LandingPageEditor({
+  workflowId,
+  onBack,
+}: {
+  workflowId: string;
+  onBack: () => void;
 }) {
   const supabase = createClient();
   const lpCtx = useLandingPageBuilder();
-  const [slug, setSlugLocal] = useState(page?.slug ?? "");
+  const [slug, setSlugLocal] = useState("");
   const [brandAssets, setBrandAssetsLocal] = useState<
     { type: string; url: string; name: string }[]
-  >(page?.brand_assets ?? []);
+  >([]);
   const [saving, setSaving] = useState(false);
-  const [pageId, setPageIdLocal] = useState(page?.id ?? "");
-  const [pageStatus, setPageStatus] = useState<"draft" | "live">(page?.status ?? "draft");
+  const [pageId, setPageIdLocal] = useState("");
+  const [pageStatus, setPageStatus] = useState<"draft" | "live">("draft");
   const [uploading, setUploading] = useState(false);
   const [slugError, setSlugError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [loadingPage, setLoadingPage] = useState(true);
 
-  // Open the shared context so the agent sidebar knows we're building a landing page
+  // Load existing landing page for this workflow
   useEffect(() => {
-    lpCtx.open(page?.id ?? "", page?.slug ?? "", page?.html_content ?? "", page?.brand_assets ?? []);
+    async function load() {
+      const { data } = await supabase
+        .from("landing_pages")
+        .select("*")
+        .eq("workflow_id", workflowId)
+        .maybeSingle();
+
+      if (data) {
+        setPageIdLocal(data.id);
+        setSlugLocal(data.slug);
+        setBrandAssetsLocal(data.brand_assets ?? []);
+        setPageStatus(data.status);
+        lpCtx.open(data.id, data.slug, data.html_content ?? "", data.brand_assets ?? []);
+      } else {
+        lpCtx.open("", "", "", []);
+      }
+      setLoadingPage(false);
+    }
+    load();
     return () => lpCtx.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [workflowId]);
 
-  // Sync local slug/brand assets to context
-  useEffect(() => {
-    lpCtx.setSlug(slug);
-  }, [slug, lpCtx]);
+  useEffect(() => { lpCtx.setSlug(slug); }, [slug, lpCtx]);
+  useEffect(() => { lpCtx.setBrandAssets(brandAssets); }, [brandAssets, lpCtx]);
+  useEffect(() => { lpCtx.setPageId(pageId); }, [pageId, lpCtx]);
 
-  useEffect(() => {
-    lpCtx.setBrandAssets(brandAssets);
-  }, [brandAssets, lpCtx]);
-
-  useEffect(() => {
-    lpCtx.setPageId(pageId);
-  }, [pageId, lpCtx]);
-
-  // Read HTML from context (agent sidebar updates it)
   const html = lpCtx.state.html;
 
   async function handleSave() {
-    if (!slug.trim()) {
-      setSlugError("A URL slug is required");
-      return;
-    }
+    if (!slug.trim()) { setSlugError("A URL slug is required"); return; }
     setSaving(true);
     setSlugError("");
 
     if (pageId) {
       const { error } = await supabase
         .from("landing_pages")
-        .update({
-          slug,
-          html_content: html,
-          brand_assets: brandAssets,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ slug, html_content: html, brand_assets: brandAssets, updated_at: new Date().toISOString() })
         .eq("id", pageId);
-
-      if (error?.code === "23505") {
-        setSlugError("This slug is already taken.");
-        setSaving(false);
-        return;
-      }
+      if (error?.code === "23505") { setSlugError("Slug taken."); setSaving(false); return; }
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setSaving(false); return; }
-
-      const { data: koveUser } = await supabase
-        .from("users")
-        .select("org_id")
-        .eq("id", user.id)
-        .single();
-
+      const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
       if (!koveUser) { setSaving(false); return; }
 
       const { data: newPage, error } = await supabase
         .from("landing_pages")
-        .insert({
-          org_id: koveUser.org_id,
-          slug,
-          html_content: html,
-          brand_assets: brandAssets,
-        })
+        .insert({ org_id: koveUser.org_id, workflow_id: workflowId, slug, html_content: html, brand_assets: brandAssets })
         .select("id")
         .single();
-
-      if (error?.code === "23505") {
-        setSlugError("This slug is already taken.");
-        setSaving(false);
-        return;
-      }
-
-      if (newPage) {
-        setPageIdLocal(newPage.id);
-        lpCtx.setPageId(newPage.id);
-      }
+      if (error?.code === "23505") { setSlugError("Slug taken."); setSaving(false); return; }
+      if (newPage) { setPageIdLocal(newPage.id); lpCtx.setPageId(newPage.id); }
     }
     setSaving(false);
   }
@@ -323,12 +1035,8 @@ function LandingPageBuilder({
   async function handlePublish() {
     if (!pageId) await handleSave();
     if (!pageId && !slug.trim()) return;
-
     const newStatus = pageStatus === "live" ? "draft" : "live";
-    await supabase
-      .from("landing_pages")
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq("id", pageId);
+    await supabase.from("landing_pages").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", pageId);
     setPageStatus(newStatus);
   }
 
@@ -336,168 +1044,103 @@ function LandingPageBuilder({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setUploading(false); return; }
-
-    const { data: koveUser } = await supabase
-      .from("users")
-      .select("org_id")
-      .eq("id", user.id)
-      .single();
-
+    const { data: koveUser } = await supabase.from("users").select("org_id").eq("id", user.id).single();
     if (!koveUser) { setUploading(false); return; }
-
     const path = `${koveUser.org_id}/brand/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("brand-assets").upload(path, file);
-
     if (!error) {
       const { data: { publicUrl } } = supabase.storage.from("brand-assets").getPublicUrl(path);
-      const newAssets = [
-        ...brandAssets,
-        {
-          type: file.type.startsWith("image/") ? "logo" : "file",
-          url: publicUrl,
-          name: file.name,
-        },
-      ];
-      setBrandAssetsLocal(newAssets);
+      setBrandAssetsLocal([...brandAssets, { type: file.type.startsWith("image/") ? "logo" : "file", url: publicUrl, name: file.name }]);
     }
     setUploading(false);
   }
 
   function copyEmbed() {
-    const snippet = `<iframe src="https://site.trykove.app/lp/${slug}" style="width:100%;min-height:600px;border:none;" loading="lazy"></iframe>`;
-    navigator.clipboard.writeText(snippet);
+    navigator.clipboard.writeText(`<iframe src="https://site.trykove.app/lp/${slug}" style="width:100%;min-height:600px;border:none;" loading="lazy"></iframe>`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (loadingPage) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-tertiary)]" />
+      </div>
+    );
   }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onClose}
-            className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
-          >
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </button>
-
           <div className="h-5 w-px bg-[var(--color-border)]" />
-
-          <div className="flex items-center gap-2">
-            <Globe className="w-3.5 h-3.5 text-[var(--color-text-tertiary)]" />
-            <span className="text-[13px] text-[var(--color-text-tertiary)]">
-              site.trykove.app/lp/
-            </span>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => {
-                setSlugLocal(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
-                setSlugError("");
-              }}
-              placeholder="your-page-slug"
-              className="px-2.5 py-1.5 text-[13px] bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] w-52 focus:outline-none focus:border-[var(--color-accent)] transition-colors"
-            />
-            {slugError && (
-              <span className="text-[12px] text-[var(--color-danger)]">{slugError}</span>
-            )}
-          </div>
+          <Globe className="w-3.5 h-3.5 text-[var(--color-text-tertiary)]" />
+          <span className="text-[13px] text-[var(--color-text-tertiary)]">site.trykove.app/lp/</span>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => { setSlugLocal(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
+            placeholder="your-page-slug"
+            className="px-2.5 py-1.5 text-[13px] bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] w-48 focus:outline-none focus:border-[var(--color-accent)] transition-colors"
+          />
+          {slugError && <span className="text-[12px] text-[var(--color-danger)]">{slugError}</span>}
         </div>
-
         <div className="flex items-center gap-2">
-          {/* Brand assets */}
           <label className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer">
             <Upload className="w-3.5 h-3.5" />
-            {uploading ? "Uploading…" : "Brand Assets"}
-            <input
-              type="file"
-              accept="image/*,.svg"
-              className="hidden"
-              onChange={handleUploadAsset}
-            />
+            {uploading ? "Uploading…" : "Assets"}
+            <input type="file" accept="image/*,.svg" className="hidden" onChange={handleUploadAsset} />
           </label>
-
           {pageId && slug && (
-            <button
-              onClick={copyEmbed}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
-            >
+            <button onClick={copyEmbed} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors">
               {copied ? <Check className="w-3.5 h-3.5 text-[var(--color-success)]" /> : <Code2 className="w-3.5 h-3.5" />}
               {copied ? "Copied" : "Embed"}
             </button>
           )}
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-50"
-          >
+          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-50">
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Save
           </button>
-
-          <button
-            onClick={handlePublish}
-            disabled={!html}
-            className={`flex items-center gap-1.5 px-5 py-1.5 text-[12px] font-medium rounded-lg transition-colors disabled:opacity-40 ${
-              pageStatus === "live"
-                ? "bg-[var(--color-danger)] text-white hover:bg-red-600"
-                : "bg-[var(--color-success)] text-white hover:bg-emerald-600"
-            }`}
-          >
+          <button onClick={handlePublish} disabled={!html} className={`flex items-center gap-1.5 px-5 py-1.5 text-[12px] font-medium rounded-lg transition-colors disabled:opacity-40 ${pageStatus === "live" ? "bg-[var(--color-danger)] text-white hover:bg-red-600" : "bg-[var(--color-success)] text-white hover:bg-emerald-600"}`}>
             {pageStatus === "live" ? "Unpublish" : "Go Live"}
           </button>
         </div>
       </div>
 
-      {/* Brand assets pills */}
+      {/* Asset pills */}
       {brandAssets.length > 0 && (
-        <div className="flex items-center gap-2 px-6 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-          <span className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider mr-1">
-            Assets
-          </span>
+        <div className="flex items-center gap-2 px-5 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+          <span className="text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">Assets</span>
           {brandAssets.map((a, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md text-[11px] text-[var(--color-text-secondary)]"
-            >
+            <div key={i} className="flex items-center gap-1.5 px-2 py-0.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded-md text-[11px] text-[var(--color-text-secondary)]">
               {a.type === "logo" ? "🖼" : "📄"} {a.name}
-              <button
-                onClick={() => setBrandAssetsLocal(brandAssets.filter((_, j) => j !== i))}
-                className="text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => setBrandAssetsLocal(brandAssets.filter((_, j) => j !== i))} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)]"><X className="w-3 h-3" /></button>
             </div>
           ))}
         </div>
       )}
 
-      {/* Full-width preview */}
+      {/* Preview */}
       <div className="flex-1 bg-[var(--color-background)] overflow-hidden">
         {html ? (
-          <iframe
-            srcDoc={html}
-            className="w-full h-full bg-white"
-            sandbox="allow-scripts allow-forms"
-            title="Landing page preview"
-          />
+          <iframe srcDoc={html} className="w-full h-full bg-white" sandbox="allow-scripts allow-forms" title="Landing page preview" />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="w-14 h-14 rounded-2xl bg-[var(--color-accent-soft)] flex items-center justify-center mb-4">
               <Sparkles className="w-6 h-6 text-[var(--color-accent)]" strokeWidth={1.5} />
             </div>
             <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)] mb-2">
-              Open the AI assistant to get started
+              Open the AI assistant to build your page
             </h3>
             <p className="text-[13px] text-[var(--color-text-tertiary)] max-w-md">
-              Click the chat icon in the top right to open the AI assistant.
-              Describe the landing page you want — it will generate the HTML and
-              show a live preview here. You can iterate until it&apos;s perfect.
+              Click the chat icon to open the AI sidebar. Describe the landing page you want
+              and it will generate it live. Iterate until it&apos;s perfect.
             </p>
           </div>
         )}
