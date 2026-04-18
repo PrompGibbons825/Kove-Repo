@@ -1363,9 +1363,12 @@ function WorkflowBuilder({
     );
   }
 
-  function handleCanvasMouseUp() {
+  function handleCanvasMouseUp(e: RMouseEvent) {
     setDragging(null);
-    setConnecting(null);
+    // Only cancel connecting if we didn't release on a port — port clicks handle their own state
+    if (!(e.target as HTMLElement).closest("[data-port]")) {
+      setConnecting(null);
+    }
   }
 
   function handlePortClick(nodeId: string, port: "out" | "in") {
@@ -1930,7 +1933,7 @@ function LandingPageEditor({
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [previewWidth, setPreviewWidth] = useState(360);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
-  const [isDraggingResize, setIsDraggingResize] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Refs for autosave to always read latest values (avoid stale closure)
   const latestSlug = useRef(slug);
@@ -1942,16 +1945,23 @@ function LandingPageEditor({
   latestPageId.current = pageId;
 
   function onDragStart(e: React.MouseEvent) {
+    e.preventDefault();
     dragRef.current = { startX: e.clientX, startW: previewWidth };
-    setIsDraggingResize(true);
+    // Synchronously block iframe from stealing mouse events
+    if (iframeRef.current) iframeRef.current.style.pointerEvents = "none";
+    // Add a full-page cursor overlay so col-resize cursor persists everywhere
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:99999;cursor:col-resize;";
+    document.body.appendChild(overlay);
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
       const delta = ev.clientX - dragRef.current.startX;
-      setPreviewWidth(Math.max(160, Math.min(600, dragRef.current.startW + delta)));
+      setPreviewWidth(Math.max(160, Math.min(800, dragRef.current.startW + delta)));
     };
     const onUp = () => {
       dragRef.current = null;
-      setIsDraggingResize(false);
+      if (iframeRef.current) iframeRef.current.style.pointerEvents = "";
+      document.body.removeChild(overlay);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -2152,11 +2162,8 @@ function LandingPageEditor({
 
       {/* LEFT: live preview */}
       <div style={{ width: previewWidth, flexShrink: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        {isDraggingResize && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 10, cursor: "col-resize" }} />
-        )}
         {html ? (
-          <iframe key="lp-preview" srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white" }} sandbox="allow-scripts allow-forms allow-same-origin" title="Landing page preview" suppressHydrationWarning />
+          <iframe ref={iframeRef} key="lp-preview" srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white" }} sandbox="allow-scripts allow-forms allow-same-origin" title="Landing page preview" suppressHydrationWarning />
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, gap: 8 }}>
             <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)" }} strokeWidth={1.5} />
