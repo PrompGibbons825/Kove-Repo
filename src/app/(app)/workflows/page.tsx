@@ -1767,23 +1767,30 @@ function WorkflowBuilder({
           )}
         </div>
 
-        {/* ── Landing page inline panel ── */}
-        {showLpPanel && (
-          <LandingPageEditor
-            workflowId={workflow.id}
-            onClose={() => { setShowLpPanel(false); setSelectedNodeId(null); }}
-            lpNode={selectedNode?.type === "landing-page" ? selectedNode : null}
-            onUpdateNode={(key, val) => {
-              if (!selectedNode) return;
-              onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, config: { ...(n.config ?? {}), [key]: val } } : n), updatedAt: Date.now() });
-            }}
-            onRenameNode={(label) => {
-              if (!selectedNode) return;
-              onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label } : n), updatedAt: Date.now() });
-            }}
-            onDeleteNode={() => { if (selectedNode) { removeNode(selectedNode.id); setSelectedNodeId(null); setShowLpPanel(false); } }}
-          />
-        )}
+        {/* ── Landing page inline panel (always mounted when LP node exists so autosave works) ── */}
+        {(() => {
+          const lpNode = workflow.nodes.find((n) => n.type === "landing-page") as WorkflowNode | undefined;
+          if (!lpNode) return null;
+          const isVisible = showLpPanel && selectedNode?.id === lpNode.id;
+          return (
+            <div style={{ display: isVisible ? "contents" : "none" }}>
+              <LandingPageEditor
+                workflowId={workflow.id}
+                onClose={() => { setShowLpPanel(false); setSelectedNodeId(null); }}
+                lpNode={selectedNode?.type === "landing-page" ? selectedNode : null}
+                onUpdateNode={(key, val) => {
+                  if (!selectedNode) return;
+                  onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, config: { ...(n.config ?? {}), [key]: val } } : n), updatedAt: Date.now() });
+                }}
+                onRenameNode={(label) => {
+                  if (!selectedNode) return;
+                  onChange({ ...workflow, nodes: nodes.map((n) => n.id === selectedNode.id ? { ...n, label } : n), updatedAt: Date.now() });
+                }}
+                onDeleteNode={() => { if (selectedNode) { removeNode(selectedNode.id); setSelectedNodeId(null); setShowLpPanel(false); } }}
+              />
+            </div>
+          );
+        })()}
 
         {/* ── Node config panel ── */}
         {selectedNode && !showLpPanel && (() => {
@@ -1918,6 +1925,24 @@ function LandingPageEditor({
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const htmlRef = useRef<HTMLTextAreaElement>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [previewWidth, setPreviewWidth] = useState(360);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  function onDragStart(e: React.MouseEvent) {
+    dragRef.current = { startX: e.clientX, startW: previewWidth };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const delta = ev.clientX - dragRef.current.startX;
+      setPreviewWidth(Math.max(160, Math.min(600, dragRef.current.startW + delta)));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   // Load existing landing page for this workflow
   useEffect(() => {
@@ -2061,12 +2086,12 @@ function LandingPageEditor({
   });
 
   return (
-    <div style={{ width: 660, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "row", minHeight: 0, overflow: "hidden" }}>
+    <div style={{ width: previewWidth + 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "row", minHeight: 0, overflow: "hidden" }}>
 
       {/* LEFT: live preview */}
-      <div style={{ flex: 1, minWidth: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ width: previewWidth, flexShrink: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {html ? (
-          <iframe srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white", pointerEvents: "none" }} sandbox="allow-scripts" title="Landing page preview" />
+          <iframe srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white" }} sandbox="allow-scripts allow-forms allow-same-origin" title="Landing page preview" />
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, gap: 8 }}>
             <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)" }} strokeWidth={1.5} />
@@ -2075,6 +2100,14 @@ function LandingPageEditor({
           </div>
         )}
       </div>
+
+      {/* Drag handle */}
+      <div
+        onMouseDown={onDragStart}
+        style={{ width: 4, flexShrink: 0, cursor: "col-resize", background: "var(--color-border)", transition: "background 0.15s" }}
+        onMouseEnter={e => (e.currentTarget.style.background = "var(--color-accent)")}
+        onMouseLeave={e => (e.currentTarget.style.background = "var(--color-border)")}
+      />
 
       {/* RIGHT: settings column */}
       <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
