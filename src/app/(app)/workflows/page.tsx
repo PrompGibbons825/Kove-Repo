@@ -2154,7 +2154,7 @@ function LandingPageEditor({
       {/* LEFT: live preview */}
       <div style={{ width: previewWidth, flexShrink: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {html ? (
-          <iframe srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white" }} sandbox="allow-scripts allow-forms allow-same-origin" title="Landing page preview" />
+          <iframe key="lp-preview" srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white" }} sandbox="allow-scripts allow-forms allow-same-origin" title="Landing page preview" suppressHydrationWarning />
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, gap: 8 }}>
             <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)" }} strokeWidth={1.5} />
