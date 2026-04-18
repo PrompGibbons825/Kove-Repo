@@ -716,7 +716,7 @@ function WorkflowList({
     >
       {/* ── Fade-away header ── */}
       <div
-        className="flex flex-col items-center gap-8 pt-14 pb-6 w-full"
+        className="flex flex-col items-center gap-8 pt-24 pb-6 w-full"
         style={{
           opacity: scrolled ? 0 : 1,
           transform: scrolled ? "translateY(-18px) scale(0.97)" : "translateY(0) scale(1)",
@@ -776,6 +776,7 @@ function WorkflowList({
           zIndex: 20,
           padding: "5px",
           marginBottom: 28,
+          marginTop: 20,
           boxShadow: scrolled ? "0 8px 32px rgba(0,0,0,0.14)" : "none",
           transition: "box-shadow 0.2s ease",
         }}
@@ -787,9 +788,9 @@ function WorkflowList({
             className="flex items-center gap-2 text-[13px] font-semibold rounded-xl transition-all cursor-pointer"
             style={{
               padding: "9px 20px",
-              background: activeTab === tab ? "linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%)" : "transparent",
-              color: activeTab === tab ? "#fff" : "var(--color-text-tertiary)",
-              boxShadow: activeTab === tab ? "0 2px 12px rgba(168,130,255,0.3)" : "none",
+              background: activeTab === tab ? "rgba(167,139,250,0.12)" : "transparent",
+              color: activeTab === tab ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
+              boxShadow: "none",
             }}
           >
             {tab === "workflows" ? <LayoutGrid className="w-3.5 h-3.5" /> : <BarChart2 className="w-3.5 h-3.5" />}
@@ -801,9 +802,6 @@ function WorkflowList({
       {/* ── Workflows grid ── */}
       {activeTab === "workflows" && (
         <div style={{ width: 680 }}>
-          <p className="text-[12px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-widest" style={{ marginBottom: 14 }}>
-            {workflows.length} workflow{workflows.length !== 1 ? "s" : ""}
-          </p>
           <div className="grid grid-cols-3 gap-4">
             {workflows.map((wf, idx) => (
               <button
