@@ -437,16 +437,6 @@ export default function WorkflowsPage() {
           setView("list");
           setActiveWfId(null);
         }}
-        onOpenLpEditor={() => setView("lp-editor")}
-      />
-    );
-  }
-
-  if (view === "lp-editor" && activeWf) {
-    return (
-      <LandingPageEditor
-        workflowId={activeWf.id}
-        onBack={() => setView("builder")}
       />
     );
   }
@@ -1212,13 +1202,12 @@ function WorkflowBuilder({
   workflow,
   onChange,
   onBack,
-  onOpenLpEditor,
 }: {
   workflow: Workflow;
   onChange: (wf: Workflow) => void;
   onBack: () => void;
-  onOpenLpEditor: () => void;
 }) {
+  const [showLpPanel, setShowLpPanel] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [orgSources, setOrgSources] = useState<string[]>([]);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -1746,7 +1735,7 @@ function WorkflowBuilder({
                       <p className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate leading-tight">{node.label}</p>
                       {isLp && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); onOpenLpEditor(); }}
+                          onClick={(e) => { e.stopPropagation(); setShowLpPanel(true); }}
                           className="text-[11px] text-[var(--color-accent)] hover:underline mt-0.5 block"
                         >
                           Edit page →
@@ -1789,6 +1778,14 @@ function WorkflowBuilder({
             />
           )}
         </div>
+
+        {/* ── Landing page inline panel ── */}
+        {showLpPanel && (
+          <LandingPageEditor
+            workflowId={workflow.id}
+            onClose={() => setShowLpPanel(false)}
+          />
+        )}
 
         {/* ── Node config panel ── */}
         {selectedNode && (() => {
@@ -1896,10 +1893,10 @@ function WorkflowBuilder({
 
 function LandingPageEditor({
   workflowId,
-  onBack,
+  onClose,
 }: {
   workflowId: string;
-  onBack: () => void;
+  onClose: () => void;
 }) {
   const supabase = createClient();
   const lpCtx = useLandingPageBuilder();
@@ -2032,18 +2029,18 @@ function LandingPageEditor({
 
   if (loadingPage) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-tertiary)]" />
+      <div style={{ width: 520, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--color-text-tertiary)" }} />
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 68, right: "var(--right-panel-width, 0px)", overflow: "hidden", zIndex: 40, background: "var(--color-background)", transition: "right 300ms cubic-bezier(0.16,1,0.3,1)" }}>
+    <div style={{ width: 520, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
       {/* Top toolbar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", flexShrink: 0, minHeight: 56 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onBack} style={{ padding: 8, borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}>
+          <button onClick={onClose} style={{ padding: 8, borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "var(--color-text-tertiary)" }}>
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div style={{ width: 1, height: 20, background: "var(--color-border)" }} />
@@ -2079,36 +2076,27 @@ function LandingPageEditor({
         </div>
       </div>
 
-      {/* Main content row */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {/* Preview */}
+      <div style={{ height: 220, flexShrink: 0, background: "var(--color-background)", borderBottom: "1px solid var(--color-border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {html ? (
+          <iframe
+            srcDoc={html}
+            style={{ flex: 1, width: "100%", border: "none", background: "white", pointerEvents: "none" }}
+            sandbox="allow-scripts"
+            title="Landing page preview"
+          />
+        ) : (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <Sparkles className="w-5 h-5" style={{ color: "var(--color-accent)", marginBottom: 8 }} strokeWidth={1.5} />
+            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4, textAlign: "center" }}>No page yet</p>
+            <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "center", lineHeight: 1.4 }}>Use the AI sidebar to generate your landing page HTML.</p>
+          </div>
+        )}
+      </div>
 
-        {/* LEFT: Live preview */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--color-background)" }}>
-          {html ? (
-            <iframe
-              srcDoc={html}
-              style={{ flex: 1, width: "100%", border: "none", background: "white" }}
-              sandbox="allow-scripts allow-forms"
-              title="Landing page preview"
-            />
-          ) : (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }}>
-              <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--color-accent-soft)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                <Sparkles className="w-6 h-6 text-[var(--color-accent)]" strokeWidth={1.5} />
-              </div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginBottom: 8 }}>Open the AI assistant to build your page</h3>
-              <p style={{ fontSize: 13, color: "var(--color-text-tertiary)", maxWidth: 400, textAlign: "center", lineHeight: 1.5 }}>
-                Click the chat icon to open the AI sidebar. Describe the landing page you want and it will generate it live.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: Settings sidebar */}
-        <div style={{ width: 320, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-
-          {/* Sidebar scrollable content */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Scrollable settings */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* HTML Toggle */}
             <div>
@@ -2229,7 +2217,6 @@ function LandingPageEditor({
               </p>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );
