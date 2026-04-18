@@ -24,7 +24,7 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  actions?: Array<{ label: string; value: string }>;
+  actions?: Array<{ label: string; value: string; desc?: string }>;
 }
 
 interface Chat {
@@ -182,11 +182,11 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
       role: "assistant",
       content: `**Welcome to Workflows!** ⚡\n\nWorkflows let you automate repetitive tasks — from capturing leads to following up with clients, all on autopilot. Chain together **triggers** (new contact, inbound call, form submit) with **actions** (send email, SMS, create task, notify team).\n\nHere are the 4 most common workflows to get you started, or we can build a fully custom one together!`,
       actions: [
-        { label: "⚡ Lead capture",  value: "template:Lead capture" },
-        { label: "📞 Missed call",   value: "template:Missed call" },
-        { label: "💌 Drip campaign", value: "template:Drip campaign" },
-        { label: "📅 Meeting prep",  value: "template:Meeting prep" },
-        { label: "✨ Build custom",  value: "custom" },
+        { label: "⚡ Lead capture",  value: "template:Lead capture",  desc: "Landing page → instant email + task" },
+        { label: "📞 Missed call",   value: "template:Missed call",   desc: "Inbound call → SMS + notify team" },
+        { label: "💌 Drip campaign", value: "template:Drip campaign", desc: "New contact → 3-touch email sequence" },
+        { label: "📅 Meeting prep",  value: "template:Meeting prep",  desc: "Scheduled event → reminder SMS" },
+        { label: "✨ Build custom",  value: "custom",                 desc: "Start from scratch with AI help" },
       ],
     };
     const newChat: Chat = {
@@ -545,14 +545,20 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
                     </div>
                   </div>
                   {msg.actions && msg.actions.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2 ml-8">
+                    <div className="flex flex-col gap-2 mt-3 ml-8">
                       {msg.actions.map((action) => (
                         <button
                           key={action.value}
                           onClick={() => handleActionClick(action.value, msg.id)}
-                          className="px-3 py-1.5 rounded-full text-[12px] font-medium border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-accent)]/8 transition-all cursor-pointer"
+                          className="flex items-center gap-3 w-full text-left rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-accent)]/5 transition-all cursor-pointer"
+                          style={{ padding: "10px 14px" }}
                         >
-                          {action.label}
+                          <span className="text-[16px] flex-shrink-0">{action.label.slice(0, 2)}</span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-[var(--color-text-primary)] leading-tight">{action.label.slice(2).trim()}</p>
+                            {action.desc && <p className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">{action.desc}</p>}
+                          </div>
+                          <svg className="ml-auto flex-shrink-0 text-[var(--color-text-tertiary)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                         </button>
                       ))}
                     </div>
