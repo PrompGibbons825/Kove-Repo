@@ -19,7 +19,6 @@ import {
   Sparkles,
   Play,
   Trash2,
-  MoreHorizontal,
   Zap,
   Mail,
   MessageSquare,
@@ -36,7 +35,6 @@ import {
   Upload,
   Code2,
   Check,
-  Eye,
 } from "lucide-react";
 
 /* ─────────────────────── Types ─────────────────────── */
@@ -305,6 +303,71 @@ export default function WorkflowsPage() {
    Workflow List
    ═══════════════════════════════════════════════════════ */
 
+const TEMPLATES = [
+  {
+    name: "Lead capture",
+    desc: "Landing page → instant email + task",
+    color: "#6366f1",
+    nodes: [
+      { icon: <Globe className="w-3 h-3" />, label: "Landing Page" },
+      { icon: <Mail className="w-3 h-3" />, label: "Send Email" },
+      { icon: <CheckCircle2 className="w-3 h-3" />, label: "Create Task" },
+    ],
+  },
+  {
+    name: "Missed call",
+    desc: "Inbound call → SMS + notify team",
+    color: "#f59e0b",
+    nodes: [
+      { icon: <Bell className="w-3 h-3" />, label: "Inbound Call" },
+      { icon: <MessageSquare className="w-3 h-3" />, label: "Send SMS" },
+      { icon: <Bell className="w-3 h-3" />, label: "Notify Team" },
+    ],
+  },
+  {
+    name: "Drip campaign",
+    desc: "New contact → 3-touch email sequence",
+    color: "#3b82f6",
+    nodes: [
+      { icon: <UserPlus className="w-3 h-3" />, label: "New Contact" },
+      { icon: <Mail className="w-3 h-3" />, label: "Email #1" },
+      { icon: <Clock className="w-3 h-3" />, label: "Wait 2 days" },
+    ],
+  },
+  {
+    name: "Meeting prep",
+    desc: "Scheduled event → reminder SMS",
+    color: "#10b981",
+    nodes: [
+      { icon: <Clock className="w-3 h-3" />, label: "Schedule" },
+      { icon: <Filter className="w-3 h-3" />, label: "If / Else" },
+      { icon: <MessageSquare className="w-3 h-3" />, label: "Send SMS" },
+    ],
+  },
+];
+
+function MiniFlow({ nodes, color }: { nodes: { icon: React.ReactNode; label: string }[]; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5 mt-3">
+      {nodes.map((n, i) => (
+        <>
+          <div
+            key={i}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-white text-[10px] font-medium"
+            style={{ backgroundColor: color, opacity: 0.85 + i * 0.05 }}
+          >
+            {n.icon}
+            <span>{n.label}</span>
+          </div>
+          {i < nodes.length - 1 && (
+            <ChevronRight key={`arrow-${i}`} className="w-3 h-3 text-[var(--color-text-tertiary)] flex-shrink-0" />
+          )}
+        </>
+      ))}
+    </div>
+  );
+}
+
 function WorkflowList({
   workflows,
   onNew,
@@ -318,39 +381,81 @@ function WorkflowList({
 }) {
   if (workflows.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-500/20">
-            <Zap className="w-9 h-9 text-white" strokeWidth={1.5} />
+      <div className="flex-1 overflow-y-auto">
+        {/* Hero */}
+        <div className="px-10 pt-12 pb-8 border-b border-[var(--color-border)]">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <Zap className="w-5 h-5 text-white" strokeWidth={2} />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Workflows</p>
+                <h1 className="text-[22px] font-bold text-[var(--color-text-primary)] leading-tight">Automate your sales process</h1>
+              </div>
+            </div>
+            <p className="text-[14px] text-[var(--color-text-secondary)] leading-relaxed max-w-lg">
+              Connect triggers — landing page submissions, inbound calls, new contacts — to actions like emails, SMS messages, and tasks. Build once, run forever.
+            </p>
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                onClick={onNew}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent)] text-white text-[13px] font-semibold rounded-lg hover:bg-[var(--color-accent-hover)] transition-all shadow-md shadow-indigo-500/20 hover:-translate-y-px active:translate-y-0"
+              >
+                <Plus className="w-4 h-4" />
+                New workflow
+              </button>
+              <div className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] text-[var(--color-text-secondary)]">
+                <Sparkles className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+                Or ask the AI sidebar to build one for you
+              </div>
+            </div>
           </div>
-          <h1 className="text-[28px] font-bold text-[var(--color-text-primary)] mb-3">
-            Automate your workflow
-          </h1>
-          <p className="text-[15px] text-[var(--color-text-tertiary)] leading-relaxed mb-8">
-            Build powerful automations with a visual drag-and-drop builder.
-            Connect triggers like landing pages, forms, and calls to actions
-            like emails, SMS, and tasks.
-          </p>
-          <button
-            onClick={onNew}
-            className="inline-flex items-center gap-2.5 px-7 py-3.5 bg-[var(--color-accent)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--color-accent-hover)] transition-all shadow-md shadow-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <Plus className="w-5 h-5" />
-            Create your first workflow
-          </button>
-          <div className="mt-10 flex items-start gap-3 text-left p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Sparkles className="w-4 h-4 text-[var(--color-accent)]" />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-0.5">
-                Pro tip: Use the AI assistant
-              </p>
-              <p className="text-[12px] text-[var(--color-text-tertiary)] leading-relaxed">
-                Open the AI sidebar and describe the automation you want. It can
-                build entire workflows for you — triggers, actions, and all.
-              </p>
-            </div>
+        </div>
+
+        {/* Templates */}
+        <div className="px-10 pt-8 pb-12">
+          <p className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest mb-4">Start from a template</p>
+          <div className="grid grid-cols-2 gap-4">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.name}
+                onClick={onNew}
+                className="group text-left p-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-md)] transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+                    style={{ backgroundColor: t.color }}
+                  >
+                    <Zap className="w-4 h-4" strokeWidth={2} />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors mt-1" />
+                </div>
+                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mt-3">{t.name}</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{t.desc}</p>
+                <MiniFlow nodes={t.nodes} color={t.color} />
+              </button>
+            ))}
+          </div>
+
+          {/* How it works strip */}
+          <div className="mt-8 grid grid-cols-3 gap-4">
+            {[
+              { icon: <Zap className="w-4 h-4" />, title: "Pick a trigger", desc: "A form, call, contact creation, or schedule" },
+              { icon: <GitBranch className="w-4 h-4" />, title: "Add logic", desc: "Branches, delays, and conditions" },
+              { icon: <Play className="w-4 h-4" />, title: "Run actions", desc: "Emails, SMS, tasks, and team alerts" },
+            ].map((s) => (
+              <div key={s.title} className="flex items-start gap-3 p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+                <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 text-[var(--color-accent)]">
+                  {s.icon}
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{s.title}</p>
+                  <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">{s.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -358,58 +463,53 @@ function WorkflowList({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <div className="flex items-center justify-between px-8 pt-8 pb-6">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex items-center justify-between px-8 pt-7 pb-5 border-b border-[var(--color-border)]">
         <div>
-          <h1 className="text-[24px] font-semibold text-[var(--color-text-primary)]">
-            Workflows
-          </h1>
-          <p className="text-[14px] text-[var(--color-text-tertiary)] mt-1">
-            {workflows.length} workflow{workflows.length !== 1 ? "s" : ""}
+          <h1 className="text-[20px] font-bold text-[var(--color-text-primary)]">Workflows</h1>
+          <p className="text-[13px] text-[var(--color-text-tertiary)] mt-0.5">
+            {workflows.filter((w) => w.status === "active").length} active · {workflows.length} total
           </p>
         </div>
         <button
           onClick={onNew}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent)] text-white text-[13px] font-medium rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-[13px] font-medium rounded-lg hover:bg-[var(--color-accent-hover)] transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
-          New Workflow
+          New workflow
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-2">
+      <div className="flex-1 overflow-y-auto px-8 py-5 space-y-2">
         {workflows.map((wf) => (
           <div
             key={wf.id}
             onClick={() => onOpen(wf.id)}
-            className="flex items-center justify-between p-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/30 hover:shadow-sm transition-all cursor-pointer group"
+            className="group flex items-center gap-4 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl cursor-pointer hover:border-[var(--color-accent)]/30 hover:shadow-[var(--shadow-sm)] transition-all"
           >
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center flex-shrink-0">
-                <Zap className="w-4.5 h-4.5 text-white" strokeWidth={2} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
-                  {wf.name}
-                </p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
-                  {wf.nodes.length} step{wf.nodes.length !== 1 ? "s" : ""} ·{" "}
-                  {wf.status === "active" ? (
-                    <span className="text-[var(--color-success)]">Active</span>
-                  ) : (
-                    "Draft"
-                  )}{" "}
-                  · Updated {new Date(wf.updatedAt).toLocaleDateString()}
-                </p>
-              </div>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Zap className="w-4 h-4 text-white" strokeWidth={2} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">{wf.name}</p>
+              <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">
+                {wf.nodes.length} steps · Updated {new Date(wf.updatedAt).toLocaleDateString()}
+              </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                wf.status === "active"
+                  ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                  : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  wf.status === "active" ? "bg-[var(--color-success)]" : "bg-[var(--color-text-tertiary)]"
+                }`} />
+                {wf.status === "active" ? "Active" : "Draft"}
+              </span>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(wf.id);
-                }}
-                className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                onClick={(e) => { e.stopPropagation(); onDelete(wf.id); }}
+                className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -436,9 +536,7 @@ function CreateWorkflow({
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -447,84 +545,79 @@ function CreateWorkflow({
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6">
-      <div className="max-w-lg w-full">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-8 pt-6 pb-5 border-b border-[var(--color-border)]">
         <button
           onClick={onCancel}
-          className="flex items-center gap-2 text-[13px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] mb-8 transition-colors"
+          className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to workflows
         </button>
+        <div className="h-5 w-px bg-[var(--color-border)]" />
+        <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">New workflow</p>
+      </div>
 
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
-          <Zap className="w-6 h-6 text-white" strokeWidth={1.5} />
-        </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-xl px-10 pt-8 pb-12">
+          <form onSubmit={handleSubmit}>
+            <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Workflow name</label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Lead follow-up, Event registration…"
+              className="w-full px-4 py-3 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/15 transition-all"
+            />
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                type="submit"
+                disabled={!name.trim()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent)] text-white text-[13px] font-semibold rounded-lg hover:bg-[var(--color-accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              >
+                <Play className="w-3.5 h-3.5" />
+                Open builder
+              </button>
+              <button type="button" onClick={onCancel} className="px-5 py-2.5 text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
+                Cancel
+              </button>
+            </div>
+          </form>
 
-        <h1 className="text-[24px] font-bold text-[var(--color-text-primary)] mb-2">
-          Name your workflow
-        </h1>
-        <p className="text-[14px] text-[var(--color-text-tertiary)] mb-8">
-          Give it something descriptive — you can always rename it later.
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            ref={inputRef}
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. New lead follow-up, Event registration…"
-            className="w-full px-4 py-3.5 text-[15px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 transition-all"
-          />
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={!name.trim()}
-              className="flex items-center gap-2 px-6 py-3 bg-[var(--color-accent)] text-white text-[14px] font-semibold rounded-xl hover:bg-[var(--color-accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-            >
-              <Play className="w-4 h-4" />
-              Start building
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-6 py-3 text-[14px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
-            >
-              Cancel
-            </button>
+          {/* Templates */}
+          <div className="mt-10">
+            <p className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest mb-4">Or start from a template</p>
+            <div className="space-y-2">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() => { setName(t.name); setTimeout(() => inputRef.current?.focus(), 0); }}
+                  className="group w-full flex items-center gap-4 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-left hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-sm)] transition-all"
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                    style={{ backgroundColor: t.color }}
+                  >
+                    <Zap className="w-4 h-4" strokeWidth={2} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t.name}</p>
+                    <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{t.desc}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {t.nodes.map((n, i) => (
+                      <span key={i} className="text-[10px] text-[var(--color-text-tertiary)] flex items-center gap-0.5">
+                        {i > 0 && <span className="text-[var(--color-border)] mx-0.5">›</span>}
+                        {n.label}
+                      </span>
+                    ))}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] flex-shrink-0 transition-colors" />
+                </button>
+              ))}
+            </div>
           </div>
-        </form>
-
-        {/* Templates hint */}
-        <div className="mt-12 grid grid-cols-2 gap-3">
-          {[
-            { name: "Lead capture", icon: <Globe className="w-4 h-4" />, desc: "Landing page → Email follow-up" },
-            { name: "Call follow-up", icon: <Bell className="w-4 h-4" />, desc: "Missed call → SMS + Task" },
-            { name: "Drip campaign", icon: <Mail className="w-4 h-4" />, desc: "New contact → Email sequence" },
-            { name: "Meeting reminder", icon: <Clock className="w-4 h-4" />, desc: "Schedule → SMS reminder" },
-          ].map((t) => (
-            <button
-              key={t.name}
-              onClick={() => {
-                setName(t.name);
-                inputRef.current?.focus();
-              }}
-              className="flex items-start gap-3 p-3.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/30 hover:shadow-sm transition-all text-left"
-            >
-              <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 text-[var(--color-accent)]">
-                {t.icon}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-medium text-[var(--color-text-primary)]">
-                  {t.name}
-                </p>
-                <p className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
-                  {t.desc}
-                </p>
-              </div>
-            </button>
-          ))}
         </div>
       </div>
     </div>
