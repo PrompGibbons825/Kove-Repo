@@ -1207,7 +1207,7 @@ function WorkflowBuilder({
     const def = NODE_CATALOG.find((n) => n.type === type);
     if (!def || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    addNode(def, e.clientX - rect.left - 80, e.clientY - rect.top - 24);
+    addNode(def, e.clientX - rect.left - 100, e.clientY - rect.top - 28);
   }
 
   function handleNodeMouseDown(id: string, e: RMouseEvent) {
@@ -1261,10 +1261,35 @@ function WorkflowBuilder({
     return NODE_CATALOG.find((n) => n.type === type);
   }
 
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  function handleCanvasMouseMoveWithPos(e: RMouseEvent) {
+    if (canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setMousePos({
+        x: e.clientX - rect.left + canvasRef.current.scrollLeft,
+        y: e.clientY - rect.top + canvasRef.current.scrollTop,
+      });
+    }
+    handleCanvasMouseMove(e);
+  }
+
+  // Node card dimensions (must match rendered size)
+  const NODE_W = 200;
+  const NODE_H = 56;
+  const PORT_R = 7; // port radius
+
+  function getOutPortPos(node: WorkflowNode) {
+    return { x: node.x + NODE_W + PORT_R, y: node.y + NODE_H / 2 };
+  }
+  function getInPortPos(node: WorkflowNode) {
+    return { x: node.x - PORT_R, y: node.y + NODE_H / 2 };
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -1284,10 +1309,7 @@ function WorkflowBuilder({
               onBlur={saveName}
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveName();
-                if (e.key === "Escape") {
-                  setWfName(workflow.name);
-                  setEditingName(false);
-                }
+                if (e.key === "Escape") { setWfName(workflow.name); setEditingName(false); }
               }}
               className="px-2 py-1 text-[14px] font-medium bg-[var(--color-background)] border border-[var(--color-accent)] rounded-lg text-[var(--color-text-primary)] focus:outline-none w-64"
             />
@@ -1299,57 +1321,31 @@ function WorkflowBuilder({
               {workflow.name}
             </button>
           )}
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+          <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
             workflow.status === "active"
-              ? "bg-emerald-500/10 text-emerald-600"
+              ? "bg-emerald-500/10 text-emerald-500"
               : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
           }`}>
             {workflow.status === "active" ? "Active" : "Draft"}
           </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPaletteOpen(!paletteOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
-          >
-            <GripVertical className="w-3.5 h-3.5" />
-            {paletteOpen ? "Hide" : "Show"} Nodes
-          </button>
-          <button
-            onClick={() =>
-              onChange({
-                ...workflow,
-                status: workflow.status === "active" ? "draft" : "active",
-                updatedAt: Date.now(),
-              })
-            }
-            className={`flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
-              workflow.status === "active"
-                ? "bg-[var(--color-danger)] text-white hover:bg-red-600"
-                : "bg-[var(--color-success)] text-white hover:bg-emerald-600"
-            }`}
-          >
-            <Play className="w-3.5 h-3.5" />
-            {workflow.status === "active" ? "Deactivate" : "Activate"}
-          </button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Node palette */}
         {paletteOpen && (
-          <div className="w-[240px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto">
-            <div className="p-4 space-y-5">
+          <div className="w-[220px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col">
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
               {[
                 { title: "Triggers", items: TRIGGERS },
                 { title: "Actions", items: ACTIONS },
                 { title: "Logic", items: LOGIC },
               ].map((group) => (
                 <div key={group.title}>
-                  <p className="text-[10px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-2">
+                  <p className="text-[10px] font-bold text-[var(--color-text-tertiary)] uppercase tracking-widest mb-2.5 px-1">
                     {group.title}
                   </p>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {group.items.map((def) => (
                       <div
                         key={def.type}
@@ -1358,21 +1354,17 @@ function WorkflowBuilder({
                           e.dataTransfer.setData("node-type", def.type);
                           e.dataTransfer.effectAllowed = "copy";
                         }}
-                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all group/node"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-background)] cursor-grab active:cursor-grabbing transition-all"
                       >
                         <div
-                          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 text-white"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-sm"
                           style={{ backgroundColor: def.color }}
                         >
                           {def.icon}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[12px] font-medium text-[var(--color-text-primary)] leading-tight">
-                            {def.label}
-                          </p>
-                          <p className="text-[10px] text-[var(--color-text-tertiary)] leading-tight mt-0.5 truncate">
-                            {def.desc}
-                          </p>
+                          <p className="text-[12px] font-semibold text-[var(--color-text-primary)] leading-tight">{def.label}</p>
+                          <p className="text-[10px] text-[var(--color-text-tertiary)] leading-tight mt-0.5 truncate">{def.desc}</p>
                         </div>
                       </div>
                     ))}
@@ -1380,7 +1372,41 @@ function WorkflowBuilder({
                 </div>
               ))}
             </div>
+
+            {/* Bottom actions */}
+            <div className="p-3 border-t border-[var(--color-border)] flex flex-col gap-2">
+              <button
+                onClick={() => setPaletteOpen(false)}
+                className="flex items-center justify-center gap-2 w-full px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors"
+              >
+                <GripVertical className="w-3.5 h-3.5" />
+                Hide Nodes
+              </button>
+              <button
+                onClick={() => onChange({ ...workflow, status: workflow.status === "active" ? "draft" : "active", updatedAt: Date.now() })}
+                className={`flex items-center justify-center gap-2 w-full px-3 py-2 text-[12px] font-semibold rounded-xl transition-colors ${
+                  workflow.status === "active"
+                    ? "bg-[var(--color-danger)] text-white hover:opacity-90"
+                    : "text-white hover:opacity-90"
+                }`}
+                style={workflow.status !== "active" ? { background: "linear-gradient(135deg, #a78bfa, #e879f9)" } : {}}
+              >
+                <Play className="w-3.5 h-3.5" />
+                {workflow.status === "active" ? "Deactivate" : "Activate"}
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Show nodes button when palette is hidden */}
+        {!paletteOpen && (
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="absolute left-3 bottom-3 z-30 flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] bg-[var(--color-surface)] rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors shadow-sm"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+            Show Nodes
+          </button>
         )}
 
         {/* Canvas */}
@@ -1388,17 +1414,14 @@ function WorkflowBuilder({
           ref={canvasRef}
           className="flex-1 relative overflow-auto"
           style={{
-            backgroundImage:
-              "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
+            backgroundImage: "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
             backgroundColor: "var(--color-background)",
+            cursor: connecting ? "crosshair" : "default",
           }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "copy";
-          }}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
           onDrop={handleCanvasDrop}
-          onMouseMove={handleCanvasMouseMove}
+          onMouseMove={handleCanvasMouseMoveWithPos}
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
         >
@@ -1409,138 +1432,178 @@ function WorkflowBuilder({
                 <Sparkles className="w-4 h-4 text-[var(--color-accent)]" />
               </div>
               <div className="flex-1">
-                <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-1">
-                  Let AI build this for you
-                </p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)] leading-relaxed">
-                  Open the AI sidebar and describe what you want to automate.
-                  It&apos;ll wire up the triggers, actions, and logic.
-                </p>
+                <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-1">Let AI build this for you</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] leading-relaxed">Open the AI sidebar and describe what you want to automate.</p>
               </div>
-              <button
-                onClick={() => setShowTip(false)}
-                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors flex-shrink-0"
-              >
+              <button onClick={() => setShowTip(false)} className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors flex-shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          {/* Empty canvas prompt */}
           {nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
                 <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-[var(--color-border)] flex items-center justify-center mx-auto mb-4">
                   <Plus className="w-6 h-6 text-[var(--color-text-tertiary)]" />
                 </div>
-                <p className="text-[14px] font-medium text-[var(--color-text-tertiary)]">
-                  Drag nodes from the panel to get started
-                </p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-1">
-                  or let the AI sidebar build it for you
-                </p>
+                <p className="text-[14px] font-medium text-[var(--color-text-tertiary)]">Drag nodes from the panel to get started</p>
+                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-1">or let the AI sidebar build it for you</p>
               </div>
             </div>
           )}
 
-          {/* SVG edges */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+          {/* SVG layer: edges + live connection line */}
+          <svg
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{ width: "100%", height: "100%", overflow: "visible" }}
+          >
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="var(--color-accent)" opacity="0.6" />
+              </marker>
+            </defs>
+
+            {/* Existing edges */}
             {edges.map((edge) => {
               const fromNode = nodes.find((n) => n.id === edge.from);
               const toNode = nodes.find((n) => n.id === edge.to);
               if (!fromNode || !toNode) return null;
-              const x1 = fromNode.x + 160;
-              const y1 = fromNode.y + 28;
-              const x2 = toNode.x;
-              const y2 = toNode.y + 28;
-              const mx = (x1 + x2) / 2;
+              const p1 = getOutPortPos(fromNode);
+              const p2 = getInPortPos(toNode);
+              const cx = (p1.x + p2.x) / 2;
               return (
-                <g key={edge.id} className="pointer-events-auto cursor-pointer" onClick={() => removeEdge(edge.id)}>
+                <g
+                  key={edge.id}
+                  className="pointer-events-auto cursor-pointer group/edge"
+                  onClick={() => removeEdge(edge.id)}
+                >
+                  {/* Fat invisible hit target */}
+                  <path d={`M ${p1.x} ${p1.y} C ${cx} ${p1.y}, ${cx} ${p2.y}, ${p2.x} ${p2.y}`} fill="none" stroke="transparent" strokeWidth={16} />
+                  {/* Visible edge */}
                   <path
-                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    d={`M ${p1.x} ${p1.y} C ${cx} ${p1.y}, ${cx} ${p2.y}, ${p2.x} ${p2.y}`}
                     fill="none"
                     stroke="var(--color-accent)"
-                    strokeWidth="2"
-                    strokeDasharray={connecting ? "6 3" : "none"}
-                    opacity={0.5}
-                  />
-                  <path
-                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth="16"
+                    strokeWidth={2}
+                    opacity={0.55}
+                    markerEnd="url(#arrowhead)"
+                    className="group-hover/edge:opacity-100 group-hover/edge:stroke-[var(--color-danger)]"
+                    style={{ transition: "opacity 0.15s, stroke 0.15s" }}
                   />
                 </g>
               );
             })}
+
+            {/* Live drag-to-connect line */}
+            {connecting && (() => {
+              const fromNode = nodes.find((n) => n.id === connecting);
+              if (!fromNode) return null;
+              const p1 = getOutPortPos(fromNode);
+              const cx = (p1.x + mousePos.x) / 2;
+              return (
+                <path
+                  d={`M ${p1.x} ${p1.y} C ${cx} ${p1.y}, ${cx} ${mousePos.y}, ${mousePos.x} ${mousePos.y}`}
+                  fill="none"
+                  stroke="var(--color-accent)"
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  opacity={0.7}
+                />
+              );
+            })()}
           </svg>
 
           {/* Nodes */}
           {nodes.map((node) => {
             const def = getNodeDef(node.type);
+            const isTrigger = def?.category === "trigger";
             const isLp = node.type === "landing-page";
+            const isConnectingFrom = connecting === node.id;
+
             return (
               <div
                 key={node.id}
-                className={`absolute flex items-center gap-0 select-none z-10 group/card ${
-                  dragging === node.id ? "cursor-grabbing" : "cursor-grab"
-                }`}
+                className={`absolute select-none z-10 group/card ${dragging === node.id ? "cursor-grabbing" : "cursor-grab"}`}
                 style={{ left: node.x, top: node.y }}
                 onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
               >
-                {/* In port */}
-                <div
-                  data-port="in"
-                  onClick={() => handlePortClick(node.id, "in")}
-                  className={`w-3 h-3 rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)] transition-colors cursor-crosshair -mr-1.5 z-20 ${
-                    connecting ? "scale-125 border-[var(--color-accent)]" : ""
-                  }`}
-                />
+                <div className="relative flex items-center">
+                  {/* In port — hidden for triggers */}
+                  {!isTrigger && (
+                    <div
+                      data-port="in"
+                      onClick={(e) => { e.stopPropagation(); handlePortClick(node.id, "in"); }}
+                      className={`absolute -left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 z-20 transition-all cursor-crosshair ${
+                        connecting && connecting !== node.id
+                          ? "border-[var(--color-accent)] bg-[var(--color-accent)] scale-125 shadow-[0_0_0_3px_rgba(99,102,241,0.2)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]"
+                      }`}
+                      style={{ pointerEvents: "all" }}
+                    />
+                  )}
 
-                {/* Card */}
-                <div className="flex items-center gap-2.5 pl-3.5 pr-2 py-2.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-sm hover:shadow-md transition-all min-w-[160px]">
+                  {/* Card */}
                   <div
-                    className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 text-white"
-                    style={{ backgroundColor: def?.color ?? "#6366f1" }}
+                    className={`flex items-center gap-3 px-4 py-3.5 bg-[var(--color-surface)] border rounded-2xl shadow-md transition-all ${
+                      isConnectingFrom
+                        ? "border-[var(--color-accent)] shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                        : "border-[var(--color-border)] hover:border-[var(--color-border)] hover:shadow-lg"
+                    }`}
+                    style={{ minWidth: NODE_W, width: NODE_W }}
                   >
-                    {def?.icon ?? <Zap className="w-4 h-4" />}
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-sm"
+                      style={{ backgroundColor: def?.color ?? "#6366f1" }}
+                    >
+                      {def?.icon ?? <Zap className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate leading-tight">{node.label}</p>
+                      {isLp && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onOpenLpEditor(); }}
+                          className="text-[11px] text-[var(--color-accent)] hover:underline mt-0.5 block"
+                        >
+                          Edit page →
+                        </button>
+                      )}
+                      {!isLp && def?.desc && (
+                        <p className="text-[11px] text-[var(--color-text-tertiary)] truncate mt-0.5">{def.desc}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeNode(node.id); }}
+                      className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover/card:opacity-100 flex-shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-medium text-[var(--color-text-primary)] truncate">
-                      {node.label}
-                    </p>
-                    {isLp && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenLpEditor();
-                        }}
-                        className="text-[10px] text-[var(--color-accent)] hover:underline mt-0.5"
-                      >
-                        Edit page →
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeNode(node.id);
-                    }}
-                    className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] rounded transition-colors opacity-0 group-hover/card:opacity-100"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
 
-                {/* Out port */}
-                <div
-                  data-port="out"
-                  onClick={() => handlePortClick(node.id, "out")}
-                  className="w-3 h-3 rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)] transition-colors cursor-crosshair -ml-1.5 z-20"
-                />
+                  {/* Out port */}
+                  <div
+                    data-port="out"
+                    onClick={(e) => { e.stopPropagation(); handlePortClick(node.id, "out"); }}
+                    className={`absolute -right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 z-20 transition-all cursor-crosshair ${
+                      isConnectingFrom
+                        ? "border-[var(--color-accent)] bg-[var(--color-accent)] scale-125"
+                        : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]"
+                    }`}
+                    style={{ pointerEvents: "all" }}
+                  />
+                </div>
               </div>
             );
           })}
+
+          {/* Cancel connection on canvas click */}
+          {connecting && (
+            <div
+              className="absolute inset-0 z-5"
+              style={{ pointerEvents: "all" }}
+              onClick={() => setConnecting(null)}
+            />
+          )}
         </div>
       </div>
     </div>
