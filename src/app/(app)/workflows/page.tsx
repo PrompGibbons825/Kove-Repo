@@ -2176,13 +2176,14 @@ function LandingPageEditor({
       {/* Drag handle */}
       <div
         onMouseDown={onDragStart}
-        style={{ width: 4, flexShrink: 0, cursor: "col-resize", background: "var(--color-border)", transition: "background 0.15s" }}
+        style={{ width: 6, flexShrink: 0, cursor: "col-resize", background: "var(--color-border)", transition: "background 0.15s", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
         onMouseEnter={e => (e.currentTarget.style.background = "var(--color-accent)")}
-        onMouseLeave={e => (e.currentTarget.style.background = "var(--color-border)")}
-      />
+        onMouseLeave={e => (e.currentTarget.style.background = "var(--color-border)")}>
+        <div style={{ width: 2, height: 32, borderRadius: 2, background: "rgba(255,255,255,0.25)", pointerEvents: "none" }} />
+      </div>
 
       {/* RIGHT: settings column */}
-      <div style={{ flex: 1, minWidth: 220, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+      <div style={{ flex: 1, minWidth: 220, background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
 
         {/* Toolbar */}
         <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
