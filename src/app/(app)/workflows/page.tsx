@@ -1289,7 +1289,7 @@ function WorkflowBuilder({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", position: "fixed", inset: 0, overflow: "hidden", zIndex: 50, background: "var(--color-background)" }}>
+    <div style={{ display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 68, right: 0, overflow: "hidden", zIndex: 40, background: "var(--color-background)" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
         <div className="flex items-center gap-4">
