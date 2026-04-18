@@ -408,71 +408,18 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  // Bolt polygon points (in 240x260 container coords) — proper closed shape
-  const boltClip = "polygon(56% 0%, 26% 44%, 46% 44%, 20% 100%, 82% 50%, 56% 50%)";
-
-  // Contour path for wisps — traces the bolt silhouette in px coords
-  const contourPath = "M134 0 L62 114 L110 114 L48 260 L197 130 L134 130 Z";
-
-  // Wisp configs — each follows the contour at different speeds
-  const wisps = [
-    { dur: 4, delay: 0, w: 14, h: 4, color: "rgba(192,132,252,0.9)", blur: 6 },
-    { dur: 5.5, delay: -1.2, w: 18, h: 3, color: "rgba(168,130,255,0.7)", blur: 8 },
-    { dur: 3.5, delay: -2.5, w: 10, h: 5, color: "rgba(232,121,249,0.8)", blur: 5 },
-    { dur: 6, delay: -0.7, w: 16, h: 3, color: "rgba(103,232,249,0.6)", blur: 7 },
-    { dur: 4.5, delay: -3.2, w: 12, h: 4, color: "rgba(139,92,246,0.8)", blur: 6 },
-    { dur: 7, delay: -4, w: 20, h: 3, color: "rgba(192,132,252,0.5)", blur: 10 },
-    { dur: 3, delay: -1.8, w: 8, h: 6, color: "rgba(232,121,249,0.9)", blur: 4 },
-    { dur: 5, delay: -3.8, w: 14, h: 3, color: "rgba(168,130,255,0.6)", blur: 8 },
-  ];
+  // Two overlapping triangles: upper triangle points down-right, lower triangle points up-left
+  // Upper: top-center → mid-left → mid-right  (pointing down)
+  // Lower: mid-left → mid-right → bottom-center (pointing down)
+  // Offset so they connect at a diagonal seam
+  const boltClip = "polygon(50% 0%, 15% 48%, 55% 40%, 85% 52%, 50% 100%, 45% 60%)";
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto cursor-pointer"
-      style={{ width: 240, height: 260, perspective: 600 }}
+      style={{ width: 240, height: 280, perspective: 600 }}
     >
-      {/* Contour-following wisps */}
-      {wisps.map((w, i) => (
-        <div
-          key={i}
-          className="absolute"
-          style={{
-            width: w.w,
-            height: w.h,
-            borderRadius: "50%",
-            background: `radial-gradient(ellipse, ${w.color} 0%, transparent 70%)`,
-            boxShadow: `0 0 ${w.blur * 2}px ${w.blur}px ${w.color}`,
-            filter: `blur(${w.blur / 2}px)`,
-            offsetPath: `path('${contourPath}')`,
-            offsetRotate: "0deg",
-            animation: `boltContour ${w.dur}s linear infinite`,
-            animationDelay: `${w.delay}s`,
-            zIndex: 5,
-          } as React.CSSProperties}
-        />
-      ))}
-
-      {/* Ambient floating wisps — soft blobs drifting near the bolt */}
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div
-          key={`amb-${i}`}
-          className="absolute"
-          style={{
-            width: 3 + i * 1.5,
-            height: 8 + i * 3,
-            borderRadius: "50%",
-            top: `${12 + i * 14}%`,
-            left: `${i % 2 === 0 ? 10 + i * 5 : 70 - i * 4}%`,
-            background: `radial-gradient(ellipse, rgba(192,132,252,${0.2 + i * 0.05}) 0%, transparent 70%)`,
-            filter: `blur(${4 + i}px)`,
-            animation: `boltDrift ${3 + i * 0.6}s ease-in-out infinite`,
-            animationDelay: `${-i * 0.9}s`,
-            zIndex: 2,
-          }}
-        />
-      ))}
-
       {/* Far ambient glow */}
       <div
         className="absolute rounded-full transition-opacity duration-1000"
@@ -506,18 +453,18 @@ function LiquidBolt() {
       />
       {/* Bolt body — clipped liquid shape */}
       <div
-        className="absolute inset-[4%] overflow-hidden"
+        className="absolute overflow-hidden"
         style={{
+          inset: "5% 10%",
           clipPath: boltClip,
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
           transition: "transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)",
           animation: "orbFloat 6s ease-in-out infinite",
-          boxShadow: "0 0 60px 20px rgba(139,92,246,0.15), 0 0 120px 60px rgba(99,102,241,0.08)",
         }}
       >
         {/* Spinning gradient base */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-[-20%]"
           style={{
             background: "conic-gradient(from 0deg, #c084fc, #818cf8, #67e8f9, #a78bfa, #f0abfc, #c084fc)",
             filter: "blur(18px)",
@@ -526,30 +473,28 @@ function LiquidBolt() {
         />
         {/* Counter-rotating inner */}
         <div
-          className="absolute"
+          className="absolute inset-[-10%]"
           style={{
-            inset: "8%",
             background: "conic-gradient(from 180deg, #e879f9, #6366f1, #22d3ee, #a855f7, #e879f9)",
             filter: "blur(14px)",
             opacity: 0.8,
             animation: "orbSpin 12s linear infinite reverse",
           }}
         />
-        {/* Caustic ripple layer */}
+        {/* Caustic ripple */}
         <div
-          className="absolute"
+          className="absolute inset-[-5%]"
           style={{
-            inset: "5%",
             background: "conic-gradient(from 90deg, transparent 0%, rgba(255,255,255,0.08) 10%, transparent 20%, rgba(255,255,255,0.05) 35%, transparent 45%, rgba(255,255,255,0.1) 55%, transparent 65%, rgba(255,255,255,0.06) 80%, transparent 90%)",
             animation: "orbSpin 6s linear infinite",
             mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
           }}
         />
-        {/* Specular highlight that follows mouse */}
+        {/* Specular highlight — follows mouse */}
         <div
           className="absolute"
           style={{
-            width: "55%", height: "35%", top: "10%", left: "18%",
+            width: "60%", height: "40%", top: "5%", left: "15%",
             background: "radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.1) 40%, transparent 70%)",
             filter: "blur(8px)",
             transform: "translate(calc(var(--mx,0) * 12px), calc(var(--my,0) * 6px))",
@@ -557,36 +502,25 @@ function LiquidBolt() {
           }}
         />
         {/* Glass refraction */}
-        <div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(circle at 35% 25%, rgba(255,255,255,0.3) 0%, transparent 50%)" }}
-        />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 35% 25%, rgba(255,255,255,0.3) 0%, transparent 50%)" }} />
         {/* Pulsing inner glow */}
-        <div
-          className="absolute"
-          style={{
-            inset: "15%",
-            background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 60%)",
-            animation: "orbPulse 3s ease-in-out infinite",
-          }}
-        />
-        {/* Translucent shell */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "radial-gradient(circle at 38% 28%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.04) 55%, transparent 70%)",
-          }}
-        />
-        {/* Slow-orbiting wispy blobs */}
-        <div className="absolute inset-0 overflow-hidden" style={{ animation: "orbSpin 22s linear infinite" }}>
-          <div className="absolute" style={{ width: "60%", height: "35%", top: "8%", left: "-5%", background: "radial-gradient(ellipse, rgba(255,255,255,0.14) 0%, transparent 70%)", filter: "blur(12px)" }} />
-          <div className="absolute" style={{ width: "45%", height: "50%", bottom: "5%", right: "-8%", background: "radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%)", filter: "blur(14px)" }} />
-          <div className="absolute" style={{ width: "35%", height: "30%", top: "45%", left: "15%", background: "radial-gradient(ellipse, rgba(255,255,255,0.08) 0%, transparent 65%)", filter: "blur(10px)" }} />
+        <div className="absolute" style={{ inset: "15%", background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 60%)", animation: "orbPulse 3s ease-in-out infinite" }} />
+        {/* Translucent shell depth */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 38% 28%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.04) 55%, transparent 70%)" }} />
+        {/* Wisps sweeping ACROSS the bolt surface — clipped by the bolt shape */}
+        <div className="absolute inset-[-30%] overflow-hidden" style={{ animation: "orbSpin 18s linear infinite" }}>
+          <div className="absolute" style={{ width: "80%", height: "20%", top: "15%", left: "-10%", background: "radial-gradient(ellipse, rgba(255,255,255,0.2) 0%, transparent 65%)", filter: "blur(12px)" }} />
+          <div className="absolute" style={{ width: "70%", height: "25%", top: "50%", right: "-15%", background: "radial-gradient(ellipse, rgba(255,255,255,0.15) 0%, transparent 65%)", filter: "blur(14px)" }} />
+          <div className="absolute" style={{ width: "60%", height: "18%", top: "75%", left: "5%", background: "radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 60%)", filter: "blur(10px)" }} />
         </div>
-        {/* Counter-orbiting blobs */}
-        <div className="absolute inset-0 overflow-hidden" style={{ animation: "orbSpin 30s linear infinite reverse" }}>
-          <div className="absolute" style={{ width: "50%", height: "40%", top: "-5%", right: "10%", background: "radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%)", filter: "blur(14px)" }} />
-          <div className="absolute" style={{ width: "40%", height: "45%", bottom: "10%", left: "-3%", background: "radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 65%)", filter: "blur(12px)" }} />
+        <div className="absolute inset-[-30%] overflow-hidden" style={{ animation: "orbSpin 26s linear infinite reverse" }}>
+          <div className="absolute" style={{ width: "75%", height: "22%", top: "10%", right: "0%", background: "radial-gradient(ellipse, rgba(192,132,252,0.15) 0%, transparent 65%)", filter: "blur(14px)" }} />
+          <div className="absolute" style={{ width: "65%", height: "20%", bottom: "20%", left: "-10%", background: "radial-gradient(ellipse, rgba(168,130,255,0.18) 0%, transparent 60%)", filter: "blur(12px)" }} />
+        </div>
+        {/* Faster small wisps for sparkle */}
+        <div className="absolute inset-[-20%] overflow-hidden" style={{ animation: "orbSpin 10s linear infinite" }}>
+          <div className="absolute" style={{ width: "40%", height: "12%", top: "30%", left: "10%", background: "radial-gradient(ellipse, rgba(255,255,255,0.25) 0%, transparent 60%)", filter: "blur(6px)" }} />
+          <div className="absolute" style={{ width: "35%", height: "10%", top: "60%", right: "5%", background: "radial-gradient(ellipse, rgba(103,232,249,0.2) 0%, transparent 60%)", filter: "blur(8px)" }} />
         </div>
       </div>
     </div>
