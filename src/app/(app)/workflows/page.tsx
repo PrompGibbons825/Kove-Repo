@@ -309,9 +309,9 @@ const TEMPLATES = [
     desc: "Landing page → instant email + task",
     color: "#6366f1",
     nodes: [
-      { icon: <Globe className="w-3 h-3" />, label: "Landing Page" },
-      { icon: <Mail className="w-3 h-3" />, label: "Send Email" },
-      { icon: <CheckCircle2 className="w-3 h-3" />, label: "Create Task" },
+      { icon: <Globe className="w-3.5 h-3.5" />, label: "Landing Page" },
+      { icon: <Mail className="w-3.5 h-3.5" />, label: "Send Email" },
+      { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: "Create Task" },
     ],
   },
   {
@@ -319,9 +319,9 @@ const TEMPLATES = [
     desc: "Inbound call → SMS + notify team",
     color: "#f59e0b",
     nodes: [
-      { icon: <Bell className="w-3 h-3" />, label: "Inbound Call" },
-      { icon: <MessageSquare className="w-3 h-3" />, label: "Send SMS" },
-      { icon: <Bell className="w-3 h-3" />, label: "Notify Team" },
+      { icon: <Bell className="w-3.5 h-3.5" />, label: "Inbound Call" },
+      { icon: <MessageSquare className="w-3.5 h-3.5" />, label: "Send SMS" },
+      { icon: <Bell className="w-3.5 h-3.5" />, label: "Notify Team" },
     ],
   },
   {
@@ -329,9 +329,9 @@ const TEMPLATES = [
     desc: "New contact → 3-touch email sequence",
     color: "#3b82f6",
     nodes: [
-      { icon: <UserPlus className="w-3 h-3" />, label: "New Contact" },
-      { icon: <Mail className="w-3 h-3" />, label: "Email #1" },
-      { icon: <Clock className="w-3 h-3" />, label: "Wait 2 days" },
+      { icon: <UserPlus className="w-3.5 h-3.5" />, label: "New Contact" },
+      { icon: <Mail className="w-3.5 h-3.5" />, label: "Email #1" },
+      { icon: <Clock className="w-3.5 h-3.5" />, label: "Wait 2 days" },
     ],
   },
   {
@@ -339,30 +339,29 @@ const TEMPLATES = [
     desc: "Scheduled event → reminder SMS",
     color: "#10b981",
     nodes: [
-      { icon: <Clock className="w-3 h-3" />, label: "Schedule" },
-      { icon: <Filter className="w-3 h-3" />, label: "If / Else" },
-      { icon: <MessageSquare className="w-3 h-3" />, label: "Send SMS" },
+      { icon: <Clock className="w-3.5 h-3.5" />, label: "Schedule" },
+      { icon: <Filter className="w-3.5 h-3.5" />, label: "If / Else" },
+      { icon: <MessageSquare className="w-3.5 h-3.5" />, label: "Send SMS" },
     ],
   },
 ];
 
 function MiniFlow({ nodes, color }: { nodes: { icon: React.ReactNode; label: string }[]; color: string }) {
   return (
-    <div className="flex items-center gap-1.5 mt-3">
+    <div className="flex items-center gap-2 mt-4 flex-wrap">
       {nodes.map((n, i) => (
-        <>
+        <div key={i} className="flex items-center gap-2">
           <div
-            key={i}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-white text-[10px] font-medium"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white text-[11px] font-medium whitespace-nowrap"
             style={{ backgroundColor: color, opacity: 0.85 + i * 0.05 }}
           >
             {n.icon}
             <span>{n.label}</span>
           </div>
           {i < nodes.length - 1 && (
-            <ChevronRight key={`arrow-${i}`} className="w-3 h-3 text-[var(--color-text-tertiary)] flex-shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-[var(--color-text-tertiary)] flex-shrink-0" />
           )}
-        </>
+        </div>
       ))}
     </div>
   );
@@ -381,82 +380,74 @@ function WorkflowList({
 }) {
   if (workflows.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto">
-        {/* Hero */}
-        <div className="px-10 pt-12 pb-8 border-b border-[var(--color-border)]">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <Zap className="w-5 h-5 text-white" strokeWidth={2} />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold text-[var(--color-accent)] uppercase tracking-widest">Workflows</p>
-                <h1 className="text-[22px] font-bold text-[var(--color-text-primary)] leading-tight">Automate your sales process</h1>
-              </div>
-            </div>
-            <p className="text-[14px] text-[var(--color-text-secondary)] leading-relaxed max-w-lg">
-              Connect triggers — landing page submissions, inbound calls, new contacts — to actions like emails, SMS messages, and tasks. Build once, run forever.
-            </p>
-            <div className="flex items-center gap-3 mt-6">
-              <button
-                onClick={onNew}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--color-accent)] text-white text-[13px] font-semibold rounded-lg hover:bg-[var(--color-accent-hover)] transition-all shadow-md shadow-indigo-500/20 hover:-translate-y-px active:translate-y-0"
-              >
-                <Plus className="w-4 h-4" />
-                New workflow
-              </button>
-              <div className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[12px] text-[var(--color-text-secondary)]">
-                <Sparkles className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-                Or ask the AI sidebar to build one for you
-              </div>
-            </div>
-          </div>
+      <div className="flex-1 overflow-y-auto" style={{ padding: "32px 40px" }}>
+        {/* Header — matches Contacts page */}
+        <h1 className="text-[24px] font-semibold text-[var(--color-text-primary)]">Workflows</h1>
+        <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
+          Automate your sales process — connect triggers to actions and let Kove handle the rest.
+        </p>
+
+        {/* Actions row */}
+        <div className="flex items-center gap-3 mt-6">
+          <button
+            onClick={onNew}
+            className="inline-flex items-center gap-2 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-all"
+            style={{ padding: "9px 18px", backgroundColor: "var(--color-accent)" }}
+          >
+            <Plus className="w-4 h-4" />
+            New workflow
+          </button>
+          <span className="flex items-center gap-2 text-[13px] text-[var(--color-text-tertiary)]">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+            or ask the AI sidebar to build one
+          </span>
         </div>
 
         {/* Templates */}
-        <div className="px-10 pt-8 pb-12">
-          <p className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest mb-4">Start from a template</p>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="mt-10">
+          <p className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-4">Start from a template</p>
+          <div className="grid grid-cols-2 gap-5">
             {TEMPLATES.map((t) => (
               <button
                 key={t.name}
                 onClick={onNew}
-                className="group text-left p-5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-md)] transition-all"
+                className="group text-left bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-accent)]/40 hover:shadow-[var(--shadow-md)] transition-all"
+                style={{ padding: "20px 24px" }}
               >
                 <div className="flex items-start justify-between">
                   <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
                     style={{ backgroundColor: t.color }}
                   >
-                    <Zap className="w-4 h-4" strokeWidth={2} />
+                    <Zap className="w-4.5 h-4.5" strokeWidth={2} />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors mt-1" />
+                  <ChevronRight className="w-4 h-4 text-[var(--color-text-tertiary)] opacity-0 group-hover:opacity-100 group-hover:text-[var(--color-accent)] transition-all mt-1" />
                 </div>
-                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mt-3">{t.name}</p>
-                <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{t.desc}</p>
+                <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mt-4">{t.name}</p>
+                <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 leading-relaxed">{t.desc}</p>
                 <MiniFlow nodes={t.nodes} color={t.color} />
               </button>
             ))}
           </div>
+        </div>
 
-          {/* How it works strip */}
-          <div className="mt-8 grid grid-cols-3 gap-4">
-            {[
-              { icon: <Zap className="w-4 h-4" />, title: "Pick a trigger", desc: "A form, call, contact creation, or schedule" },
-              { icon: <GitBranch className="w-4 h-4" />, title: "Add logic", desc: "Branches, delays, and conditions" },
-              { icon: <Play className="w-4 h-4" />, title: "Run actions", desc: "Emails, SMS, tasks, and team alerts" },
-            ].map((s) => (
-              <div key={s.title} className="flex items-start gap-3 p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
-                <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 text-[var(--color-accent)]">
-                  {s.icon}
-                </div>
-                <div>
-                  <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{s.title}</p>
-                  <p className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">{s.desc}</p>
-                </div>
+        {/* How it works */}
+        <div className="mt-10 grid grid-cols-3 gap-5">
+          {[
+            { icon: <Zap className="w-4 h-4" />, title: "Pick a trigger", desc: "A form submission, inbound call, new contact, or schedule." },
+            { icon: <GitBranch className="w-4 h-4" />, title: "Add logic", desc: "Branches, delays, and conditional paths." },
+            { icon: <Play className="w-4 h-4" />, title: "Run actions", desc: "Send emails, SMS, create tasks, and notify your team." },
+          ].map((s) => (
+            <div key={s.title} className="flex items-start gap-3 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]" style={{ padding: "16px 20px" }}>
+              <div className="w-9 h-9 rounded-lg bg-[var(--color-accent-soft)] flex items-center justify-center flex-shrink-0 text-[var(--color-accent)]">
+                {s.icon}
               </div>
-            ))}
-          </div>
+              <div>
+                <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{s.title}</p>
+                <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 leading-relaxed">{s.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
