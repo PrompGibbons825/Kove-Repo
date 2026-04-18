@@ -1930,6 +1930,7 @@ function LandingPageEditor({
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [previewWidth, setPreviewWidth] = useState(360);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const [isDraggingResize, setIsDraggingResize] = useState(false);
 
   // Refs for autosave to always read latest values (avoid stale closure)
   const latestSlug = useRef(slug);
@@ -1942,6 +1943,7 @@ function LandingPageEditor({
 
   function onDragStart(e: React.MouseEvent) {
     dragRef.current = { startX: e.clientX, startW: previewWidth };
+    setIsDraggingResize(true);
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
       const delta = ev.clientX - dragRef.current.startX;
@@ -1949,6 +1951,7 @@ function LandingPageEditor({
     };
     const onUp = () => {
       dragRef.current = null;
+      setIsDraggingResize(false);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -2145,10 +2148,13 @@ function LandingPageEditor({
   });
 
   return (
-    <div style={{ width: previewWidth + 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "row", minHeight: 0, overflow: "hidden" }}>
+    <div style={{ flex: 1, minWidth: 0, borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "row", minHeight: 0, overflow: "hidden" }}>
 
       {/* LEFT: live preview */}
-      <div style={{ width: previewWidth, flexShrink: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ width: previewWidth, flexShrink: 0, background: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+        {isDraggingResize && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 10, cursor: "col-resize" }} />
+        )}
         {html ? (
           <iframe key="lp-preview" srcDoc={html} style={{ flex: 1, width: "100%", border: "none", background: "white" }} sandbox="allow-scripts allow-forms allow-same-origin" title="Landing page preview" suppressHydrationWarning />
         ) : (
@@ -2169,7 +2175,7 @@ function LandingPageEditor({
       />
 
       {/* RIGHT: settings column */}
-      <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+      <div style={{ flex: 1, minWidth: 220, borderLeft: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
 
         {/* Toolbar */}
         <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
