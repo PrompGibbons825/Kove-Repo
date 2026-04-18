@@ -1333,10 +1333,10 @@ function WorkflowBuilder({
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0 }}>
         {/* Node palette */}
         {paletteOpen && (
-          <div style={{ width: 240, flexShrink: 0, borderRight: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+          <div style={{ width: 240, flexShrink: 0, borderRight: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", alignSelf: "stretch" }}>
 
             {/* Search bar */}
             <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--color-border)", flexShrink: 0 }}>
@@ -1355,7 +1355,7 @@ function WorkflowBuilder({
             </div>
 
             {/* Scrollable node list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
               {[
                 { title: "Triggers", items: TRIGGERS },
                 { title: "Actions", items: ACTIONS },
