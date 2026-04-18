@@ -1513,18 +1513,18 @@ function WorkflowBuilder({
         </div>
 
         {/* Zoom controls — centered in header */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden shadow-sm">
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
           <button
             onClick={() => setZoom((z) => Math.max(0.25, z / 1.2))}
-            className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            className="px-4 py-2.5 text-[15px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >−</button>
           <button
             onClick={() => setZoom(1)}
-            className="px-3 py-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors border-x border-[var(--color-border)] tabular-nums min-w-[52px] text-center"
+            className="px-5 py-2.5 text-[13px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors border-x border-[var(--color-border)] tabular-nums min-w-[64px] text-center"
           >{Math.round(zoom * 100)}%</button>
           <button
             onClick={() => setZoom((z) => Math.min(2.5, z * 1.2))}
-            className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            className="px-4 py-2.5 text-[15px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >+</button>
         </div>
       </div>
