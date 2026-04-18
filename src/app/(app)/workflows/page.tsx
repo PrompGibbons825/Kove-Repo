@@ -408,14 +408,70 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  const boltClip = "polygon(58% 0%, 30% 42%, 48% 42%, 25% 100%, 78% 48%, 55% 48%, 75% 0%)";
+  const boltClip = "polygon(58% 0%, 28% 44%, 47% 44%, 22% 100%, 80% 50%, 56% 50%, 76% 0%)";
+
+  // Particle config — each orbits at a different radius, speed, and delay
+  const particles = [
+    { r: 100, dur: 7, delay: 0, size: 4, color: "rgba(192,132,252,0.8)" },
+    { r: 95, dur: 9, delay: -2, size: 3, color: "rgba(139,92,246,0.7)" },
+    { r: 105, dur: 11, delay: -5, size: 3.5, color: "rgba(232,121,249,0.7)" },
+    { r: 88, dur: 8, delay: -1, size: 2.5, color: "rgba(99,102,241,0.8)" },
+    { r: 110, dur: 13, delay: -7, size: 3, color: "rgba(168,130,255,0.6)" },
+    { r: 92, dur: 10, delay: -4, size: 4.5, color: "rgba(192,132,252,0.5)" },
+    { r: 98, dur: 6, delay: -3, size: 2, color: "rgba(232,121,249,0.9)" },
+    { r: 108, dur: 14, delay: -9, size: 3, color: "rgba(139,92,246,0.6)" },
+    { r: 85, dur: 7.5, delay: -6, size: 5, color: "rgba(103,232,249,0.5)" },
+    { r: 115, dur: 12, delay: -8, size: 2.5, color: "rgba(168,130,255,0.7)" },
+  ];
 
   return (
     <div
       ref={containerRef}
       className="relative mx-auto cursor-pointer"
-      style={{ width: 220, height: 220, perspective: 600 }}
+      style={{ width: 240, height: 260, perspective: 600 }}
     >
+      {/* Orbiting wispy particles */}
+      {particles.map((p, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: p.size,
+            height: p.size,
+            top: "50%",
+            left: "50%",
+            marginTop: -p.size / 2,
+            marginLeft: -p.size / 2,
+            background: `radial-gradient(circle, ${p.color} 0%, transparent 70%)`,
+            boxShadow: `0 0 ${p.size * 3}px ${p.size}px ${p.color}`,
+            animation: `boltOrbit ${p.dur}s linear infinite`,
+            animationDelay: `${p.delay}s`,
+            ["--orbit-r" as string]: `${p.r}px`,
+            ["--p-o" as string]: "0.6",
+            zIndex: 5,
+          } as React.CSSProperties}
+        />
+      ))}
+
+      {/* Drifting ambient wisps — not orbiting, just floating near the bolt */}
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div
+          key={`wisp-${i}`}
+          className="absolute rounded-full"
+          style={{
+            width: 6 + i * 2,
+            height: 6 + i * 2,
+            top: `${15 + i * 16}%`,
+            left: `${i % 2 === 0 ? 8 + i * 4 : 72 - i * 3}%`,
+            background: `radial-gradient(circle, rgba(192,132,252,${0.15 + i * 0.04}) 0%, transparent 70%)`,
+            filter: `blur(${3 + i}px)`,
+            animation: `boltDrift ${3 + i * 0.7}s ease-in-out infinite`,
+            animationDelay: `${-i * 0.8}s`,
+            zIndex: 2,
+          }}
+        />
+      ))}
+
       {/* Far ambient glow */}
       <div
         className="absolute rounded-full transition-opacity duration-1000"
@@ -449,7 +505,7 @@ function LiquidBolt() {
       />
       {/* Bolt body — clipped liquid shape */}
       <div
-        className="absolute inset-[8%] overflow-hidden"
+        className="absolute inset-[4%] overflow-hidden"
         style={{
           clipPath: boltClip,
           transform: `rotateY(calc(var(--mx,0) * 14deg)) rotateX(calc(var(--my,0) * -14deg)) scale(${mouse.active ? 1.06 : 1})`,
