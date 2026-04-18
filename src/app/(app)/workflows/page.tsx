@@ -1441,7 +1441,7 @@ function WorkflowBuilder({
   return (
     <div style={{ display: "flex", flexDirection: "column", position: "fixed", top: 0, bottom: 0, left: 68, right: "var(--right-panel-width, 0px)", overflow: "hidden", zIndex: 40, background: "var(--color-background)", transition: "right 300ms cubic-bezier(0.16,1,0.3,1)" }}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
+      <div className="relative flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
@@ -1480,6 +1480,22 @@ function WorkflowBuilder({
           }`}>
             {workflow.status === "active" ? "Active" : "Draft"}
           </span>
+        </div>
+
+        {/* Zoom controls — centered in header */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl overflow-hidden shadow-sm">
+          <button
+            onClick={() => setZoom((z) => Math.max(0.25, z / 1.2))}
+            className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+          >−</button>
+          <button
+            onClick={() => setZoom(1)}
+            className="px-3 py-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors border-x border-[var(--color-border)] tabular-nums min-w-[52px] text-center"
+          >{Math.round(zoom * 100)}%</button>
+          <button
+            onClick={() => setZoom((z) => Math.min(2.5, z * 1.2))}
+            className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+          >+</button>
         </div>
       </div>
 
@@ -1613,22 +1629,6 @@ function WorkflowBuilder({
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
         >
-          {/* Zoom controls */}
-          <div className="absolute bottom-4 right-4 z-40 flex items-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-sm overflow-hidden">
-            <button
-              onClick={() => setZoom((z) => Math.max(0.25, z / 1.2))}
-              className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
-            >−</button>
-            <button
-              onClick={() => setZoom(1)}
-              className="px-3 py-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors border-x border-[var(--color-border)] tabular-nums min-w-[52px] text-center"
-            >{Math.round(zoom * 100)}%</button>
-            <button
-              onClick={() => setZoom((z) => Math.min(2.5, z * 1.2))}
-              className="px-3 py-2 text-[13px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
-            >+</button>
-          </div>
-
           {/* AI tip */}
           {showTip && nodes.length === 0 && (
             <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-start gap-3 p-4 bg-[var(--color-surface)] border border-[var(--color-accent)]/20 rounded-xl shadow-lg max-w-sm z-20">
