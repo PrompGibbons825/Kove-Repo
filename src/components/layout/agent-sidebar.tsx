@@ -545,13 +545,13 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
                     </div>
                   </div>
                   {msg.actions && msg.actions.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-3 ml-8" style={{ marginRight: 0 }}>
+                    <div className="flex flex-col gap-2" style={{ marginTop: 10, marginLeft: 30, marginRight: 16 }}>
                       {msg.actions.map((action) => (
                         <button
                           key={action.value}
                           onClick={() => handleActionClick(action.value, msg.id)}
                           className="flex items-center gap-3 w-full text-left rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-accent)]/5 transition-all cursor-pointer"
-                          style={{ padding: "10px 14px" }}
+                          style={{ padding: "9px 13px" }}
                         >
                           <span className="text-[16px] flex-shrink-0">{action.label.slice(0, 2)}</span>
                           <div className="min-w-0">
