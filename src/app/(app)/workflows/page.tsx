@@ -408,20 +408,22 @@ function LiquidBolt() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [mouse]);
 
-  const boltClip = "polygon(58% 0%, 28% 44%, 47% 44%, 22% 100%, 80% 50%, 56% 50%, 76% 0%)";
+  // Bolt polygon points (in 240x260 container coords) — proper closed shape
+  const boltClip = "polygon(56% 0%, 26% 44%, 46% 44%, 20% 100%, 82% 50%, 56% 50%)";
 
-  // Particle config — each orbits at a different radius, speed, and delay
-  const particles = [
-    { r: 100, dur: 7, delay: 0, size: 4, color: "rgba(192,132,252,0.8)" },
-    { r: 95, dur: 9, delay: -2, size: 3, color: "rgba(139,92,246,0.7)" },
-    { r: 105, dur: 11, delay: -5, size: 3.5, color: "rgba(232,121,249,0.7)" },
-    { r: 88, dur: 8, delay: -1, size: 2.5, color: "rgba(99,102,241,0.8)" },
-    { r: 110, dur: 13, delay: -7, size: 3, color: "rgba(168,130,255,0.6)" },
-    { r: 92, dur: 10, delay: -4, size: 4.5, color: "rgba(192,132,252,0.5)" },
-    { r: 98, dur: 6, delay: -3, size: 2, color: "rgba(232,121,249,0.9)" },
-    { r: 108, dur: 14, delay: -9, size: 3, color: "rgba(139,92,246,0.6)" },
-    { r: 85, dur: 7.5, delay: -6, size: 5, color: "rgba(103,232,249,0.5)" },
-    { r: 115, dur: 12, delay: -8, size: 2.5, color: "rgba(168,130,255,0.7)" },
+  // Contour path for wisps — traces the bolt silhouette in px coords
+  const contourPath = "M134 0 L62 114 L110 114 L48 260 L197 130 L134 130 Z";
+
+  // Wisp configs — each follows the contour at different speeds
+  const wisps = [
+    { dur: 4, delay: 0, w: 14, h: 4, color: "rgba(192,132,252,0.9)", blur: 6 },
+    { dur: 5.5, delay: -1.2, w: 18, h: 3, color: "rgba(168,130,255,0.7)", blur: 8 },
+    { dur: 3.5, delay: -2.5, w: 10, h: 5, color: "rgba(232,121,249,0.8)", blur: 5 },
+    { dur: 6, delay: -0.7, w: 16, h: 3, color: "rgba(103,232,249,0.6)", blur: 7 },
+    { dur: 4.5, delay: -3.2, w: 12, h: 4, color: "rgba(139,92,246,0.8)", blur: 6 },
+    { dur: 7, delay: -4, w: 20, h: 3, color: "rgba(192,132,252,0.5)", blur: 10 },
+    { dur: 3, delay: -1.8, w: 8, h: 6, color: "rgba(232,121,249,0.9)", blur: 4 },
+    { dur: 5, delay: -3.8, w: 14, h: 3, color: "rgba(168,130,255,0.6)", blur: 8 },
   ];
 
   return (
@@ -430,43 +432,42 @@ function LiquidBolt() {
       className="relative mx-auto cursor-pointer"
       style={{ width: 240, height: 260, perspective: 600 }}
     >
-      {/* Orbiting wispy particles */}
-      {particles.map((p, i) => (
+      {/* Contour-following wisps */}
+      {wisps.map((w, i) => (
         <div
           key={i}
-          className="absolute rounded-full"
+          className="absolute"
           style={{
-            width: p.size,
-            height: p.size,
-            top: "50%",
-            left: "50%",
-            marginTop: -p.size / 2,
-            marginLeft: -p.size / 2,
-            background: `radial-gradient(circle, ${p.color} 0%, transparent 70%)`,
-            boxShadow: `0 0 ${p.size * 3}px ${p.size}px ${p.color}`,
-            animation: `boltOrbit ${p.dur}s linear infinite`,
-            animationDelay: `${p.delay}s`,
-            ["--orbit-r" as string]: `${p.r}px`,
-            ["--p-o" as string]: "0.6",
+            width: w.w,
+            height: w.h,
+            borderRadius: "50%",
+            background: `radial-gradient(ellipse, ${w.color} 0%, transparent 70%)`,
+            boxShadow: `0 0 ${w.blur * 2}px ${w.blur}px ${w.color}`,
+            filter: `blur(${w.blur / 2}px)`,
+            offsetPath: `path('${contourPath}')`,
+            offsetRotate: "0deg",
+            animation: `boltContour ${w.dur}s linear infinite`,
+            animationDelay: `${w.delay}s`,
             zIndex: 5,
           } as React.CSSProperties}
         />
       ))}
 
-      {/* Drifting ambient wisps — not orbiting, just floating near the bolt */}
-      {[0, 1, 2, 3, 4].map((i) => (
+      {/* Ambient floating wisps — soft blobs drifting near the bolt */}
+      {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
-          key={`wisp-${i}`}
-          className="absolute rounded-full"
+          key={`amb-${i}`}
+          className="absolute"
           style={{
-            width: 6 + i * 2,
-            height: 6 + i * 2,
-            top: `${15 + i * 16}%`,
-            left: `${i % 2 === 0 ? 8 + i * 4 : 72 - i * 3}%`,
-            background: `radial-gradient(circle, rgba(192,132,252,${0.15 + i * 0.04}) 0%, transparent 70%)`,
-            filter: `blur(${3 + i}px)`,
-            animation: `boltDrift ${3 + i * 0.7}s ease-in-out infinite`,
-            animationDelay: `${-i * 0.8}s`,
+            width: 3 + i * 1.5,
+            height: 8 + i * 3,
+            borderRadius: "50%",
+            top: `${12 + i * 14}%`,
+            left: `${i % 2 === 0 ? 10 + i * 5 : 70 - i * 4}%`,
+            background: `radial-gradient(ellipse, rgba(192,132,252,${0.2 + i * 0.05}) 0%, transparent 70%)`,
+            filter: `blur(${4 + i}px)`,
+            animation: `boltDrift ${3 + i * 0.6}s ease-in-out infinite`,
+            animationDelay: `${-i * 0.9}s`,
             zIndex: 2,
           }}
         />
