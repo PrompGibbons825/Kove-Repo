@@ -728,6 +728,7 @@ function WorkflowList({
   const [namingMode, setNamingMode] = useState(false);
   const [wfName, setWfName] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (namingMode) setTimeout(() => nameInputRef.current?.focus(), 50);
@@ -977,7 +978,7 @@ function WorkflowList({
               >
                 {/* Delete on hover */}
                 <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(wf.id); }}
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(wf.id); }}
                   className="absolute top-3 right-3 p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -1169,6 +1170,45 @@ function WorkflowList({
 
         </div>
       )}
+
+      {/* ── Delete confirmation modal ── */}
+      {confirmDeleteId && (() => {
+        const wf = workflows.find((w) => w.id === confirmDeleteId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmDeleteId(null)}>
+            <div
+              className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-6 flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">Delete workflow?</p>
+                  <p className="text-[13px] text-[var(--color-text-tertiary)] mt-0.5 leading-snug">
+                    &ldquo;{wf?.name}&rdquo; will be permanently deleted.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-[var(--color-text-secondary)] bg-[var(--color-background)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null); }}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
