@@ -31,6 +31,8 @@ export function useCall(options?: CallOptions) {
   const durationRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const optionsRef = useRef(options);
+  // Guard: prevent onCallEnded from firing more than once per call
+  const endedRef = useRef(false);
   optionsRef.current = options;
 
   // Cleanup on unmount
@@ -59,6 +61,8 @@ export function useCall(options?: CallOptions) {
       try { clientRef.current.disconnect(); } catch {}
       clientRef.current = null;
     }
+    // Reset ended guard for next call
+    endedRef.current = false;
   }, []);
 
   const startCall = useCallback(async (destinationNumber: string) => {
@@ -99,8 +103,9 @@ export function useCall(options?: CallOptions) {
       });
 
       client.on("telnyx.notification", (notification: any) => {
+        // Some notification events (media, session) don't carry a call object — guard it
         const state = notification?.call?.state;
-        console.log("[useCall] notification state:", state);
+        console.log("[useCall] notification state:", state, "type:", notification?.type);
 
         if (state === "active") {
           setCallState("active");
@@ -123,11 +128,18 @@ export function useCall(options?: CallOptions) {
           }
 
           optionsRef.current?.onCallStarted?.();
+        } else if (state === "early" || state === "ringing") {
+          // Voicemail / ringback early media — keep UI in ringing state, don't crash
+          setCallState("ringing");
         } else if (state === "hangup" || state === "destroy" || state === "purge") {
-          optionsRef.current?.onCallEnded?.({
-            duration: durationRef.current,
-            localTranscript: "",
-          });
+          // Guard: only fire onCallEnded once per call even if Telnyx sends hangup+destroy
+          if (!endedRef.current) {
+            endedRef.current = true;
+            optionsRef.current?.onCallEnded?.({
+              duration: durationRef.current,
+              localTranscript: "",
+            });
+          }
           cleanup();
         }
       });
@@ -148,10 +160,13 @@ export function useCall(options?: CallOptions) {
     if (callRef.current) {
       try { callRef.current.hangup(); } catch {}
     }
-    optionsRef.current?.onCallEnded?.({
-      duration: durationRef.current,
-      localTranscript: "",
-    });
+    if (!endedRef.current) {
+      endedRef.current = true;
+      optionsRef.current?.onCallEnded?.({
+        duration: durationRef.current,
+        localTranscript: "",
+      });
+    }
     cleanup();
   }, [cleanup]);
 
@@ -165,6 +180,11 @@ export function useCall(options?: CallOptions) {
     setMuted(!muted);
   }, [muted]);
 
+  const sendDtmf = useCallback((digit: string) => {
+    if (!callRef.current) return;
+    try { callRef.current.dtmf(digit); } catch {}
+  }, []);
+
   return {
     callState,
     muted,
@@ -174,6 +194,7 @@ export function useCall(options?: CallOptions) {
     startCall,
     endCall,
     toggleMute,
+    sendDtmf,
   };
 }
 

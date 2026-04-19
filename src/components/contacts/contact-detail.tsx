@@ -39,7 +39,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const [callSummaryLoading, setCallSummaryLoading] = useState(false);
   const transcriptRef = useRef<{ getFullTranscript: () => string; reset: () => void } | null>(null);
 
-  const { callState, muted, duration, remoteStream, startCall, endCall, toggleMute } = useCall({
+  const { callState, muted, duration, remoteStream, startCall, endCall, toggleMute, sendDtmf } = useCall({
     onCallStarted: () => {},
     onCallEnded: async (info) => {
       try {
@@ -311,7 +311,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 
         {/* Active call bar */}
         {callState !== "idle" && (
-          <CallBar callState={callState} duration={duration} muted={muted} onToggleMute={toggleMute} onEndCall={endCall} callSummaryLoading={callSummaryLoading} />
+          <CallBar callState={callState} duration={duration} muted={muted} onToggleMute={toggleMute} onEndCall={endCall} callSummaryLoading={callSummaryLoading} onSendDtmf={sendDtmf} />
         )}
 
         {/* 3-column */}
@@ -441,7 +441,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 
       {/* Active call bar in sidebar */}
       {callState !== "idle" && (
-        <CallBar callState={callState} duration={duration} muted={muted} onToggleMute={toggleMute} onEndCall={endCall} callSummaryLoading={callSummaryLoading} />
+        <CallBar callState={callState} duration={duration} muted={muted} onToggleMute={toggleMute} onEndCall={endCall} callSummaryLoading={callSummaryLoading} onSendDtmf={sendDtmf} />
       )}
 
       {/* Content */}
@@ -944,42 +944,121 @@ function PhoneButton({ callState, onClick, size = "md" }: { callState: CallState
   );
 }
 
-function CallBar({ callState, duration, muted, onToggleMute, onEndCall, callSummaryLoading }: {
+function CallBar({ callState, duration, muted, onToggleMute, onEndCall, callSummaryLoading, onSendDtmf }: {
   callState: CallState; duration: number; muted: boolean;
   onToggleMute: () => void; onEndCall: () => void; callSummaryLoading: boolean;
+  onSendDtmf: (digit: string) => void;
 }) {
+  const [showDialpad, setShowDialpad] = useState(false);
+  const [dtmfInput, setDtmfInput] = useState("");
+
+  const handleDtmf = (digit: string) => {
+    onSendDtmf(digit);
+    setDtmfInput((prev) => prev + digit);
+  };
+
+  const DTMF_KEYS = [
+    ["1", "2", "3"],
+    ["4", "5", "6"],
+    ["7", "8", "9"],
+    ["*", "0", "#"],
+  ];
+
   return (
-    <div className="flex items-center justify-between border-b border-[var(--color-border)]"
-      style={{ padding: "8px 24px", background: callState === "active" ? "rgba(34,197,94,0.08)" : "var(--color-surface-hover)" }}
-    >
-      <div className="flex items-center gap-3">
-        <div className="rounded-full animate-pulse" style={{ width: 10, height: 10, background: callState === "active" ? "#22c55e" : "#f59e0b" }} />
-        <span className="text-[13px] font-medium text-[var(--color-text-primary)]">
-          {callState === "connecting" ? "Connecting..." : callState === "ringing" ? "Ringing..." : callSummaryLoading ? "Generating summary..." : `In Call — ${formatDuration(duration)}`}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        {callState === "active" && (
-          <button onClick={onToggleMute} title={muted ? "Unmute" : "Mute"}
-            className="flex items-center justify-center rounded-lg transition-colors cursor-pointer"
-            style={{ width: 32, height: 32, background: muted ? "var(--color-accent)" : "var(--color-surface-hover)", color: muted ? "white" : "var(--color-text-secondary)" }}
+    <div className="border-b border-[var(--color-border)]" style={{ background: callState === "active" ? "rgba(34,197,94,0.08)" : "var(--color-surface-hover)" }}>
+      {/* Main bar row */}
+      <div className="flex items-center justify-between" style={{ padding: "8px 24px" }}>
+        <div className="flex items-center gap-3">
+          <div className="rounded-full animate-pulse" style={{ width: 10, height: 10, background: callState === "active" ? "#22c55e" : "#f59e0b" }} />
+          <span className="text-[13px] font-medium text-[var(--color-text-primary)]">
+            {callState === "connecting" ? "Connecting..." : callState === "ringing" ? "Ringing..." : callSummaryLoading ? "Generating summary..." : `In Call — ${formatDuration(duration)}`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {callState === "active" && (
+            <>
+              {/* Mute button */}
+              <button onClick={onToggleMute} title={muted ? "Unmute" : "Mute"}
+                className="flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                style={{ width: 32, height: 32, background: muted ? "var(--color-accent)" : "var(--color-surface-hover)", color: muted ? "white" : "var(--color-text-secondary)" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {muted ? (
+                    <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /><line x1="2" x2="22" y1="2" y2="22" /></>
+                  ) : (
+                    <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></>
+                  )}
+                </svg>
+              </button>
+              {/* Dialpad toggle button */}
+              <button onClick={() => setShowDialpad((v) => !v)} title="Dialpad"
+                className="flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+                style={{ width: 32, height: 32, background: showDialpad ? "var(--color-accent)" : "var(--color-surface-hover)", color: showDialpad ? "white" : "var(--color-text-secondary)" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="5" cy="5" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none"/>
+                  <circle cx="19" cy="19" r="1.5" fill="currentColor" stroke="none"/>
+                </svg>
+              </button>
+            </>
+          )}
+          <button onClick={onEndCall}
+            className="flex items-center justify-center rounded-lg text-white transition-colors cursor-pointer"
+            style={{ height: 32, padding: "0 12px", background: "#ef4444", fontSize: 12, fontWeight: 600 }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {muted ? (
-                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /><line x1="2" x2="22" y1="2" y2="22" /></>
-              ) : (
-                <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></>
-              )}
-            </svg>
+            End Call
           </button>
-        )}
-        <button onClick={onEndCall}
-          className="flex items-center justify-center rounded-lg text-white transition-colors cursor-pointer"
-          style={{ height: 32, padding: "0 12px", background: "#ef4444", fontSize: 12, fontWeight: 600 }}
-        >
-          End Call
-        </button>
+        </div>
       </div>
+
+      {/* Inline dialpad — shown only when active and dialpad toggled */}
+      {callState === "active" && showDialpad && (
+        <div style={{ padding: "0 24px 12px" }}>
+          {/* DTMF input display */}
+          <div className="rounded-lg border border-[var(--color-border)] text-center font-mono text-[14px] tracking-widest text-[var(--color-text-primary)]"
+            style={{ padding: "6px 12px", marginBottom: 8, minHeight: 32, background: "var(--color-surface)", letterSpacing: "0.2em" }}
+          >
+            {dtmfInput || <span style={{ opacity: 0.3 }}>—</span>}
+          </div>
+          {/* Key grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+            {DTMF_KEYS.flat().map((key) => (
+              <button
+                key={key}
+                onClick={() => handleDtmf(key)}
+                className="flex items-center justify-center rounded-lg font-semibold transition-colors cursor-pointer hover:bg-[var(--color-surface-hover)] active:scale-95"
+                style={{
+                  height: 38,
+                  fontSize: 16,
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  color: "var(--color-text-primary)",
+                  transition: "transform 80ms, background 80ms",
+                }}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+          {/* Clear button */}
+          {dtmfInput && (
+            <button
+              onClick={() => setDtmfInput("")}
+              className="w-full text-[11px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors cursor-pointer"
+              style={{ marginTop: 6, textAlign: "center" }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
