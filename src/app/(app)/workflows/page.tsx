@@ -1340,15 +1340,6 @@ function WorkflowBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow.id]);
 
-  // Escape key closes the canvas
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !editingName) onBack();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [editingName, onBack]);
-
   // Sync canvas state to context whenever nodes/edges change
   useEffect(() => {
     wfCtx.syncState(workflow.nodes as CtxNode[], workflow.edges);
