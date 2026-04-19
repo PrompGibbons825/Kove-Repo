@@ -1538,12 +1538,10 @@ function WorkflowBuilder({
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            Workflows
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
-          <div className="w-px h-4 bg-[var(--color-border)]" />
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center shadow-sm">
             <Zap className="w-4 h-4 text-white" />
           </div>
