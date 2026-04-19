@@ -415,6 +415,16 @@ export default function WorkflowsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Clicking the Workflows sidebar link while already on this page closes the canvas
+  useEffect(() => {
+    function handler(e: Event) {
+      const href = (e as CustomEvent).detail?.href as string | undefined;
+      if (href === "/workflows") { setView("list"); setActiveWfId(null); }
+    }
+    window.addEventListener("sidebar-nav-same-route", handler);
+    return () => window.removeEventListener("sidebar-nav-same-route", handler);
+  }, []);
+
   async function updateWorkflow(updated: Workflow) {
     // Optimistic update
     setWorkflows((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
@@ -1329,6 +1339,15 @@ function WorkflowBuilder({
     return () => wfCtx.closeBuilder();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow.id]);
+
+  // Escape key closes the canvas
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !editingName) onBack();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editingName, onBack]);
 
   // Sync canvas state to context whenever nodes/edges change
   useEffect(() => {
