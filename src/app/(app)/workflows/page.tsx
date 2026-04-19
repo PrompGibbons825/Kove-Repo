@@ -15,7 +15,6 @@ import {
   Plus,
   Globe,
   Loader2,
-  ArrowLeft,
   Sparkles,
   Play,
   Trash2,
@@ -1196,13 +1195,6 @@ function CreateWorkflow({
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-3 px-8 pt-6 pb-5 border-b border-[var(--color-border)]">
-        <button
-          onClick={onCancel}
-          className="p-2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div className="h-5 w-px bg-[var(--color-border)]" />
         <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">New workflow</p>
       </div>
 
@@ -1540,13 +1532,6 @@ function WorkflowBuilder({
       {/* Top bar */}
       <div className="relative flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10" style={{ minHeight: 68 }}>
         <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="p-2.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-xl transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="h-6 w-px bg-[var(--color-border)]" />
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-indigo-600 flex items-center justify-center shadow-sm">
             <Zap className="w-4 h-4 text-white" />
           </div>
