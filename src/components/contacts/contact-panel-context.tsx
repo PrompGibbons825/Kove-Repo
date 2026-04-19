@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import type { Contact } from "@/lib/types/database";
 
 export type ContactViewMode = "hidden" | "sidebar" | "fullscreen";
@@ -41,14 +41,25 @@ export function ContactPanelProvider({ children }: { children: ReactNode }) {
   const [width, setWidth] = useState(420);
   const [rightOffset, setRightOffset] = useState(0);
 
+  // Track close timers so openContact can cancel them if fired before they settle
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const openContact = useCallback((c: Contact, mode: ContactViewMode = "sidebar") => {
+    // Cancel any pending close animation timer so it doesn't override this open
+    if (closeTimerRef.current !== null) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     setContact(c);
     setViewMode(mode);
   }, []);
 
   const closeContact = useCallback(() => {
     setViewMode("hidden");
-    setTimeout(() => setContact(null), 300);
+    closeTimerRef.current = setTimeout(() => {
+      setContact(null);
+      closeTimerRef.current = null;
+    }, 300);
   }, []);
 
   const updateContact = useCallback((partial: Partial<Contact>) => {

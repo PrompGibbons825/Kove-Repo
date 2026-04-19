@@ -28,6 +28,7 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
   const [savingNote, setSavingNote] = useState(false);
   const [visible, setVisible] = useState(false);
   const resizingRef = useRef(false);
+  const closeAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [orgMembers, setOrgMembers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [pipelineOptions, setPipelineOptions] = useState<string[]>([]);
@@ -126,6 +127,11 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 
   useEffect(() => {
     if (contact && viewMode !== "hidden") {
+      // Cancel any pending close animation so a quick re-open doesn't get killed
+      if (closeAnimTimerRef.current !== null) {
+        clearTimeout(closeAnimTimerRef.current);
+        closeAnimTimerRef.current = null;
+      }
       setStatus(contact.status);
       requestAnimationFrame(() => setVisible(true));
     } else {
@@ -258,7 +264,10 @@ export function ContactDetail({ contained }: { contained?: boolean }) {
 
   function handleClose() {
     setVisible(false);
-    setTimeout(closeContact, 250);
+    closeAnimTimerRef.current = setTimeout(() => {
+      closeAnimTimerRef.current = null;
+      closeContact();
+    }, 250);
   }
 
   if (!contact || viewMode === "hidden") return null;
