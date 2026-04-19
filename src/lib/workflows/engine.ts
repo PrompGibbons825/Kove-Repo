@@ -226,6 +226,9 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
       const bodyText = interpolate(cfg.body ?? "");
       if (!to || (!bodyText && !bodyHtml)) return "skipped: missing to or body";
 
+      // Skip if contact has unsubscribed
+      if (ctx.contact?.email_unsubscribed) return "skipped: contact unsubscribed";
+
       const { data: org } = await supabase
         .from("organizations")
         .select("smtp_config")
@@ -235,6 +238,11 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
       const smtp = org?.smtp_config as SmtpConfig | null;
       if (!smtp?.host || !smtp?.user || !smtp?.pass) throw new Error("SMTP not configured");
 
+      // Build unsubscribe token: base64url(orgId|email)
+      const unsubToken = Buffer.from(`${ctx.orgId}|${to}`).toString("base64url");
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://trykove.app";
+      const unsubUrl = `${appUrl}/api/unsubscribe?token=${unsubToken}`;
+
       const transporter = nodemailer.createTransport({
         host: smtp.host,
         port: smtp.port || 587,
@@ -242,16 +250,28 @@ async function executeNode(node: WfNode, ctx: ExecContext): Promise<string> {
         auth: { user: smtp.user, pass: smtp.pass },
       });
 
+      // Unsubscribe footer
+      const footerHtml = `
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e5e5;text-align:center;font-family:sans-serif;font-size:12px;color:#999;">
+  You received this email because you opted in. If you no longer wish to receive emails,
+  <a href="${unsubUrl}" style="color:#999;text-decoration:underline;">click here to unsubscribe</a>.
+</div>`;
+      const footerText = `\n\n---\nTo unsubscribe, visit: ${unsubUrl}`;
+
       const mailOptions: Parameters<typeof transporter.sendMail>[0] = {
         from: smtp.from_name ? `"${smtp.from_name}" <${smtp.from_email || smtp.user}>` : smtp.from_email || smtp.user,
         to,
         subject: subject || "(no subject)",
+        headers: {
+          "List-Unsubscribe": `<${unsubUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
       };
       if (isHtml && bodyHtml) {
-        mailOptions.html = bodyHtml;
-        mailOptions.text = bodyHtml.replace(/<[^>]+>/g, ""); // plain-text fallback
+        mailOptions.html = bodyHtml + footerHtml;
+        mailOptions.text = bodyHtml.replace(/<[^>]+>/g, "") + footerText;
       } else {
-        mailOptions.text = bodyText;
+        mailOptions.text = bodyText + footerText;
       }
 
       await transporter.sendMail(mailOptions);
