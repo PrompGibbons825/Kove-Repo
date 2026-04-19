@@ -22,7 +22,6 @@ import {
   Mail,
   MessageSquare,
   UserPlus,
-  ClipboardList,
   Bell,
   GitBranch,
   Clock,
@@ -91,14 +90,6 @@ const NODE_CATALOG: NodeDef[] = [
     icon: <Globe className="w-4 h-4" />,
     color: "#6366f1",
     desc: "Capture leads from an AI-built landing page",
-  },
-  {
-    type: "form-submit",
-    label: "Form Submission",
-    category: "trigger",
-    icon: <ClipboardList className="w-4 h-4" />,
-    color: "#8b5cf6",
-    desc: "Trigger when a form is submitted",
   },
   {
     type: "new-contact",
@@ -216,10 +207,6 @@ interface ConfigField {
 
 const NODE_CONFIG_FIELDS: Record<string, ConfigField[]> = {
   "landing-page": [],
-  "form-submit": [
-    { key: "formId", label: "Form ID", type: "text", placeholder: "Form identifier" },
-    { key: "fields", label: "Required Fields", type: "textarea", placeholder: "name, email, phone (comma-separated)" },
-  ],
   "new-contact": [
     // source options are injected dynamically from fetched org settings — see WorkflowBuilder
     { key: "source", label: "Source Filter", type: "select", options: [

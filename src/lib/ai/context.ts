@@ -149,8 +149,7 @@ function buildPageContext(
 Available node types you can add to the canvas:
 
 TRIGGERS (start the workflow):
-- landing-page | "Landing Page" — fires when a lead submits the landing page
-- form-submit | "Form Submission" — fires on any form submit
+- landing-page | "Landing Page" — fires when a lead submits the landing page form
 - new-contact | "New Contact" — fires when a contact is created
 - inbound-call | "Inbound Call" — fires on incoming call
 - schedule | "Schedule" — fires on a recurring schedule
