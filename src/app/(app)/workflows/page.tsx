@@ -816,10 +816,56 @@ function WorkflowList({
   const WF_COLORS = ["#a78bfa", "#38bdf8", "#34d399", "#fb923c", "#f472b6", "#facc15"];
 
   const activeCount = workflows.filter((w) => w.status === "active").length;
-  // Execution data will come from real DB once workflows are live — show 0 until then
-  const totalExecutions = 0;
-  const chartDays: { label: string; values: number[] }[] = [];
-  const mockErrors: { id: number; workflow: string; msg: string; time: string; color: string }[] = [];
+
+  // ── Real execution data ──
+  const [execStats, setExecStats] = useState<{
+    total: number;
+    chartDays: { label: string; values: number[] }[];
+    errors: { id: string; workflow: string; msg: string; time: string; color: string }[];
+    wfCounts: Record<string, number>;
+  }>({ total: 0, chartDays: [], errors: [], wfCounts: {} });
+
+  useEffect(() => {
+    const supabase = createClient();
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    supabase
+      .from("workflow_executions")
+      .select("id, workflow_id, status, started_at, error")
+      .gte("started_at", since)
+      .order("started_at", { ascending: true })
+      .then(({ data }) => {
+        if (!data) return;
+        const total = data.length;
+        const errors = data
+          .filter((e) => e.status === "failed")
+          .slice(-10)
+          .map((e, i) => ({
+            id: e.id,
+            workflow: workflows.find((w) => w.id === e.workflow_id)?.name ?? e.workflow_id.slice(0, 8),
+            msg: e.error ?? "Unknown error",
+            time: new Date(e.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            color: WF_COLORS[i % WF_COLORS.length],
+          }));
+        // Build per-day buckets for each active workflow
+        const activeWfs = workflows.filter((w) => w.status === "active");
+        const days: { label: string; values: number[] }[] = [];
+        for (let d = 13; d >= 0; d--) {
+          const date = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+          const label = date.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+          const values = activeWfs.map((wf) =>
+            data.filter((e) => e.workflow_id === wf.id && e.started_at.startsWith(date.toISOString().slice(0, 10))).length
+          );
+          days.push({ label, values });
+        }
+        const wfCounts: Record<string, number> = {};
+        data.forEach((e) => { wfCounts[e.workflow_id] = (wfCounts[e.workflow_id] ?? 0) + 1; });
+        setExecStats({ total, chartDays: days, errors, wfCounts });
+      });
+  }, [workflows]);
+
+  const totalExecutions = execStats.total;
+  const chartDays = execStats.chartDays;
+  const realErrors = execStats.errors;
 
   return (
     <div
@@ -990,7 +1036,7 @@ function WorkflowList({
             {[
               { label: "Total executions", value: totalExecutions > 0 ? totalExecutions.toLocaleString() : "—", icon: <Activity className="w-4 h-4" />, color: "#a78bfa" },
               { label: "Active workflows", value: `${activeCount} / ${workflows.length}`, icon: <Zap className="w-4 h-4" />, color: activeCount > 0 ? "#34d399" : "var(--color-text-tertiary)" },
-              { label: "Errors (7d)", value: totalExecutions > 0 ? `${mockErrors.length}` : "—", icon: <AlertCircle className="w-4 h-4" />, color: mockErrors.length > 0 ? "#fb923c" : "var(--color-text-tertiary)" },
+              { label: "Errors (7d)", value: totalExecutions > 0 ? `${realErrors.length}` : "—", icon: <AlertCircle className="w-4 h-4" />, color: realErrors.length > 0 ? "#fb923c" : "var(--color-text-tertiary)" },
             ].map((s) => (
               <div key={s.label} className="flex flex-col gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "18px 20px" }}>
                 <div className="flex items-center gap-2" style={{ color: s.color }}>
@@ -1065,31 +1111,36 @@ function WorkflowList({
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
             <p className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">Workflow status</p>
             <div className="flex flex-col gap-3">
-              {workflows.map((wf, idx) => (
+              {workflows.map((wf, idx) => {
+                const wfCount = execStats.wfCounts[wf.id] ?? 0;
+                const maxCount = Math.max(...Object.values(execStats.wfCounts), 1);
+                const barPct = (wfCount / maxCount) * 100;
+                return (
                 <div key={wf.id} className="flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: WF_COLORS[idx % WF_COLORS.length] }} />
                   <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate" style={{ width: 160 }}>{wf.name}</p>
-                  <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-hover)]">
-                    {/* bar will fill when real data exists */}
+                  <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-hover)] overflow-hidden">
+                    {wfCount > 0 && <div className="h-full rounded-full transition-all duration-500" style={{ width: `${barPct}%`, background: WF_COLORS[idx % WF_COLORS.length] }} />}
                   </div>
-                  <span className="text-[12px] text-[var(--color-text-tertiary)] flex-shrink-0" style={{ width: 60, textAlign: "right" }}>no data</span>
+                  <span className="text-[12px] text-[var(--color-text-tertiary)] flex-shrink-0" style={{ width: 60, textAlign: "right" }}>{wfCount > 0 ? `${wfCount} run${wfCount !== 1 ? "s" : ""}` : "no data"}</span>
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
                     wf.status === "active" ? "bg-[var(--color-success-soft)] text-[var(--color-success)]" : "bg-[var(--color-surface-hover)] text-[var(--color-text-tertiary)]"
                   }`}>{wf.status === "active" ? "Active" : "Draft"}</span>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Errors — only when real data exists */}
-          {mockErrors.length > 0 && (
+          {realErrors.length > 0 && (
             <div className="rounded-2xl border border-[#fb923c33] bg-[var(--color-surface)]" style={{ padding: "20px 24px" }}>
               <div className="flex items-center gap-2 mb-4">
                 <AlertCircle className="w-4 h-4 text-[#fb923c]" />
                 <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Recent errors</p>
               </div>
               <div className="flex flex-col gap-3">
-                {mockErrors.map((err) => (
+                {realErrors.map((err) => (
                   <div key={err.id} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-surface-hover)]">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: err.color }} />
                     <div className="flex-1 min-w-0">
@@ -1109,7 +1160,7 @@ function WorkflowList({
             <p className="text-[13px] text-[var(--color-text-secondary)]">
               {activeCount === 0
                 ? <><span className="font-semibold text-[var(--color-text-primary)]">No active workflows yet.</span> Activate a workflow to start seeing live execution data, errors, and trends here.</>
-                : <>{activeCount} workflow{activeCount > 1 ? "s are" : " is"} active. Execution data will appear here once runs complete.</>}
+                : <>{activeCount} workflow{activeCount > 1 ? "s are" : " is"} active.{totalExecutions > 0 ? <> <span className="font-semibold text-[var(--color-text-primary)]">{totalExecutions.toLocaleString()} total execution{totalExecutions !== 1 ? "s" : ""}</span> in the last 14 days.</> : " Execution data will appear here once runs complete."}</>}
             </p>
           </div>
 
