@@ -93,7 +93,15 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-                            className={`group flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 ${
+              onClick={(e) => {
+                // When clicking the active nav link, force navigation to the bare
+                // path (strips query params like ?wf=xxx) so overlays always close.
+                if (isActive) {
+                  e.preventDefault();
+                  router.push(item.href);
+                }
+              }}
+              className={`group flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 ${
                 isActive
                   ? "text-[var(--color-sidebar-text-active)]"
                   : "text-[var(--color-sidebar-text)] hover:bg-white/[0.06] hover:text-[var(--color-sidebar-text-active)]"

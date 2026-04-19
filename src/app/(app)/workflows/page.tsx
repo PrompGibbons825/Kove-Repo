@@ -7,6 +7,7 @@ import {
   useRef,
   type DragEvent,
   type MouseEvent as RMouseEvent,
+  Suspense,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -357,6 +358,14 @@ async function apiFetch(path: string, opts?: RequestInit) {
    ═══════════════════════════════════════════════════════ */
 
 export default function WorkflowsPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-tertiary)]" /></div>}>
+      <WorkflowsPageInner />
+    </Suspense>
+  );
+}
+
+function WorkflowsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeWfId = searchParams.get("wf");
@@ -452,7 +461,7 @@ export default function WorkflowsPage() {
     return (
       <CreateWorkflow
         onCreate={createWorkflow}
-        onCancel={() => router.push("/workflows")}
+        onCancel={() => router.replace("/workflows")}
       />
     );
   }
@@ -462,7 +471,7 @@ export default function WorkflowsPage() {
       <WorkflowBuilder
         workflow={activeWf}
         onChange={updateWorkflow}
-        onBack={() => router.push("/workflows")}
+        onBack={() => router.replace("/workflows")}
       />
     );
   }
