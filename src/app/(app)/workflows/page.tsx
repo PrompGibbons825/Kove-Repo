@@ -7,9 +7,7 @@ import {
   useRef,
   type DragEvent,
   type MouseEvent as RMouseEvent,
-  Suspense,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useLandingPageBuilder } from "@/components/landing-pages/builder-context";
 import { useWorkflowBuilder, type WorkflowNode as CtxNode } from "@/components/workflows/workflow-context";
@@ -358,20 +356,9 @@ async function apiFetch(path: string, opts?: RequestInit) {
    ═══════════════════════════════════════════════════════ */
 
 export default function WorkflowsPage() {
-  return (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-tertiary)]" /></div>}>
-      <WorkflowsPageInner />
-    </Suspense>
-  );
-}
-
-function WorkflowsPageInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const activeWfId = searchParams.get("wf");
-  const showCreate = searchParams.get("view") === "create";
-  const view: PageView = activeWfId ? "builder" : showCreate ? "create" : "list";
+  const [view, setView] = useState<PageView>("list");
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [activeWfId, setActiveWfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load from Supabase via API
@@ -382,8 +369,16 @@ function WorkflowsPageInner() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Close canvas/create overlay when user navigates away via sidebar
+  useEffect(() => {
+    const handler = () => { setView("list"); setActiveWfId(null); };
+    window.addEventListener("close-workflow-canvas", handler);
+    return () => window.removeEventListener("close-workflow-canvas", handler);
+  }, []);
+
   function openBuilder(id: string) {
-    router.push(`/workflows?wf=${id}`);
+    setActiveWfId(id);
+    setView("builder");
   }
 
   async function createWorkflow(name: string) {
@@ -393,7 +388,7 @@ function WorkflowsPageInner() {
     });
     const wf = dbToWorkflow(data.workflow);
     setWorkflows((prev) => [wf, ...prev]);
-    router.push(`/workflows?wf=${wf.id}`);
+    openBuilder(wf.id);
   }
 
   async function deleteWorkflow(id: string) {
@@ -412,7 +407,7 @@ function WorkflowsPageInner() {
     });
     const wf = dbToWorkflow(data.workflow);
     setWorkflows((prev) => [wf, ...prev]);
-    router.push(`/workflows?wf=${wf.id}`);
+    openBuilder(wf.id);
   }
 
   // Listen for template selection dispatched from AI sidebar action buttons
@@ -461,7 +456,7 @@ function WorkflowsPageInner() {
     return (
       <CreateWorkflow
         onCreate={createWorkflow}
-        onCancel={() => router.replace("/workflows")}
+        onCancel={() => setView("list")}
       />
     );
   }
@@ -471,7 +466,7 @@ function WorkflowsPageInner() {
       <WorkflowBuilder
         workflow={activeWf}
         onChange={updateWorkflow}
-        onBack={() => router.replace("/workflows")}
+        onBack={() => { setView("list"); setActiveWfId(null); }}
       />
     );
   }
@@ -479,7 +474,7 @@ function WorkflowsPageInner() {
   return (
     <WorkflowList
       workflows={workflows}
-      onNew={() => router.push("/workflows?view=create")}
+      onNew={() => setView("create")}
       onCreateDirect={createWorkflow}
       onUseTemplate={createFromTemplate}
       onOpen={openBuilder}

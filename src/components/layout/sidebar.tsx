@@ -93,13 +93,9 @@ export function Sidebar({ user, org }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={!expanded ? item.label : undefined}
-              onClick={(e) => {
-                // When clicking the active nav link, force navigation to the bare
-                // path (strips query params like ?wf=xxx) so overlays always close.
-                if (isActive) {
-                  e.preventDefault();
-                  router.push(item.href);
-                }
+              onClick={() => {
+                // Always fire close event so any open overlay (e.g. workflow canvas) closes
+                window.dispatchEvent(new Event("close-workflow-canvas"));
               }}
               className={`group flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 ${
                 isActive
