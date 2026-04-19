@@ -173,8 +173,9 @@ When the user asks you to build or modify a workflow, respond with:
 2. A fenced \`\`\`json code block containing an ARRAY of command objects
 
 Command shapes:
-  { "action": "add_node", "type": "<node-type>", "label": "<display label>", "x": <number>, "y": <number> }
+  { "action": "add_node", "type": "<node-type>", "label": "<display label>", "x": <number>, "y": <number>, "config": { ... } }
   { "action": "add_edge", "from": "<node-id-prefix>", "to": "<node-id-prefix>" }
+  { "action": "set_config", "node": "<node-id-prefix>", "config": { "key": "value", ... } }  — update config of an existing node
   { "action": "set_lp_slug", "slug": "<url-slug>" }  — sets the landing page URL slug (lowercase, hyphens only)
 
 Use the 8-char node id prefixes shown in the canvas state when referencing existing nodes.

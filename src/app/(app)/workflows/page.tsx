@@ -1310,6 +1310,16 @@ function WorkflowBuilder({
         if (fromNode && toNode && !updated.edges.find((e) => e.from === fromNode.id && e.to === toNode.id)) {
           updated = { ...updated, edges: [...updated.edges, { id: crypto.randomUUID(), from: fromNode.id, to: toNode.id }], updatedAt: Date.now() };
         }
+      } else if (cmd.type === "set_config") {
+        const p = cmd.payload as { node: string; config: Record<string, unknown> };
+        const target = updated.nodes.find((n) => n.id.startsWith(p.node));
+        if (target) {
+          updated = {
+            ...updated,
+            nodes: updated.nodes.map((n) => n.id === target.id ? { ...n, config: { ...(n.config ?? {}), ...p.config } } : n),
+            updatedAt: Date.now(),
+          };
+        }
       }
     }
     onChange(updated);

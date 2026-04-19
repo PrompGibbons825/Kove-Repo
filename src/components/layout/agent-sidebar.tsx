@@ -297,7 +297,12 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
               `Current workflow: "${wfBuilder.state.workflowName}" (id: ${wfBuilder.state.workflowId})\n` +
               `Nodes (${wfBuilder.state.nodes.length}):\n` +
               (wfBuilder.state.nodes.length
-                ? wfBuilder.state.nodes.map((n) => `  - [${n.id.slice(0, 8)}] ${n.label} (type: ${n.type})`).join("\n")
+                ? wfBuilder.state.nodes.map((n) => {
+                    const cfg = n.config && Object.keys(n.config).length > 0
+                      ? ` config: ${JSON.stringify(n.config)}`
+                      : "";
+                    return `  - [${n.id.slice(0, 8)}] ${n.label} (type: ${n.type})${cfg}`;
+                  }).join("\n")
                 : "  (empty canvas)") +
               `\nEdges (${wfBuilder.state.edges.length}):\n` +
               (wfBuilder.state.edges.length
@@ -343,14 +348,21 @@ export function AgentSidebar({ user, org, width, onWidthChange, onClose, contain
             const cmds = Array.isArray(parsed) ? parsed : [parsed];
             for (const cmd of cmds) {
               if (cmd.action === "add_node" && cmd.type && cmd.label) {
-                wfBuilder.addNode({
+                const newNode = wfBuilder.addNode({
                   type: cmd.type,
                   label: cmd.label,
                   x: cmd.x ?? 100 + wfBuilder.state.nodes.length * 220,
                   y: cmd.y ?? 200,
+                  config: cmd.config,
                 });
+                // If config was provided with add_node, also issue a set_config command
+                if (cmd.config && Object.keys(cmd.config).length > 0) {
+                  wfBuilder.setConfig(newNode.id, cmd.config);
+                }
               } else if (cmd.action === "add_edge" && cmd.from && cmd.to) {
                 wfBuilder.addEdge(cmd.from, cmd.to);
+              } else if (cmd.action === "set_config" && cmd.node && cmd.config) {
+                wfBuilder.setConfig(cmd.node, cmd.config);
               } else if (cmd.action === "set_lp_slug" && cmd.slug) {
                 lpBuilder.setSlug(String(cmd.slug).toLowerCase().replace(/[^a-z0-9-]/g, ""));
               }

@@ -10,6 +10,7 @@ export interface WorkflowNode {
   label: string;
   x: number;
   y: number;
+  config?: Record<string, unknown>;
 }
 
 export interface WorkflowEdge {
@@ -35,6 +36,8 @@ interface WorkflowContextValue {
   /** AI commands update these */
   addNode: (node: Omit<WorkflowNode, "id">) => WorkflowNode;
   addEdge: (from: string, to: string) => WorkflowEdge | null;
+  /** Set config on a node (by full id or 8-char prefix) */
+  setConfig: (nodeIdOrPrefix: string, config: Record<string, unknown>) => void;
   /** Builder syncs its state back here */
   syncState: (nodes: WorkflowNode[], edges: WorkflowEdge[]) => void;
   /** Pending AI-issued commands the builder should consume */
@@ -44,7 +47,7 @@ interface WorkflowContextValue {
 
 export interface WorkflowCommand {
   id: string;
-  type: "add_node" | "add_edge" | "remove_node" | "remove_edge" | "set_name";
+  type: "add_node" | "add_edge" | "remove_node" | "remove_edge" | "set_name" | "set_config";
   payload: Record<string, unknown>;
 }
 
@@ -96,8 +99,13 @@ export function WorkflowBuilderProvider({ children }: { children: ReactNode }) {
 
   const clearCommands = useCallback(() => setPendingCommands([]), []);
 
+  const setConfig = useCallback((nodeIdOrPrefix: string, config: Record<string, unknown>) => {
+    const cmd: WorkflowCommand = { id: crypto.randomUUID(), type: "set_config", payload: { node: nodeIdOrPrefix, config } };
+    setPendingCommands((prev) => [...prev, cmd]);
+  }, []);
+
   return (
-    <WorkflowContext.Provider value={{ state, openBuilder, closeBuilder, syncState, addNode, addEdge, pendingCommands, clearCommands }}>
+    <WorkflowContext.Provider value={{ state, openBuilder, closeBuilder, syncState, addNode, addEdge, setConfig, pendingCommands, clearCommands }}>
       {children}
     </WorkflowContext.Provider>
   );
