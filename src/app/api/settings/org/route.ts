@@ -17,6 +17,8 @@ export async function GET() {
   if (!org) return NextResponse.json({ error: "Org not found" }, { status: 404 });
 
   return NextResponse.json({
+    name: org.name,
+    vertical: org.vertical,
     source_options: org.source_options ?? [],
     pipeline_options: org.pipeline_options ?? [],
     custom_field_schema: org.custom_field_schema ?? [],
@@ -47,6 +49,8 @@ export async function PATCH(request: Request) {
   const body = await request.json();
   const update: Record<string, unknown> = {};
 
+  if (body.name !== undefined) update.name = body.name;
+  if (body.vertical !== undefined) update.vertical = body.vertical;
   if (body.source_options !== undefined) update.source_options = body.source_options;
   if (body.pipeline_options !== undefined) update.pipeline_options = body.pipeline_options;
   if (body.custom_field_schema !== undefined) update.custom_field_schema = body.custom_field_schema;

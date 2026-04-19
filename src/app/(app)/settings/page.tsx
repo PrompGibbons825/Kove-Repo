@@ -27,6 +27,8 @@ const FIELD_TYPES: { value: CustomFieldType; label: string }[] = [
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("sources");
+  const [orgName, setOrgName] = useState("");
+  const [orgVertical, setOrgVertical] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [pipelines, setPipelines] = useState<string[]>([]);
   const [fields, setFields] = useState<CustomFieldDef[]>([]);
@@ -84,6 +86,8 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/settings/org");
       const data = await res.json();
+      setOrgName(data.name ?? "");
+      setOrgVertical(data.vertical ?? "");
       setSources(data.source_options ?? []);
       setPipelines(data.pipeline_options ?? []);
       setFields(data.custom_field_schema ?? []);
@@ -223,6 +227,60 @@ export default function SettingsPage() {
 
       {/* Content */}
       <div className="flex-1" style={{ maxWidth: 640 }}>
+        {/* General tab */}
+        {tab === "general" && (
+          <div>
+            <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">General</h2>
+            <p className="text-[13px] text-[var(--color-text-tertiary)]" style={{ marginTop: 4, marginBottom: 24 }}>
+              Basic information about your organization. This is used to personalize the AI agent.
+            </p>
+            <div className="space-y-5" style={{ maxWidth: 480 }}>
+              <div>
+                <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 6 }}>Company Name</label>
+                <input
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Your company name"
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors"
+                  style={{ padding: "10px 12px" }}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider block" style={{ marginBottom: 6 }}>Industry</label>
+                <select
+                  value={orgVertical}
+                  onChange={(e) => setOrgVertical(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] text-[13px] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)]/40 transition-colors appearance-none cursor-pointer"
+                  style={{ padding: "10px 12px" }}
+                >
+                  <option value="" disabled>Select your industry</option>
+                  <option value="solar">Solar</option>
+                  <option value="roofing">Roofing</option>
+                  <option value="construction">Construction</option>
+                  <option value="hvac">HVAC</option>
+                  <option value="pest_control">Pest Control</option>
+                  <option value="landscaping">Landscaping</option>
+                  <option value="real_estate">Real Estate</option>
+                  <option value="insurance">Insurance</option>
+                  <option value="financial_services">Financial Services</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="saas">SaaS / Software</option>
+                  <option value="marketing_agency">Marketing Agency</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <button
+                onClick={() => save({ name: orgName.trim(), vertical: orgVertical })}
+                disabled={saving || !orgName.trim() || !orgVertical}
+                className="rounded-lg bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-hover)] disabled:opacity-30 transition-colors cursor-pointer"
+                style={{ padding: "9px 24px" }}
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Sources tab */}
         {tab === "sources" && (
           <div>

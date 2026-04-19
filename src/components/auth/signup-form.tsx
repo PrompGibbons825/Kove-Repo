@@ -8,7 +8,7 @@ export function SignupForm() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [orgName, setOrgName] = useState("");
-  const [vertical, setVertical] = useState("solar");
+  const [vertical, setVertical] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -107,7 +107,7 @@ export function SignupForm() {
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               required
-              placeholder="Acme Solar"
+              placeholder="Acme Corp"
               className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] transition-all focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
             />
           </div>
@@ -123,7 +123,9 @@ export function SignupForm() {
             value={vertical}
             onChange={(e) => setVertical(e.target.value)}
             className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] transition-all focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 appearance-none"
+            required
           >
+            <option value="" disabled>Select your industry</option>
             <option value="solar">Solar</option>
             <option value="roofing">Roofing</option>
             <option value="construction">Construction</option>
