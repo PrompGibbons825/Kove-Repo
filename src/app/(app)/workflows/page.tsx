@@ -8,6 +8,7 @@ import {
   type DragEvent,
   type MouseEvent as RMouseEvent,
 } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useLandingPageBuilder } from "@/components/landing-pages/builder-context";
 import { useWorkflowBuilder, type WorkflowNode as CtxNode } from "@/components/workflows/workflow-context";
@@ -356,9 +357,12 @@ async function apiFetch(path: string, opts?: RequestInit) {
    ═══════════════════════════════════════════════════════ */
 
 export default function WorkflowsPage() {
-  const [view, setView] = useState<PageView>("list");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeWfId = searchParams.get("wf");
+  const showCreate = searchParams.get("view") === "create";
+  const view: PageView = activeWfId ? "builder" : showCreate ? "create" : "list";
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [activeWfId, setActiveWfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load from Supabase via API
@@ -370,8 +374,7 @@ export default function WorkflowsPage() {
   }, []);
 
   function openBuilder(id: string) {
-    setActiveWfId(id);
-    setView("builder");
+    router.push(`/workflows?wf=${id}`);
   }
 
   async function createWorkflow(name: string) {
@@ -381,7 +384,7 @@ export default function WorkflowsPage() {
     });
     const wf = dbToWorkflow(data.workflow);
     setWorkflows((prev) => [wf, ...prev]);
-    openBuilder(wf.id);
+    router.push(`/workflows?wf=${wf.id}`);
   }
 
   async function deleteWorkflow(id: string) {
@@ -400,7 +403,7 @@ export default function WorkflowsPage() {
     });
     const wf = dbToWorkflow(data.workflow);
     setWorkflows((prev) => [wf, ...prev]);
-    openBuilder(wf.id);
+    router.push(`/workflows?wf=${wf.id}`);
   }
 
   // Listen for template selection dispatched from AI sidebar action buttons
@@ -413,16 +416,6 @@ export default function WorkflowsPage() {
     window.addEventListener("workflow-use-template", handler);
     return () => window.removeEventListener("workflow-use-template", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Clicking the Workflows sidebar link while already on this page closes the canvas
-  useEffect(() => {
-    function handler(e: Event) {
-      const href = (e as CustomEvent).detail?.href as string | undefined;
-      if (href === "/workflows") { setView("list"); setActiveWfId(null); }
-    }
-    window.addEventListener("sidebar-nav-same-route", handler);
-    return () => window.removeEventListener("sidebar-nav-same-route", handler);
   }, []);
 
   async function updateWorkflow(updated: Workflow) {
@@ -459,7 +452,7 @@ export default function WorkflowsPage() {
     return (
       <CreateWorkflow
         onCreate={createWorkflow}
-        onCancel={() => setView("list")}
+        onCancel={() => router.push("/workflows")}
       />
     );
   }
@@ -469,10 +462,7 @@ export default function WorkflowsPage() {
       <WorkflowBuilder
         workflow={activeWf}
         onChange={updateWorkflow}
-        onBack={() => {
-          setView("list");
-          setActiveWfId(null);
-        }}
+        onBack={() => router.push("/workflows")}
       />
     );
   }
@@ -480,7 +470,7 @@ export default function WorkflowsPage() {
   return (
     <WorkflowList
       workflows={workflows}
-      onNew={() => setView("create")}
+      onNew={() => router.push("/workflows?view=create")}
       onCreateDirect={createWorkflow}
       onUseTemplate={createFromTemplate}
       onOpen={openBuilder}
