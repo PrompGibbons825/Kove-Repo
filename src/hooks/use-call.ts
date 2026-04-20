@@ -30,6 +30,7 @@ export function useCall(options?: CallOptions) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const optionsRef = useRef(options);
   // Guard: prevent onCallEnded from firing more than once per call
   const endedRef = useRef(false);
@@ -56,6 +57,11 @@ export function useCall(options?: CallOptions) {
     if (audioRef.current) {
       audioRef.current.srcObject = null;
     }
+    // Stop local microphone tracks
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
     callRef.current = null;
     if (clientRef.current) {
       try { clientRef.current.disconnect(); } catch {}
@@ -68,6 +74,23 @@ export function useCall(options?: CallOptions) {
   const startCall = useCallback(async (destinationNumber: string) => {
     if (callState !== "idle") return;
     setCallState("connecting");
+
+    // Pre-create audio element in the user-gesture context so autoplay isn't blocked
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.autoplay = true;
+    }
+
+    // Pre-request microphone in the user-gesture context
+    let localStream: MediaStream | null = null;
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = localStream;
+    } catch (micErr) {
+      console.error("[useCall] Microphone permission denied:", micErr);
+      setCallState("idle");
+      return;
+    }
 
     try {
       // Fetch WebRTC token
@@ -97,6 +120,7 @@ export function useCall(options?: CallOptions) {
           callerNumber: cn ?? undefined,
           audio: true,
           video: false,
+          localStream: localStream ?? undefined,
         });
         callRef.current = call;
         setCallState("ringing");
@@ -120,11 +144,10 @@ export function useCall(options?: CallOptions) {
           const stream = notification.call.remoteStream ?? notification.call.options?.remoteStream;
           if (stream) {
             setRemoteStream(stream);
-            if (!audioRef.current) {
-              audioRef.current = new Audio();
-              audioRef.current.autoplay = true;
+            if (audioRef.current) {
+              audioRef.current.srcObject = stream;
+              audioRef.current.play().catch(() => {});
             }
-            audioRef.current.srcObject = stream;
           }
 
           optionsRef.current?.onCallStarted?.();
